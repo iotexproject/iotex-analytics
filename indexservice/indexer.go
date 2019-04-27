@@ -20,13 +20,13 @@ import (
 )
 
 type (
-	// BlockByIndex defines the base schema of "index to block" table
+	// BlockByAction defines the base schema of "action to block" table
 	BlockByAction struct {
 		ActionHash  []byte
 		ReceiptHash []byte
 		BlockHash   []byte
 	}
-	// IndexHistory defines the schema of "index history" table
+	// ActionHistory defines the schema of "action history" table
 	ActionHistory struct {
 		UserAddress string
 		ActionHash  string
@@ -62,13 +62,13 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 			}
 			// put new action for sender
 			if err := idx.UpdateActionHistory(tx, callerAddr.String(), selp.Hash()); err != nil {
-				return errors.Wrapf(err, "failed to update action to action history table")
+				return errors.Wrap(err, "failed to update action to action history table")
 			}
 			// put new transfer for recipient
 			dst, ok := selp.Destination()
 			if ok {
 				if err := idx.UpdateActionHistory(tx, dst, selp.Hash()); err != nil {
-					return errors.Wrapf(err, "failed to update action to action history table")
+					return errors.Wrap(err, "failed to update action to action history table")
 				}
 			}
 			actionToReceipt[selp.Hash()] = hash.ZeroHash256
@@ -83,7 +83,7 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 			actionToReceipt[receipt.ActionHash] = receipt.Hash()
 		}
 		if err := idx.UpdateBlockByAction(tx, actionToReceipt, blk.HashBlock()); err != nil {
-			return errors.Wrapf(err, "failed to update action index to block")
+			return errors.Wrap(err, "failed to update action index to block")
 		}
 		return nil
 	}); err != nil {
@@ -92,7 +92,7 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 	return nil
 }
 
-// UpdateBlockByIndex maps index hash to block hash
+// UpdateBlockByAction maps action hash/receipt hash to block hash
 func (idx *Indexer) UpdateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash256]hash.Hash256,
 	blockHash hash.Hash256) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,receipt_hash,block_hash) VALUES (?, ?, ?)",
@@ -105,7 +105,7 @@ func (idx *Indexer) UpdateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Has
 	return nil
 }
 
-// UpdateActionHistory stores index information into index history table
+// UpdateActionHistory stores action information into action history table
 func (idx *Indexer) UpdateActionHistory(tx *sql.Tx, userAddr string,
 	actionHash hash.Hash256) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (user_address,action_hash) VALUES (?, ?)",
@@ -116,86 +116,26 @@ func (idx *Indexer) UpdateActionHistory(tx *sql.Tx, userAddr string,
 	return nil
 }
 
-// GetIndexHistory gets index history
+// GetActionHistory gets action history
 func (idx *Indexer) GetActionHistory(userAddr string) ([]hash.Hash256, error) {
+	db := idx.store.GetDB()
+
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE user_address=?",
 		idx.getActionHistoryTableName())
-	indexHashes, err := idx.getActionHistory(getQuery, userAddr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get index history")
-	}
-	return indexHashes, nil
-}
-
-// GetBlockByAction returns block hash by action hash
-func (idx *Indexer) GetBlockByAction(actionHash hash.Hash256) (hash.Hash256, error) {
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
-		idx.getBlockByActionTableName())
-	blkHash, err := idx.blockByIndex(getQuery, actionHash)
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrapf(err, "failed to get block hash by action hash")
-	}
-	return blkHash, nil
-}
-
-// GetBlockByReceipt returns block hash by receipt hash
-func (idx *Indexer) GetBlockByReceipt(receiptHash hash.Hash256) (hash.Hash256, error) {
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE receipt_hash=?",
-		idx.getBlockByActionTableName())
-	blkHash, err := idx.blockByIndex(getQuery, receiptHash)
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrapf(err, "failed to get block hash by receipt hash")
-	}
-	return blkHash, nil
-}
-
-// blockByIndex returns block by index hash
-func (idx *Indexer) blockByIndex(getQuery string, indexHash hash.Hash256) (hash.Hash256, error) {
-	db := idx.store.GetDB()
-
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return hash.ZeroHash256, errors.Wrapf(err, "failed to prepare get query")
-	}
-
-	rows, err := stmt.Query(hex.EncodeToString(indexHash[:]))
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrapf(err, "failed to execute get query")
-	}
-
-	var blockByAction BlockByAction
-	parsedRows, err := s.ParseSQLRows(rows, &blockByAction)
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrapf(err, "failed to parse results")
-	}
-
-	if len(parsedRows) == 0 {
-		return hash.ZeroHash256, ErrNotExist
-	}
-
-	var hash hash.Hash256
-	copy(hash[:], parsedRows[0].(*BlockByAction).BlockHash)
-	return hash, nil
-}
-
-// getIndexHistory gets index history
-func (idx *Indexer) getActionHistory(getQuery string, userAddr string) ([]hash.Hash256, error) {
-	db := idx.store.GetDB()
-
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to prepare get query")
+		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
 	rows, err := stmt.Query(userAddr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to execute get query")
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var actionHistory ActionHistory
 	parsedRows, err := s.ParseSQLRows(rows, &actionHistory)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse results")
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 
 	actionHashes := make([]hash.Hash256, 0, len(parsedRows))
@@ -207,27 +147,70 @@ func (idx *Indexer) getActionHistory(getQuery string, userAddr string) ([]hash.H
 	return actionHashes, nil
 }
 
-func (idx *Indexer) getBlockByActionTableName() string {
-	return fmt.Sprintf("block_by_action")
+// GetBlockByAction returns block hash by action hash
+func (idx *Indexer) GetBlockByAction(actionHash hash.Hash256) (hash.Hash256, error) {
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
+		idx.getBlockByActionTableName())
+	return idx.blockByIndex(getQuery, actionHash)
 }
 
-func (idx *Indexer) getActionHistoryTableName() string {
-	return fmt.Sprintf("action_history")
+// GetBlockByReceipt returns block hash by receipt hash
+func (idx *Indexer) GetBlockByReceipt(receiptHash hash.Hash256) (hash.Hash256, error) {
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE receipt_hash=?",
+		idx.getBlockByActionTableName())
+	return idx.blockByIndex(getQuery, receiptHash)
 }
 
 // CreateTablesIfNotExist creates tables in local database
 func (idx *Indexer) CreateTablesIfNotExist() error {
-	// create block by index tables
+	// create block by action tables
 	if _, err := idx.store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([action_hash] BLOB(32) NOT NULL, [receipt_hash] BLOB(32) NOT NULL, [block_hash] BLOB(32) NOT NULL)", idx.getBlockByActionTableName())); err != nil {
 		return err
 	}
 
-	// create index history tables
+	// create action history tables
 	if _, err := idx.store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([user_address] TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)", idx.getActionHistoryTableName())); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// blockByIndex returns block by index hash
+func (idx *Indexer) blockByIndex(getQuery string, indexHash hash.Hash256) (hash.Hash256, error) {
+	db := idx.store.GetDB()
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return hash.ZeroHash256, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(hex.EncodeToString(indexHash[:]))
+	if err != nil {
+		return hash.ZeroHash256, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var blockByAction BlockByAction
+	parsedRows, err := s.ParseSQLRows(rows, &blockByAction)
+	if err != nil {
+		return hash.ZeroHash256, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return hash.ZeroHash256, ErrNotExist
+	}
+
+	var hash hash.Hash256
+	copy(hash[:], parsedRows[0].(*BlockByAction).BlockHash)
+	return hash, nil
+}
+
+func (idx *Indexer) getBlockByActionTableName() string {
+	return fmt.Sprintf("block_by_action")
+}
+
+func (idx *Indexer) getActionHistoryTableName() string {
+	return fmt.Sprintf("action_history")
 }
