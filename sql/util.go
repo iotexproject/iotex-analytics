@@ -31,7 +31,6 @@ func ParseSQLRows(rows *sql.Rows, schema interface{}) ([]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		parsedRows = append(parsedRows, newSchema)
 	}
 
