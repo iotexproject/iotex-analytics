@@ -18,8 +18,10 @@ import (
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-core/crypto"
 	"github.com/iotexproject/iotex-core/pkg/hash"
 	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-core/state"
 	"github.com/pkg/errors"
 
 	s "github.com/iotexproject/iotex-api/sql"
@@ -46,13 +48,28 @@ type (
 		EpochReward     string
 		FoundationBonus string
 	}
+
+	// ProductivityHistory defines the schema of "productivity history" table
+	ProductivityHistory struct {
+		EpochNumber      string
+		BlockHeight      string
+		Producer         string
+		ExpectedProducer string
+	}
+
+	// BlockProducersHistory defines the schema of "block producers history" table
+	BlockProducersHistory struct {
+		EpochNumber       string
+		BlockProducerList []byte
+	}
 )
 
 // Indexer handles the index build for blocks
 type Indexer struct {
-	store        s.Store
-	numDelegates uint64
-	numSubEpochs uint64
+	store                 s.Store
+	numDelegates          uint64
+	numCandidateDelegates uint64
+	numSubEpochs          uint64
 }
 
 // RewardInfo indicates the amount of different reward types
@@ -101,6 +118,17 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 			if _, ok := selp.Action().(*action.GrantReward); ok {
 				grantRewardActs[selp.Hash()] = true
 			}
+
+			if putPollResult, ok := selp.Action().(*action.PutPollResult); ok {
+				epochNumber := idx.getEpochNum(putPollResult.Height())
+				candidateList := putPollResult.Candidates()
+				if len(candidateList) > int(idx.numCandidateDelegates) {
+					candidateList = candidateList[:idx.numCandidateDelegates]
+				}
+				if err := idx.UpdateBlockProducersHistory(tx, epochNumber, candidateList); err != nil {
+					return errors.Wrap(err, "failed to update epoch number to block producers history table")
+				}
+			}
 		}
 
 		epochNum := idx.getEpochNum(blk.Height())
@@ -127,6 +155,11 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 		if err := idx.UpdateBlockByAction(tx, actionToReceipt, blk.HashBlock()); err != nil {
 			return errors.Wrap(err, "failed to update action index to block")
 		}
+
+		if err := idx.UpdateProductivityHistory(tx, epochNum, blk.Height(), blk.ProducerAddress()); err != nil {
+			return errors.Wrapf(err, "failed to update epoch number to productivity history table")
+		}
+
 		return nil
 	}); err != nil {
 		return err
@@ -170,6 +203,49 @@ func (idx *Indexer) UpdateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoM
 		if _, err := tx.Exec(insertQuery, epochNumber, rewardAddress, blockReward, epochReward, foundationBonus); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// UpdateBlockProducersHistory stores block producers information into block producers history table
+func (idx *Indexer) UpdateBlockProducersHistory(tx *sql.Tx, epochNum uint64, blockProducerList state.CandidateList) error {
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number, block_producer_list) VALUES (?, ?)",
+		idx.getBlockProducersHistoryTableName())
+	epochNumber := strconv.Itoa(int(epochNum))
+	blockProducers, err := blockProducerList.Serialize()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(insertQuery, epochNumber, blockProducers); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateProductivityHistory stores block producers' productivity information into productivity history table
+func (idx *Indexer) UpdateProductivityHistory(tx *sql.Tx, epochNum uint64, blockHeight uint64, blockProducer string) error {
+	blockProducerList, err := idx.getBlockProducersHistory(epochNum)
+	if err != nil {
+		return err
+	}
+	blockProducerAddrs := make([]string, 0)
+	for _, delegate := range blockProducerList {
+		blockProducerAddrs = append(blockProducerAddrs, delegate.Address)
+	}
+	crypto.SortCandidates(blockProducerAddrs, epochNum, crypto.CryptoSeed)
+	activeProducers := blockProducerAddrs
+	if len(activeProducers) > int(idx.numDelegates) {
+		activeProducers = activeProducers[:idx.numDelegates]
+	}
+	expectedProducer := activeProducers[int(blockHeight)%len(activeProducers)]
+
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number, block_height, producer, expected_producer) "+
+		"VALUES (?, ?, ?, ?)", idx.getProductivityHistoryTableName())
+	epochNumber := strconv.Itoa(int(epochNum))
+	height := strconv.Itoa(int(blockHeight))
+
+	if _, err := tx.Exec(insertQuery, epochNumber, height, blockProducer, expectedProducer); err != nil {
+		return err
 	}
 	return nil
 }
@@ -233,13 +309,13 @@ func (idx *Indexer) GetRewardHistory(epochNumber uint64, rewardAddress string) (
 	epochNumStr := strconv.Itoa(int(epochNumber))
 	rows, err := stmt.Query(epochNumStr, rewardAddress)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to execute get query")
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var rewardHistory RewardHistory
 	parsedRows, err := s.ParseSQLRows(rows, &rewardHistory)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse results")
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 
 	if len(parsedRows) == 0 {
@@ -263,6 +339,46 @@ func (idx *Indexer) GetRewardHistory(epochNumber uint64, rewardAddress string) (
 	return rewardInfo, nil
 }
 
+// GetBlockProducersHistory returns block producers information by epoch number
+func (idx *Indexer) GetBlockProducersHistory(epochNumber uint64) (state.CandidateList, error) {
+	return idx.getBlockProducersHistory(epochNumber)
+}
+
+// GetProductivityHistory returns productivity information by epoch number and user address
+func (idx *Indexer) GetProductivityHistory(epochNumber uint64, address string) (uint64, uint64, error) {
+	db := idx.store.GetDB()
+
+	epochNumStr := strconv.Itoa(int(epochNumber))
+
+	getProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND producer=?",
+		idx.getProductivityHistoryTableName())
+	stmt, err := db.Prepare(getProductionQuery)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	var productions uint64
+	err = stmt.QueryRow(epochNumStr, address).Scan(&productions)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	getExpectedProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND expected_producer=?",
+		idx.getProductivityHistoryTableName())
+	stmt, err = db.Prepare(getExpectedProductionQuery)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	var expectedProductions uint64
+	err = stmt.QueryRow(epochNumStr, address).Scan(&expectedProductions)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	return productions, expectedProductions, nil
+}
+
 // CreateTablesIfNotExist creates tables in local database
 func (idx *Indexer) CreateTablesIfNotExist() error {
 	// create block by action table
@@ -284,6 +400,20 @@ func (idx *Indexer) CreateTablesIfNotExist() error {
 		return err
 	}
 
+	// create productivity history table
+	if _, err := idx.store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
+		"([epoch_number] TEXT NOT NULL, [block_height] TEXT NOT NULL, [producer] TEXT NOT NULL, "+
+		"[expected_producer] TEXT NOT NULL)",
+		idx.getProductivityHistoryTableName())); err != nil {
+		return err
+	}
+
+	// create block producers history table
+	if _, err := idx.store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
+		"([epoch_number] TEXT NOT NULL, [block_producer_list] BLOB(32) NOT NULL)",
+		idx.getBlockProducersHistoryTableName())); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -316,16 +446,63 @@ func (idx *Indexer) blockByIndex(getQuery string, indexHash hash.Hash256) (hash.
 	return hash, nil
 }
 
+func (idx *Indexer) getBlockProducersHistory(epochNumber uint64) (state.CandidateList, error) {
+	db := idx.store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=?",
+		idx.getBlockProducersHistoryTableName())
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	epochNumStr := strconv.Itoa(int(epochNumber))
+	rows, err := stmt.Query(epochNumStr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to execute get query")
+	}
+
+	var blockProducersHistory BlockProducersHistory
+	parsedRows, err := s.ParseSQLRows(rows, &blockProducersHistory)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, ErrNotExist
+	}
+
+	if len(parsedRows) > 1 {
+		return nil, errors.New("Only one row is expected")
+	}
+
+	blockProducers := parsedRows[0].(*BlockProducersHistory)
+	var blockProducerList state.CandidateList
+	if err := blockProducerList.Deserialize(blockProducers.BlockProducerList); err != nil {
+		return nil, errors.Wrap(err, "failed to deserialize block producer list")
+	}
+
+	return blockProducerList, nil
+}
+
 func (idx *Indexer) getBlockByActionTableName() string {
-	return fmt.Sprintf("block_by_action")
+	return fmt.Sprint("block_by_action")
 }
 
 func (idx *Indexer) getActionHistoryTableName() string {
-	return fmt.Sprintf("action_history")
+	return fmt.Sprint("action_history")
 }
 
 func (idx *Indexer) getRewardHistoryTableName() string {
-	return fmt.Sprintf("reward_history")
+	return fmt.Sprint("reward_history")
+}
+
+func (idx *Indexer) getProductivityHistoryTableName() string {
+	return fmt.Sprint("productivity_history")
+}
+
+func (idx *Indexer) getBlockProducersHistoryTableName() string {
+	return fmt.Sprint("block_producers_history")
 }
 
 func (idx *Indexer) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string]*RewardInfo, error) {
