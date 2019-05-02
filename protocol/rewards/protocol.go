@@ -25,8 +25,12 @@ import (
 	s "github.com/iotexproject/iotex-api/sql"
 )
 
-// ProtocolID is the ID of protocol
-const ProtocolID = "rewards"
+const (
+	// ProtocolID is the ID of protocol
+	ProtocolID = "rewards"
+	// RewardHistoryTableName is the table name of reward history
+	RewardHistoryTableName = "reward_history"
+)
 
 type (
 	// RewardHistory defines the schema of "reward history" table
@@ -63,7 +67,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([epoch_number] TEXT NOT NULL, [reward_address] TEXT NOT NULL, [block_reward] TEXT NOT NULL, "+
-		"[epoch_reward] TEXT NOT NULL, [foundation_bonus] TEXT NOT NULL)", p.getRewardHistoryTableName())); err != nil {
+		"[epoch_reward] TEXT NOT NULL, [foundation_bonus] TEXT NOT NULL)", RewardHistoryTableName)); err != nil {
 		return err
 	}
 	return nil
@@ -96,16 +100,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// ReadTable reads indices in the table
-func (p *Protocol) ReadTable(context.Context, []byte, ...[]byte) ([]byte, error) {
-	return nil, protocol.ErrUnimplemented
-}
-
 // updateRewardHistory stores reward information into reward history table
 func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoMap map[string]*RewardInfo) error {
 	for rewardAddress, rewardDelta := range rewardInfoMap {
 		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number,reward_address,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, ?)", p.getRewardHistoryTableName())
+			"foundation_bonus) VALUES (?, ?, ?, ?, ?)", RewardHistoryTableName)
 		epochNumber := strconv.Itoa(int(epochNum))
 		blockReward := rewardDelta.BlockReward.String()
 		epochReward := rewardDelta.EpochReward.String()
@@ -122,7 +121,7 @@ func (p *Protocol) GetRewardHistory(epochNumber uint64, rewardAddress string) (*
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND reward_address=?",
-		p.getRewardHistoryTableName())
+		RewardHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -151,9 +150,18 @@ func (p *Protocol) GetRewardHistory(epochNumber uint64, rewardAddress string) (*
 	}
 	for _, parsedRow := range parsedRows {
 		rewards := parsedRow.(*RewardHistory)
-		blockReward, _ := big.NewInt(0).SetString(rewards.BlockReward, 10)
-		epochReward, _ := big.NewInt(0).SetString(rewards.EpochReward, 10)
-		foundationBonus, _ := big.NewInt(0).SetString(rewards.FoundationBonus, 10)
+		blockReward, ok := big.NewInt(0).SetString(rewards.BlockReward, 10)
+		if !ok {
+			return nil, errors.New("failed to convert block reward from string to big int")
+		}
+		epochReward, ok := big.NewInt(0).SetString(rewards.EpochReward, 10)
+		if !ok {
+			return nil, errors.New("failed to convert epoch reward from string to big int")
+		}
+		foundationBonus, ok := big.NewInt(0).SetString(rewards.FoundationBonus, 10)
+		if !ok {
+			return nil, errors.New("failed to convert foundation bonus from string to big int")
+		}
 		rewardInfo.BlockReward.Add(rewardInfo.BlockReward, blockReward)
 		rewardInfo.EpochReward.Add(rewardInfo.EpochReward, epochReward)
 		rewardInfo.FoundationBonus.Add(rewardInfo.FoundationBonus, foundationBonus)
@@ -194,8 +202,4 @@ func (p *Protocol) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string
 		}
 	}
 	return rewardInfoMap, nil
-}
-
-func (p *Protocol) getRewardHistoryTableName() string {
-	return fmt.Sprint("reward_history")
 }

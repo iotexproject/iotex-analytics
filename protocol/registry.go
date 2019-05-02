@@ -9,8 +9,8 @@ package protocol
 import (
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/pkg/errors"
 )
 
 // Registry is the hub of all protocols deployed on the chain

@@ -27,7 +27,6 @@ var (
 type Protocol interface {
 	BlockHandler
 	CreateTables(context.Context) error
-	ReadTable(context.Context, []byte, ...[]byte) ([]byte, error)
 }
 
 // BlockHandler ishte interface of handling block

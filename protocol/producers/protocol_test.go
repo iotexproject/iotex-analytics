@@ -28,11 +28,9 @@ func TestProtocol(t *testing.T) {
 	testutil.CleanupPath(t, testPath)
 
 	store := s.NewSQLite3(cfg.DB.SQLITE3)
-	err := store.Start(ctx)
-	require.NoError(err)
+	require.NoError(store.Start(ctx))
 	defer func() {
-		err = store.Stop(ctx)
-		require.NoError(err)
+		require.NoError(store.Stop(ctx))
 		testutil.CleanupPath(t, testPath)
 	}()
 

@@ -19,7 +19,7 @@ import (
 
 // Indexer handles the index build for blocks
 type Indexer struct {
-	store     s.Store
+	store    s.Store
 	registry *protocol.Registry
 }
 

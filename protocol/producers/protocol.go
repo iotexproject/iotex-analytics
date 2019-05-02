@@ -22,8 +22,14 @@ import (
 	s "github.com/iotexproject/iotex-api/sql"
 )
 
-// ProtocolID is the ID of protocol
-const ProtocolID = "producers"
+const (
+	// ProtocolID is the ID of protocol
+	ProtocolID = "producers"
+	// ProductivityHistoryTableName is the table name of productivity history
+	ProductivityHistoryTableName = "productivity_history"
+	// BlockProducersHistoryTableName is the table name of block producers history
+	BlockProducersHistoryTableName = "block_producers_history"
+)
 
 type (
 	// ProductivityHistory defines the schema of "productivity history" table
@@ -65,14 +71,14 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([epoch_number] TEXT NOT NULL, [block_height] TEXT NOT NULL, [producer] TEXT NOT NULL, "+
 		"[expected_producer] TEXT NOT NULL)",
-		p.getProductivityHistoryTableName())); err != nil {
+		ProductivityHistoryTableName)); err != nil {
 		return err
 	}
 
 	// create block producers history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([epoch_number] TEXT NOT NULL, [block_producer_list] BLOB(32) NOT NULL)",
-		p.getBlockProducersHistoryTableName())); err != nil {
+		BlockProducersHistoryTableName)); err != nil {
 		return err
 	}
 	return nil
@@ -101,15 +107,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// ReadTable reads indices in the table
-func (p *Protocol) ReadTable(context.Context, []byte, ...[]byte) ([]byte, error) {
-	return nil, protocol.ErrUnimplemented
-}
-
 // updateBlockProducersHistory stores block producers information into block producers history table
 func (p *Protocol) updateBlockProducersHistory(tx *sql.Tx, epochNum uint64, blockProducerList state.CandidateList) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number, block_producer_list) VALUES (?, ?)",
-		p.getBlockProducersHistoryTableName())
+		BlockProducersHistoryTableName)
 	epochNumber := strconv.Itoa(int(epochNum))
 	blockProducers, err := blockProducerList.Serialize()
 	if err != nil {
@@ -139,7 +140,7 @@ func (p *Protocol) updateProductivityHistory(tx *sql.Tx, epochNum uint64, blockH
 	expectedProducer := activeProducers[int(blockHeight)%len(activeProducers)]
 
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number, block_height, producer, expected_producer) "+
-		"VALUES (?, ?, ?, ?)", p.getProductivityHistoryTableName())
+		"VALUES (?, ?, ?, ?)", ProductivityHistoryTableName)
 	epochNumber := strconv.Itoa(int(epochNum))
 	height := strconv.Itoa(int(blockHeight))
 
@@ -161,7 +162,7 @@ func (p *Protocol) GetProductivityHistory(epochNumber uint64, address string) (u
 	epochNumStr := strconv.Itoa(int(epochNumber))
 
 	getProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND producer=?",
-		p.getProductivityHistoryTableName())
+		ProductivityHistoryTableName)
 	stmt, err := db.Prepare(getProductionQuery)
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to prepare get query")
@@ -174,7 +175,7 @@ func (p *Protocol) GetProductivityHistory(epochNumber uint64, address string) (u
 	}
 
 	getExpectedProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND expected_producer=?",
-		p.getProductivityHistoryTableName())
+		ProductivityHistoryTableName)
 	stmt, err = db.Prepare(getExpectedProductionQuery)
 	if err != nil {
 		return 0, 0, errors.Wrap(err, "failed to prepare get query")
@@ -193,7 +194,7 @@ func (p *Protocol) getBlockProducersHistory(epochNumber uint64) (state.Candidate
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=?",
-		p.getBlockProducersHistoryTableName())
+		BlockProducersHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -226,12 +227,4 @@ func (p *Protocol) getBlockProducersHistory(epochNumber uint64) (state.Candidate
 	}
 
 	return blockProducerList, nil
-}
-
-func (p *Protocol) getProductivityHistoryTableName() string {
-	return fmt.Sprint("productivity_history")
-}
-
-func (p *Protocol) getBlockProducersHistoryTableName() string {
-	return fmt.Sprint("block_producers_history")
 }

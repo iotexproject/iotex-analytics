@@ -17,13 +17,13 @@ import (
 
 var (
 	// Addr1 is a testing address
-	Addr1       = testaddress.Addrinfo["alfa"].String()
+	Addr1 = testaddress.Addrinfo["alfa"].String()
 	// PubKey1 is a testing public key
-	PubKey1     = testaddress.Keyinfo["alfa"].PubKey
+	PubKey1 = testaddress.Keyinfo["alfa"].PubKey
 	// Addr2 is a testing address
-	Addr2       = testaddress.Addrinfo["bravo"].String()
+	Addr2 = testaddress.Addrinfo["bravo"].String()
 	// PubKey2 is testing public key
-	PubKey2     = testaddress.Keyinfo["bravo"].PubKey
+	PubKey2 = testaddress.Keyinfo["bravo"].PubKey
 	// RewardAddr1 is a testing reward address
 	RewardAddr1 = testaddress.Addrinfo["charlie"].String()
 	// RewardAddr2 is a testing reward address

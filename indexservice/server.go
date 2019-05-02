@@ -15,6 +15,7 @@ import (
 	"github.com/iotexproject/iotex-core/config"
 	"github.com/iotexproject/iotex-core/db/sql"
 	"github.com/iotexproject/iotex-core/pkg/log"
+
 	"github.com/iotexproject/iotex-api/protocol"
 )
 
@@ -31,7 +32,7 @@ func NewServer(
 	bc blockchain.Blockchain,
 ) *Server {
 	indexer := &Indexer{
-		store: nil,
+		store:    nil,
 		registry: &protocol.Registry{},
 	}
 	if err := bc.AddSubscriber(indexer); err != nil {

@@ -21,8 +21,14 @@ import (
 	s "github.com/iotexproject/iotex-api/sql"
 )
 
-// ProtocolID is the ID of protocol
-const ProtocolID = "actions"
+const (
+	// ProtocolID is the ID of protocol
+	ProtocolID = "actions"
+	// BlockByActionTableName is the table name of block by action
+	BlockByActionTableName = "block_by_action"
+	// ActionHistoryTableName is the table name of action history
+	ActionHistoryTableName = "action_history"
+)
 
 type (
 	// BlockByAction defines the base schema of "action to block" table
@@ -52,13 +58,13 @@ func NewProtocol(store s.Store) *Protocol {
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_hash] BLOB(32) NOT NULL, [receipt_hash] BLOB(32) NOT NULL, [block_hash] BLOB(32) NOT NULL)", p.getBlockByActionTableName())); err != nil {
+		"([action_hash] BLOB(32) NOT NULL, [receipt_hash] BLOB(32) NOT NULL, [block_hash] BLOB(32) NOT NULL)", BlockByActionTableName)); err != nil {
 		return err
 	}
 
 	// create action history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([user_address] TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)", p.getActionHistoryTableName())); err != nil {
+		"([user_address] TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)", ActionHistoryTableName)); err != nil {
 		return err
 	}
 	return nil
@@ -103,16 +109,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// ReadTable reads indices in the table
-func (p *Protocol) ReadTable(context.Context, []byte, ...[]byte) ([]byte, error) {
-	return nil, protocol.ErrUnimplemented
-}
-
 // updateBlockByAction maps action hash/receipt hash to block hash
 func (p *Protocol) updateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash256]hash.Hash256,
 	blockHash hash.Hash256) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,receipt_hash,block_hash) VALUES (?, ?, ?)",
-		p.getBlockByActionTableName())
+		BlockByActionTableName)
 	for actionHash, receiptHash := range actionToReceipt {
 		if _, err := tx.Exec(insertQuery, hex.EncodeToString(actionHash[:]), hex.EncodeToString(receiptHash[:]), blockHash[:]); err != nil {
 			return err
@@ -125,7 +126,7 @@ func (p *Protocol) updateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash
 func (p *Protocol) updateActionHistory(tx *sql.Tx, userAddr string,
 	actionHash hash.Hash256) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (user_address,action_hash) VALUES (?, ?)",
-		p.getActionHistoryTableName())
+		ActionHistoryTableName)
 	if _, err := tx.Exec(insertQuery, userAddr, actionHash[:]); err != nil {
 		return err
 	}
@@ -137,7 +138,7 @@ func (p *Protocol) GetActionHistory(userAddr string) ([]hash.Hash256, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE user_address=?",
-		p.getActionHistoryTableName())
+		ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -166,14 +167,14 @@ func (p *Protocol) GetActionHistory(userAddr string) ([]hash.Hash256, error) {
 // GetBlockByAction returns block hash by action hash
 func (p *Protocol) GetBlockByAction(actionHash hash.Hash256) (hash.Hash256, error) {
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
-		p.getBlockByActionTableName())
+		BlockByActionTableName)
 	return p.blockByIndex(getQuery, actionHash)
 }
 
 // GetBlockByReceipt returns block hash by receipt hash
 func (p *Protocol) GetBlockByReceipt(receiptHash hash.Hash256) (hash.Hash256, error) {
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE receipt_hash=?",
-		p.getBlockByActionTableName())
+		BlockByActionTableName)
 	return p.blockByIndex(getQuery, receiptHash)
 }
 
@@ -204,12 +205,4 @@ func (p *Protocol) blockByIndex(getQuery string, indexHash hash.Hash256) (hash.H
 	var hash hash.Hash256
 	copy(hash[:], parsedRows[0].(*BlockByAction).BlockHash)
 	return hash, nil
-}
-
-func (p *Protocol) getBlockByActionTableName() string {
-	return fmt.Sprint("block_by_action")
-}
-
-func (p *Protocol) getActionHistoryTableName() string {
-	return fmt.Sprint("action_history")
 }
