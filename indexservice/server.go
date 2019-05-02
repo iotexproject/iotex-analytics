@@ -15,6 +15,7 @@ import (
 	"github.com/iotexproject/iotex-core/config"
 	"github.com/iotexproject/iotex-core/db/sql"
 	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-api/protocol"
 )
 
 // Server is the container of the index service
@@ -31,6 +32,7 @@ func NewServer(
 ) *Server {
 	indexer := &Indexer{
 		store: nil,
+		registry: &protocol.Registry{},
 	}
 	if err := bc.AddSubscriber(indexer); err != nil {
 		log.L().Error("Error when subscribe to block.", zap.Error(err))

@@ -20,7 +20,7 @@ import (
 // Indexer handles the index build for blocks
 type Indexer struct {
 	store     s.Store
-	protocols []protocol.Protocol
+	registry *protocol.Registry
 }
 
 // HandleBlock is an implementation of interface BlockCreationSubscriber
@@ -31,7 +31,7 @@ func (idx *Indexer) HandleBlock(blk *block.Block) error {
 // BuildIndex builds the index for a block
 func (idx *Indexer) BuildIndex(blk *block.Block) error {
 	if err := idx.store.Transact(func(tx *sql.Tx) error {
-		for _, p := range idx.protocols {
+		for _, p := range idx.registry.All() {
 			if err := p.HandleBlock(context.Background(), tx, blk); err != nil {
 				return errors.Wrapf(err, "failed to build index for block on height %d", blk.Height())
 			}
@@ -45,7 +45,7 @@ func (idx *Indexer) BuildIndex(blk *block.Block) error {
 
 // CreateTablesIfNotExist creates tables in local database
 func (idx *Indexer) CreateTablesIfNotExist() error {
-	for _, p := range idx.protocols {
+	for _, p := range idx.registry.All() {
 		if err := p.CreateTables(context.Background()); err != nil {
 			return errors.Wrap(err, "failed to create a table")
 		}
@@ -53,7 +53,7 @@ func (idx *Indexer) CreateTablesIfNotExist() error {
 	return nil
 }
 
-// AddProtocols adds protocols to the indexer
-func (idx *Indexer) AddProtocols(protocols ...protocol.Protocol) {
-	idx.protocols = append(idx.protocols, protocols...)
+// RegisterProtocol registers a protocol to the indexer
+func (idx *Indexer) RegisterProtocol(protocolID string, protocol protocol.Protocol) error {
+	return idx.registry.Register(protocolID, protocol)
 }
