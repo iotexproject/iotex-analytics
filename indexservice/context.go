@@ -3,8 +3,8 @@ package indexservice
 import (
 	"context"
 
-	"github.com/iotexproject/iotex-core/protogen/iotexapi"
 	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-core/protogen/iotexapi"
 )
 
 type indexerCtxKey struct{}
@@ -27,4 +27,3 @@ func MustGetIndexerCtx(ctx context.Context) IndexerCtx {
 	}
 	return indexerCtx
 }
-
