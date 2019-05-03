@@ -19,10 +19,10 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	"github.com/iotexproject/iotex-api/graphql"
-	"github.com/iotexproject/iotex-api/indexservice"
-	"github.com/iotexproject/iotex-api/protocol"
-	"github.com/iotexproject/iotex-api/sql"
+	"github.com/iotexproject/iotex-analytics/graphql"
+	"github.com/iotexproject/iotex-analytics/indexservice"
+	"github.com/iotexproject/iotex-analytics/protocol"
+	"github.com/iotexproject/iotex-analytics/sql"
 )
 
 const defaultPort = "8089"

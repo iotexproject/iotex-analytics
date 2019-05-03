@@ -17,8 +17,8 @@ import (
 	"github.com/iotexproject/iotex-core/pkg/hash"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-api/protocol"
-	s "github.com/iotexproject/iotex-api/sql"
+	"github.com/iotexproject/iotex-analytics/protocol"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (

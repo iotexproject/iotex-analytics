@@ -16,7 +16,7 @@ import (
 	"github.com/iotexproject/iotex-core/db/sql"
 	"github.com/iotexproject/iotex-core/pkg/log"
 
-	"github.com/iotexproject/iotex-api/protocol"
+	"github.com/iotexproject/iotex-analytics/protocol"
 )
 
 // Server is the container of the index service

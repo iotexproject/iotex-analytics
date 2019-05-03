@@ -14,8 +14,8 @@ import (
 	"github.com/iotexproject/iotex-core/config"
 	"github.com/stretchr/testify/require"
 
-	s "github.com/iotexproject/iotex-api/sql"
-	"github.com/iotexproject/iotex-api/testutil"
+	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/testutil"
 )
 
 func TestProtocol(t *testing.T) {

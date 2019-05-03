@@ -14,11 +14,11 @@ import (
 	"github.com/iotexproject/iotex-core/config"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-api/protocol"
-	"github.com/iotexproject/iotex-api/protocol/actions"
-	"github.com/iotexproject/iotex-api/protocol/producers"
-	"github.com/iotexproject/iotex-api/protocol/rewards"
-	s "github.com/iotexproject/iotex-api/sql"
+	"github.com/iotexproject/iotex-analytics/protocol"
+	"github.com/iotexproject/iotex-analytics/protocol/actions"
+	"github.com/iotexproject/iotex-analytics/protocol/producers"
+	"github.com/iotexproject/iotex-analytics/protocol/rewards"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 // Indexer handles the index build for blocks

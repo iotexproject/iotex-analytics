@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-api/indexservice"
+	"github.com/iotexproject/iotex-analytics/indexservice"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 // Resolver is the resolver that handles graphql request
