@@ -1,0 +1,15 @@
+type Query {
+    rewards(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): Reward
+    productivity(startEpoch: Int!, epochCount: Int!, address: String!): Productivity
+}
+
+type Reward {
+    blockReward: String!
+    epochReward: String!
+    foundationBonus: String!
+}
+
+type Productivity {
+    production: Int!
+    expectedProduction: Int!
+}

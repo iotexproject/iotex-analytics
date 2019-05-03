@@ -84,6 +84,19 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	return nil
 }
 
+// Initialize initializes producers protocol
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+	_, err := p.getBlockProducersHistory(uint64(1))
+	switch err {
+	case nil:
+		return nil
+	case protocol.ErrNotExist:
+		return p.updateBlockProducersHistory(tx, uint64(1), genesisCfg.InitCandidates)
+	default:
+		return errors.Wrap(err, "failed to initialize producers protocol")
+	}
+}
+
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	for _, selp := range blk.Actions {
@@ -105,6 +118,69 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	}
 
 	return nil
+}
+
+// GetLastHeight returns last inserted block height
+func (p *Protocol) GetLastHeight() (uint64, error) {
+	db := p.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT CAST(block_height AS INT) FROM %s ORDER BY CAST(block_height AS INT) DESC LIMIT 1",
+		ProductivityHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to prepare get query")
+	}
+	var lastHeight uint64
+	err = stmt.QueryRow().Scan(&lastHeight)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to execute get query")
+	}
+	return lastHeight, nil
+}
+
+// GetBlockProducersHistory returns block producers information by epoch number
+func (p *Protocol) GetBlockProducersHistory(epochNumber uint64) (state.CandidateList, error) {
+	return p.getBlockProducersHistory(epochNumber)
+}
+
+// GetProductivityHistory returns productivity information by epoch number and user address
+func (p *Protocol) GetProductivityHistory(
+	startEpochNumber uint64,
+	epochCount uint64,
+	address string,
+) (uint64, uint64, error) {
+	db := p.Store.GetDB()
+
+	endEpochNumber := startEpochNumber + epochCount - 1
+	getProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE CAST(epoch_number AS INT) >= %d "+
+		"AND CAST(epoch_number AS INT) <= %d AND producer=?", ProductivityHistoryTableName, startEpochNumber,
+		endEpochNumber)
+	stmt, err := db.Prepare(getProductionQuery)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	var productions uint64
+	err = stmt.QueryRow(address).Scan(&productions)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	getExpectedProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE CAST(epoch_number AS INT) >= %d AND "+
+		"CAST(epoch_number AS INT) <= %d AND expected_producer=?", ProductivityHistoryTableName, startEpochNumber,
+		endEpochNumber)
+	stmt, err = db.Prepare(getExpectedProductionQuery)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	var expectedProductions uint64
+	err = stmt.QueryRow(address).Scan(&expectedProductions)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	return productions, expectedProductions, nil
 }
 
 // updateBlockProducersHistory stores block producers information into block producers history table
@@ -144,50 +220,12 @@ func (p *Protocol) updateProductivityHistory(tx *sql.Tx, epochNum uint64, blockH
 	epochNumber := strconv.Itoa(int(epochNum))
 	height := strconv.Itoa(int(blockHeight))
 
+	fmt.Println(blockProducer)
+	fmt.Println(expectedProducer)
 	if _, err := tx.Exec(insertQuery, epochNumber, height, blockProducer, expectedProducer); err != nil {
 		return err
 	}
 	return nil
-}
-
-// GetBlockProducersHistory returns block producers information by epoch number
-func (p *Protocol) GetBlockProducersHistory(epochNumber uint64) (state.CandidateList, error) {
-	return p.getBlockProducersHistory(epochNumber)
-}
-
-// GetProductivityHistory returns productivity information by epoch number and user address
-func (p *Protocol) GetProductivityHistory(epochNumber uint64, address string) (uint64, uint64, error) {
-	db := p.Store.GetDB()
-
-	epochNumStr := strconv.Itoa(int(epochNumber))
-
-	getProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND producer=?",
-		ProductivityHistoryTableName)
-	stmt, err := db.Prepare(getProductionQuery)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to prepare get query")
-	}
-
-	var productions uint64
-	err = stmt.QueryRow(epochNumStr, address).Scan(&productions)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to execute get query")
-	}
-
-	getExpectedProductionQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE epoch_number=? AND expected_producer=?",
-		ProductivityHistoryTableName)
-	stmt, err = db.Prepare(getExpectedProductionQuery)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to prepare get query")
-	}
-
-	var expectedProductions uint64
-	err = stmt.QueryRow(epochNumStr, address).Scan(&expectedProductions)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to execute get query")
-	}
-
-	return productions, expectedProductions, nil
 }
 
 func (p *Protocol) getBlockProducersHistory(epochNumber uint64) (state.CandidateList, error) {

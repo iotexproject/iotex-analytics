@@ -73,6 +73,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	return nil
 }
 
+// Initialize initializes rewards protocol
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+	return nil
+}
+
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	grantRewardActs := make(map[hash.Hash256]bool)
@@ -100,35 +105,22 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// updateRewardHistory stores reward information into reward history table
-func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoMap map[string]*RewardInfo) error {
-	for rewardAddress, rewardDelta := range rewardInfoMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number,reward_address,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, ?)", RewardHistoryTableName)
-		epochNumber := strconv.Itoa(int(epochNum))
-		blockReward := rewardDelta.BlockReward.String()
-		epochReward := rewardDelta.EpochReward.String()
-		foundationBonus := rewardDelta.FoundationBonus.String()
-		if _, err := tx.Exec(insertQuery, epochNumber, rewardAddress, blockReward, epochReward, foundationBonus); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// GetRewardHistory returns reward information by epoch number and reward address
-func (p *Protocol) GetRewardHistory(epochNumber uint64, rewardAddress string) (*RewardInfo, error) {
+// GetRewardHistory read reward history
+func (p *Protocol) GetRewardHistory(
+	startEpochNumber uint64,
+	epochCount uint64, rewardAddress string,
+) (*RewardInfo, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND reward_address=?",
-		RewardHistoryTableName)
+	endEpochNumber := startEpochNumber + epochCount - 1
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE CAST(epoch_number AS INT) >= %d AND CAST(epoch_number AS INT) <= %d AND reward_address=?",
+		RewardHistoryTableName, startEpochNumber, endEpochNumber)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	epochNumStr := strconv.Itoa(int(epochNumber))
-	rows, err := stmt.Query(epochNumStr, rewardAddress)
+	rows, err := stmt.Query(rewardAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -167,6 +159,23 @@ func (p *Protocol) GetRewardHistory(epochNumber uint64, rewardAddress string) (*
 		rewardInfo.FoundationBonus.Add(rewardInfo.FoundationBonus, foundationBonus)
 	}
 	return rewardInfo, nil
+}
+
+// updateRewardHistory stores reward information into reward history table
+func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoMap map[string]*RewardInfo) error {
+	for rewardAddress, rewardDelta := range rewardInfoMap {
+		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number,reward_address,block_reward,epoch_reward,"+
+			"foundation_bonus) VALUES (?, ?, ?, ?, ?)", RewardHistoryTableName)
+		epochNumber := strconv.Itoa(int(epochNum))
+		blockReward := rewardDelta.BlockReward.String()
+		epochReward := rewardDelta.EpochReward.String()
+		foundationBonus := rewardDelta.FoundationBonus.String()
+		fmt.Println(rewardAddress)
+		if _, err := tx.Exec(insertQuery, epochNumber, rewardAddress, blockReward, epochReward, foundationBonus); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *Protocol) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string]*RewardInfo, error) {
