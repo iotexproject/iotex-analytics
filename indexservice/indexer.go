@@ -13,18 +13,25 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/config"
 	"github.com/pkg/errors"
+	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-core/protogen/iotexapi"
+	"github.com/iotexproject/iotex-core/action/protocol/poll"
+	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-core/state"
 
 	"github.com/iotexproject/iotex-analytics/protocol"
 	"github.com/iotexproject/iotex-analytics/protocol/actions"
 	"github.com/iotexproject/iotex-analytics/protocol/producers"
 	"github.com/iotexproject/iotex-analytics/protocol/rewards"
 	s "github.com/iotexproject/iotex-analytics/sql"
+
 )
 
 // Indexer handles the index build for blocks
 type Indexer struct {
 	store    s.Store
 	registry *protocol.Registry
+	terminate chan bool
 }
 
 // NewIndexer creates a new indexer
@@ -35,9 +42,70 @@ func NewIndexer(store s.Store) *Indexer {
 	}
 }
 
-// HandleBlock is an implementation of interface BlockCreationSubscriber
-func (idx *Indexer) HandleBlock(blk *block.Block) error {
-	return idx.BuildIndex(blk)
+// Start starts the indexer
+func (idx *Indexer) Start(ctx context.Context) error {
+	indexerCtx := MustGetIndexerCtx(ctx)
+	client := indexerCtx.Client
+
+	if err := idx.store.Start(ctx); err != nil {
+		return errors.Wrap(err, "failed to start db")
+	}
+
+	lastHeight, err := idx.GetLastHeight()
+	if err != nil {
+		if err := idx.CreateTablesIfNotExist(); err != nil {
+			return errors.Wrap(err, "failed to create tables")
+		}
+
+		readStateRequest := &iotexapi.ReadStateRequest{
+			ProtocolID: []byte(poll.ProtocolID),
+			MethodName: []byte("DelegatesByEpoch"),
+			Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
+		}
+		res, err := client.ReadState(ctx, readStateRequest)
+		if err != nil {
+			return errors.Wrap(err, "failed to read genesis delegates from blockchain")
+		}
+		var genesisDelegates state.CandidateList
+		if err := genesisDelegates.Deserialize(res.Data); err != nil {
+			return errors.Wrap(err, "failed to deserialize gensisDelegates")
+		}
+		gensisConfig := &protocol.GenesisConfig{InitCandidates: genesisDelegates}
+
+		// Initialize indexer
+		if err := idx.Initialize(gensisConfig); err != nil {
+			return errors.Wrap(err, "failed to initialize the indexer")
+		}
+	}
+
+	log.L().Info("Catching up via network")
+	getChainMetaRes, err := client.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})
+	if err != nil {
+		return errors.Wrap(err, "failed to get chain metadata")
+	}
+	tipHeight := getChainMetaRes.ChainMeta.Height
+
+	getRawBlocksRes, err := client.GetRawBlocks(ctx, &iotexapi.GetRawBlocksRequest{
+		StartHeight: lastHeight + 1,
+		Count:       tipHeight - lastHeight,
+	})
+	for _, blkPb := range getRawBlocksRes.Blocks {
+		blk := &block.Block{}
+		if err := blk.ConvertFromBlockPb(blkPb); err != nil {
+			return errors.Wrap(err, "failed to convert block protobuf to raw block")
+		}
+		if err := idx.BuildIndex(blk); err != nil {
+			return errors.Wrap(err, "failed to build index the block")
+		}
+	}
+	// TODO: Add polling mechanism for newly committed blocks
+	return nil
+}
+
+// Stop stops the indexer
+func (idx *Indexer) Stop(ctx context.Context) error {
+	idx.terminate <- true
+	return idx.store.Stop(ctx)
 }
 
 // Initialize initialize the registered protocols
