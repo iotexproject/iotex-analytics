@@ -10,23 +10,18 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/iotexproject/iotex-core/config"
 )
 
 const (
-	path = "explorer.db"
+	path = "analytics.db"
 )
 
 func TestSQLite3StorePutGet(t *testing.T) {
 	testRDSStorePutGet := TestStorePutGet
 	testFile, _ := ioutil.TempFile(os.TempDir(), path)
 	testPath := testFile.Name()
-	cfg := config.SQLITE3{
-		SQLite3File: testPath,
-	}
 	t.Run("SQLite3 Store", func(t *testing.T) {
-		testRDSStorePutGet(NewSQLite3(cfg), t)
+		testRDSStorePutGet(NewSQLite3(testPath), t)
 	})
 }
 
@@ -34,10 +29,7 @@ func TestSQLite3StoreTransaction(t *testing.T) {
 	testSQLite3StoreTransaction := TestStoreTransaction
 	testFile, _ := ioutil.TempFile(os.TempDir(), path)
 	testPath := testFile.Name()
-	cfg := config.SQLITE3{
-		SQLite3File: testPath,
-	}
 	t.Run("SQLite3 Store", func(t *testing.T) {
-		testSQLite3StoreTransaction(NewSQLite3(cfg), t)
+		testSQLite3StoreTransaction(NewSQLite3(testPath), t)
 	})
 }

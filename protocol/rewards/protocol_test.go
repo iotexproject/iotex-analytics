@@ -11,7 +11,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/iotexproject/iotex-core/config"
 	"github.com/stretchr/testify/require"
 
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -21,11 +20,10 @@ import (
 func TestProtocol(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
-	cfg := config.Default
-	testPath := cfg.DB.SQLITE3.SQLite3File
+	testPath := "analytics.db"
 	testutil.CleanupPath(t, testPath)
 
-	store := s.NewSQLite3(cfg.DB.SQLITE3)
+	store := s.NewSQLite3(testPath)
 	require.NoError(store.Start(ctx))
 	defer func() {
 		require.NoError(store.Stop(ctx))
