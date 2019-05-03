@@ -50,7 +50,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 				{
 					Core: &iotextypes.ActionCore{
 						Action: &iotextypes.ActionCore_Transfer{
-							Transfer: &iotextypes.Transfer{Recipient: Addr2},
+							Transfer: &iotextypes.Transfer{Recipient: Addr1},
 						},
 						Version: version.ProtocolVersion,
 						Nonce:   101,
@@ -59,8 +59,8 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 				},
 				{
 					Core: &iotextypes.ActionCore{
-						Action: &iotextypes.ActionCore_Vote{
-							Vote: &iotextypes.Vote{VoteeAddress: Addr2},
+						Action: &iotextypes.ActionCore_Transfer{
+							Transfer: &iotextypes.Transfer{Recipient: Addr2},
 						},
 						Version: version.ProtocolVersion,
 						Nonce:   102,

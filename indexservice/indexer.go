@@ -9,9 +9,9 @@ package indexservice
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
+	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/config"
@@ -55,7 +55,6 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	}
 
 	lastHeight, err := idx.GetLastHeight()
-	fmt.Println(lastHeight)
 	if err != nil {
 		if err := idx.CreateTablesIfNotExist(); err != nil {
 			return errors.Wrap(err, "failed to create tables")
@@ -172,17 +171,25 @@ func (idx *Indexer) RegisterDefaultProtocols(cfg config.Config) error {
 // IndexInBatch indexes blocks in batch
 func (idx *Indexer) IndexInBatch(client iotexapi.APIServiceClient, tipHeight uint64) error {
 	getRawBlocksRes, err := client.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
-		StartHeight: idx.lastHeight + 1,
-		Count:       tipHeight - idx.lastHeight,
+		StartHeight:  idx.lastHeight + 1,
+		Count:        tipHeight - idx.lastHeight,
+		WithReceipts: true,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to get raw blocks from the chain")
 	}
-	for _, blkPb := range getRawBlocksRes.Blocks {
+	for _, blkInfo := range getRawBlocksRes.Blocks {
 		blk := &block.Block{}
-		if err := blk.ConvertFromBlockPb(blkPb); err != nil {
+		if err := blk.ConvertFromBlockPb(blkInfo.Block); err != nil {
 			return errors.Wrap(err, "failed to convert block protobuf to raw block")
 		}
+
+		for _, receiptPb := range blkInfo.Receipts {
+			receipt := &action.Receipt{}
+			receipt.ConvertFromReceiptPb(receiptPb)
+			blk.Receipts = append(blk.Receipts, receipt)
+		}
+
 		if err := idx.buildIndex(blk); err != nil {
 			return errors.Wrap(err, "failed to build index the block")
 		}

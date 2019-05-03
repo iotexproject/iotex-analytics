@@ -124,11 +124,7 @@
     "common/mclock",
     "common/prque",
     "core/types",
-    "core/vm",
     "crypto",
-    "crypto/bn256",
-    "crypto/bn256/cloudflare",
-    "crypto/bn256/google",
     "crypto/secp256k1",
     "crypto/sha3",
     "ethclient",
@@ -180,13 +176,6 @@
   pruneopts = "UT"
   revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
   version = "v1.2.1"
-
-[[projects]]
-  digest = "1:b7cb6054d3dff43b38ad2e92492f220f57ae6087ee797dca298139776749ace8"
-  name = "github.com/golang/groupcache"
-  packages = ["lru"]
-  pruneopts = "UT"
-  revision = "5b532d6fd5efaf7fa130d4e859a2fde0fc3a9e1b"
 
 [[projects]]
   digest = "1:239c4c7fd2159585454003d9be7207167970194216193a8a210b8d29576f19c9"
@@ -293,35 +282,25 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a8c5fdc29074846b503d3aeb5dc6409622755bd5b63a62ab58ee47a3161b7358"
+  digest = "1:ecd1fd05065273caa161173434b9209e7344ff31f8ee1bda56cffee4fa5e03a9"
   name = "github.com/iotexproject/iotex-core"
   packages = [
     "action",
     "action/protocol",
-    "action/protocol/account",
     "action/protocol/account/accountpb",
     "action/protocol/account/util",
-    "action/protocol/execution/evm",
     "action/protocol/poll",
-    "action/protocol/rewarding",
     "action/protocol/rewarding/rewardingpb",
-    "action/protocol/rolldpos",
-    "action/protocol/vote",
     "action/protocol/vote/candidatesutil",
-    "actpool/actioniterator",
-    "blockchain",
     "blockchain/block",
     "blockchain/genesis",
     "config",
     "consensus/consensusfsm",
     "crypto",
     "db",
-    "db/sql",
     "db/trie",
     "db/trie/triepb",
     "endorsement",
-    "pkg/cache",
-    "pkg/compress",
     "pkg/enc",
     "pkg/hash",
     "pkg/keypair",
@@ -340,7 +319,7 @@
     "test/testaddress",
   ]
   pruneopts = "UT"
-  revision = "7640637c1fce859ffbc8a03a846fdec15f9b1e0d"
+  revision = "8e53d73827f76b60a435e5ea92d906e02a52d9a0"
 
 [[projects]]
   digest = "1:6276ca08dbfc8c8bd60928d99b197690a9b2faa4b7e51d31420d6d53f873f14f"
@@ -1259,7 +1238,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b8f8fe1393740fc0967a022e22e33d0cd00e5481ed02e41fbd9170e9d1b4bcad"
+  digest = "1:4e996da9cfe8804fe646f38ac76711561312d01303507c7b697a0199a4c413ea"
   name = "golang.org/x/crypto"
   packages = [
     "blake2b",
@@ -1268,7 +1247,6 @@
     "ed25519",
     "ed25519/internal/edwards25519",
     "pbkdf2",
-    "ripemd160",
     "scrypt",
     "sha3",
   ]
@@ -1471,11 +1449,9 @@
     "github.com/iotexproject/iotex-core/action",
     "github.com/iotexproject/iotex-core/action/protocol/poll",
     "github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb",
-    "github.com/iotexproject/iotex-core/blockchain",
     "github.com/iotexproject/iotex-core/blockchain/block",
     "github.com/iotexproject/iotex-core/config",
     "github.com/iotexproject/iotex-core/crypto",
-    "github.com/iotexproject/iotex-core/db/sql",
     "github.com/iotexproject/iotex-core/pkg/hash",
     "github.com/iotexproject/iotex-core/pkg/lifecycle",
     "github.com/iotexproject/iotex-core/pkg/log",
@@ -1493,7 +1469,6 @@
     "github.com/vektah/gqlparser",
     "github.com/vektah/gqlparser/ast",
     "go.uber.org/zap",
-    "golang.org/x/net/context",
     "google.golang.org/grpc",
   ]
   solver-name = "gps-cdcl"

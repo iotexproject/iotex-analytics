@@ -220,8 +220,6 @@ func (p *Protocol) updateProductivityHistory(tx *sql.Tx, epochNum uint64, blockH
 	epochNumber := strconv.Itoa(int(epochNum))
 	height := strconv.Itoa(int(blockHeight))
 
-	fmt.Println(blockProducer)
-	fmt.Println(expectedProducer)
 	if _, err := tx.Exec(insertQuery, epochNumber, height, blockProducer, expectedProducer); err != nil {
 		return err
 	}

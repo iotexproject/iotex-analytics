@@ -55,7 +55,7 @@ func TestProtocol(t *testing.T) {
 	// get action
 	actionHashes, err := p.GetActionHistory(testutil.Addr1)
 	require.Nil(err)
-	require.Equal(6, len(actionHashes))
+	require.Equal(7, len(actionHashes))
 	action := blk.Actions[0].Hash()
 	require.Equal(action, actionHashes[0])
 

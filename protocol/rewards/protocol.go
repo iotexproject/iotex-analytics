@@ -170,7 +170,6 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoMa
 		blockReward := rewardDelta.BlockReward.String()
 		epochReward := rewardDelta.EpochReward.String()
 		foundationBonus := rewardDelta.FoundationBonus.String()
-		fmt.Println(rewardAddress)
 		if _, err := tx.Exec(insertQuery, epochNumber, rewardAddress, blockReward, epochReward, foundationBonus); err != nil {
 			return err
 		}
