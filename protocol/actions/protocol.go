@@ -70,6 +70,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	return nil
 }
 
+// Initialize initializes actions protocol
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+	return nil
+}
+
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	actionToReceipt := make(map[hash.Hash256]hash.Hash256)
@@ -106,30 +111,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return errors.Wrap(err, "failed to update action index to block")
 	}
 
-	return nil
-}
-
-// updateBlockByAction maps action hash/receipt hash to block hash
-func (p *Protocol) updateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash256]hash.Hash256,
-	blockHash hash.Hash256) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,receipt_hash,block_hash) VALUES (?, ?, ?)",
-		BlockByActionTableName)
-	for actionHash, receiptHash := range actionToReceipt {
-		if _, err := tx.Exec(insertQuery, hex.EncodeToString(actionHash[:]), hex.EncodeToString(receiptHash[:]), blockHash[:]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// updateActionHistory stores action information into action history table
-func (p *Protocol) updateActionHistory(tx *sql.Tx, userAddr string,
-	actionHash hash.Hash256) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (user_address,action_hash) VALUES (?, ?)",
-		ActionHistoryTableName)
-	if _, err := tx.Exec(insertQuery, userAddr, actionHash[:]); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -176,6 +157,30 @@ func (p *Protocol) GetBlockByReceipt(receiptHash hash.Hash256) (hash.Hash256, er
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE receipt_hash=?",
 		BlockByActionTableName)
 	return p.blockByIndex(getQuery, receiptHash)
+}
+
+// updateBlockByAction maps action hash/receipt hash to block hash
+func (p *Protocol) updateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash256]hash.Hash256,
+	blockHash hash.Hash256) error {
+	insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,receipt_hash,block_hash) VALUES (?, ?, ?)",
+		BlockByActionTableName)
+	for actionHash, receiptHash := range actionToReceipt {
+		if _, err := tx.Exec(insertQuery, hex.EncodeToString(actionHash[:]), hex.EncodeToString(receiptHash[:]), blockHash[:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// updateActionHistory stores action information into action history table
+func (p *Protocol) updateActionHistory(tx *sql.Tx, userAddr string,
+	actionHash hash.Hash256) error {
+	insertQuery := fmt.Sprintf("INSERT INTO %s (user_address,action_hash) VALUES (?, ?)",
+		ActionHistoryTableName)
+	if _, err := tx.Exec(insertQuery, userAddr, actionHash[:]); err != nil {
+		return err
+	}
+	return nil
 }
 
 // blockByIndex returns block by index hash

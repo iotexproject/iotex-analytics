@@ -2,12 +2,44 @@
 
 
 [[projects]]
+  digest = "1:d28d302ab337b9ea3af38c04429e198ab422c1e026592aebcf7aec66ebbc4645"
+  name = "github.com/99designs/gqlgen"
+  packages = [
+    "api",
+    "cmd",
+    "codegen",
+    "codegen/config",
+    "codegen/templates",
+    "complexity",
+    "graphql",
+    "graphql/introspection",
+    "handler",
+    "internal/code",
+    "internal/imports",
+    "plugin",
+    "plugin/modelgen",
+    "plugin/resolvergen",
+    "plugin/servergen",
+  ]
+  pruneopts = "UT"
+  revision = "010a79b66f08732cb70d133dcab297a8ee895572"
+  version = "v0.8.3"
+
+[[projects]]
   branch = "master"
   digest = "1:6716c9fe6333591128e72848f246fc01dc72240e1e64185d8b4e124e7280b35d"
   name = "github.com/AndreasBriese/bbloom"
   packages = ["."]
   pruneopts = "UT"
   revision = "e2d15f34fcf99d5dbb871c820ec73f710fca9815"
+
+[[projects]]
+  digest = "1:786e862ec180708b60ee670723e3edd969fd4309e7b1c315cd7de058ac62a011"
+  name = "github.com/agnivade/levenshtein"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "51b298ff305e72cfd29166dccc3f9878e82f9fdc"
+  version = "v1.0.2"
 
 [[projects]]
   digest = "1:f5322546f652db78b7a8efd35047a61d1e492abca2263e1c647eca49e1c8a354"
@@ -241,12 +273,12 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:9f4fe765e6c6e6448d8bc079a9b5129167b74c479e2500fd436219df19d995af"
+  digest = "1:c48a8e88930f992793b904213c2d4f04e8b9fc8c73ca255df8cd5000133a917e"
   name = "github.com/iotexproject/go-p2p"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a101eb44271c82aae2a9d08aee56fcd470042c20"
-  version = "0.2.9"
+  revision = "0a7f4c1eb64bc0e053a7f5df608d3c7d416842a2"
+  version = "v0.2.10"
 
 [[projects]]
   digest = "1:5b429bd8a45a5eaaa0997a255c94c99884df2e2b6cce61b9f572b5c573f4f22e"
@@ -260,7 +292,8 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:fe882eee04fc64cd63221e61d1730361f4432fc2429e73d2f5c4079311976af4"
+  branch = "master"
+  digest = "1:a8c5fdc29074846b503d3aeb5dc6409622755bd5b63a62ab58ee47a3161b7358"
   name = "github.com/iotexproject/iotex-core"
   packages = [
     "action",
@@ -299,6 +332,7 @@
     "pkg/util/byteutil",
     "pkg/util/fileutil",
     "pkg/version",
+    "protogen/iotexapi",
     "protogen/iotextypes",
     "state",
     "state/factory",
@@ -306,11 +340,10 @@
     "test/testaddress",
   ]
   pruneopts = "UT"
-  revision = "a4308fc82bea22cfaa45addef679a09f41f3a998"
-  version = "v0.5.0"
+  revision = "7640637c1fce859ffbc8a03a846fdec15f9b1e0d"
 
 [[projects]]
-  digest = "1:7ac5cf1db08362bd04587ae2b3d3cbb6328c6558b88250a7ba2c23a66978c261"
+  digest = "1:6276ca08dbfc8c8bd60928d99b197690a9b2faa4b7e51d31420d6d53f873f14f"
   name = "github.com/iotexproject/iotex-election"
   packages = [
     "carrier",
@@ -322,8 +355,8 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "684ba56e339ab53b934277c9d2a878a8fe9233e8"
-  version = "v0.1.7"
+  revision = "14376bf06be5fee9b4a51bcdc6e158ebca69bcca"
+  version = "v0.1.8"
 
 [[projects]]
   digest = "1:ff780041e005869242b2cf977f1d4fa3b8f9bdd302fd254b4a19f78502a6ee10"
@@ -1045,6 +1078,30 @@
   revision = "c4c61651e9e37fa117f53c5a906d3b63090d8445"
 
 [[projects]]
+  digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
+  name = "github.com/urfave/cli"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
+  version = "v1.20.0"
+
+[[projects]]
+  digest = "1:b4e8aaca88f799355f4ac560bce4293fb85ff21003dd0d5741ca503f7a788e91"
+  name = "github.com/vektah/gqlparser"
+  packages = [
+    ".",
+    "ast",
+    "gqlerror",
+    "lexer",
+    "parser",
+    "validator",
+    "validator/rules",
+  ]
+  pruneopts = "UT"
+  revision = "05741cdb0871330d8bc980d4afd21ab34eceee83"
+  version = "v1.1.2"
+
+[[projects]]
   branch = "master"
   digest = "1:98fa13beefbf581ec173561adad6374c460631593b4bdcf03adc29cd18e5d2f5"
   name = "github.com/whyrusleeping/base32"
@@ -1219,7 +1276,7 @@
   revision = "a29dc8fdc73485234dbef99ebedb95d2eced08de"
 
 [[projects]]
-  digest = "1:956af63e283a6570e4301cc1f7a40d9d3c8f609acce1e19ae0f86c246209b973"
+  digest = "1:bcd634b283a904ae96c4f278ad32b9b8a39d1830b154991f32ffb3e6b0b15eb3"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -1227,10 +1284,14 @@
     "html",
     "html/atom",
     "html/charset",
+    "http2",
+    "http2/hpack",
+    "idna",
     "internal/iana",
     "internal/netreflect",
     "internal/timeseries",
     "ipv4",
+    "lex/httplex",
     "trace",
     "websocket",
   ]
@@ -1292,14 +1353,24 @@
   revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
 
 [[projects]]
-  digest = "1:623bd29e39e30952f3a4d5bc07f222c30e30f95813c749d9e8147bbc4293a774"
+  branch = "master"
+  digest = "1:93f3f17886abf8d17ff07ece88d6e1974226f5638d216041bd2234ca03ef848c"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
+    "go/gcexportdata",
+    "go/internal/gcimporter",
+    "go/internal/packagesdriver",
+    "go/packages",
+    "go/types/typeutil",
     "imports",
+    "internal/fastwalk",
+    "internal/gopathwalk",
+    "internal/module",
+    "internal/semver",
   ]
   pruneopts = "UT"
-  revision = "be0fcc31ae2332374e800dfff29b721c585b35df"
+  revision = "23463209683dad3f2b9cc7f7c2663e1847c59017"
 
 [[projects]]
   branch = "master"
@@ -1329,11 +1400,41 @@
   revision = "357c62f0e4bbba7e6cc403ae09edcf3e2b9028fe"
 
 [[projects]]
-  digest = "1:4a251721b698c0e6285aec21d4ba3f79ddeccd903690144461b360ea7f948106"
+  digest = "1:707c3a5d10ed430ea767d73df122d9eb3dfb6312bbacc9f2e39204390686d1d0"
   name = "google.golang.org/grpc"
   packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "binarylog/grpc_binarylog_v1",
     "codes",
+    "connectivity",
+    "credentials",
+    "credentials/internal",
+    "encoding",
+    "encoding/proto",
+    "grpclog",
+    "internal",
+    "internal/backoff",
+    "internal/balancerload",
+    "internal/binarylog",
+    "internal/channelz",
+    "internal/envconfig",
+    "internal/grpcrand",
+    "internal/grpcsync",
+    "internal/syscall",
+    "internal/transport",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
     "status",
+    "tap",
   ]
   pruneopts = "UT"
   revision = "25c4f928eaa6d96443009bd842389fb4fa48664e"
@@ -1359,26 +1460,41 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/99designs/gqlgen/cmd",
+    "github.com/99designs/gqlgen/graphql",
+    "github.com/99designs/gqlgen/graphql/introspection",
+    "github.com/99designs/gqlgen/handler",
     "github.com/go-sql-driver/mysql",
+    "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
     "github.com/iotexproject/iotex-address/address",
     "github.com/iotexproject/iotex-core/action",
+    "github.com/iotexproject/iotex-core/action/protocol/poll",
+    "github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb",
     "github.com/iotexproject/iotex-core/blockchain",
     "github.com/iotexproject/iotex-core/blockchain/block",
     "github.com/iotexproject/iotex-core/config",
+    "github.com/iotexproject/iotex-core/crypto",
     "github.com/iotexproject/iotex-core/db/sql",
     "github.com/iotexproject/iotex-core/pkg/hash",
     "github.com/iotexproject/iotex-core/pkg/lifecycle",
     "github.com/iotexproject/iotex-core/pkg/log",
+    "github.com/iotexproject/iotex-core/pkg/util/byteutil",
+    "github.com/iotexproject/iotex-core/pkg/util/fileutil",
     "github.com/iotexproject/iotex-core/pkg/version",
+    "github.com/iotexproject/iotex-core/protogen/iotexapi",
     "github.com/iotexproject/iotex-core/protogen/iotextypes",
+    "github.com/iotexproject/iotex-core/state",
     "github.com/iotexproject/iotex-core/test/testaddress",
     "github.com/mattn/go-sqlite3",
     "github.com/pkg/errors",
     "github.com/rs/zerolog",
     "github.com/stretchr/testify/require",
+    "github.com/vektah/gqlparser",
+    "github.com/vektah/gqlparser/ast",
     "go.uber.org/zap",
     "golang.org/x/net/context",
+    "google.golang.org/grpc",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

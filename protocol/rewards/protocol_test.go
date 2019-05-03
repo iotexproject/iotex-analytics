@@ -43,7 +43,7 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	rewardInfo, err := p.GetRewardHistory(uint64(1), testutil.RewardAddr1)
+	rewardInfo, err := p.GetRewardHistory(uint64(1), uint64(1), testutil.RewardAddr1)
 	require.NoError(err)
 	require.Equal("16", rewardInfo.BlockReward.String())
 	require.Equal("10", rewardInfo.EpochReward.String())

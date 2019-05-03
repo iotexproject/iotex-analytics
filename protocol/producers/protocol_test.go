@@ -64,10 +64,14 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.Equal(2, len(blockProducers))
 
-	production, expectedProduction, err := p.GetProductivityHistory(uint64(1), testutil.Addr1)
+	production, expectedProduction, err := p.GetProductivityHistory(uint64(1), uint64(1), testutil.Addr1)
 	require.NoError(err)
 	require.Equal(uint64(1), production)
 	require.Equal(uint64(1), expectedProduction)
+
+	lastHeight, err := p.GetLastHeight()
+	require.NoError(err)
+	require.Equal(uint64(180), lastHeight)
 
 	blk2, err := testutil.BuildEmptyBlock(uint64(361))
 	require.NoError(err)
@@ -76,13 +80,17 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk2)
 	}))
 
-	production1, expectedProduction1, err := p.GetProductivityHistory(uint64(2), testutil.Addr1)
+	production1, expectedProduction1, err := p.GetProductivityHistory(uint64(2), uint64(1), testutil.Addr1)
 	require.NoError(err)
 	require.Equal(uint64(1), production1)
 	require.Equal(uint64(0), expectedProduction1)
 
-	production2, expectedProduction2, err := p.GetProductivityHistory(uint64(2), testutil.Addr2)
+	production2, expectedProduction2, err := p.GetProductivityHistory(uint64(2), uint64(1), testutil.Addr2)
 	require.NoError(err)
 	require.Equal(uint64(0), production2)
 	require.Equal(uint64(1), expectedProduction2)
+
+	lastHeight, err = p.GetLastHeight()
+	require.NoError(err)
+	require.Equal(uint64(361), lastHeight)
 }
