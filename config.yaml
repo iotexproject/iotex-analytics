@@ -1,0 +1,4 @@
+dbPath: analytics.db
+numDelegates: 3
+numCandidateDelegates: 3
+numSubEpochs: 2

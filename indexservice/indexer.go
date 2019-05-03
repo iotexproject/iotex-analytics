@@ -14,7 +14,6 @@ import (
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/config"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/protogen/iotexapi"
@@ -35,6 +34,14 @@ type Indexer struct {
 	registry   *protocol.Registry
 	lastHeight uint64
 	terminate  chan bool
+}
+
+// Config contains indexer configs
+type Config struct {
+	DBPath                string `yaml:"dbPath"`
+	NumDelegates          uint64 `yaml:"numDelegates"`
+	NumCandidateDelegates uint64 `yaml:"numCandidateDelegates"`
+	NumSubEpochs          uint64 `yaml:"numSubEpochs"`
 }
 
 // NewIndexer creates a new indexer
@@ -153,11 +160,11 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol protocol.Protoc
 }
 
 // RegisterDefaultProtocols registers default protocols to hte indexer
-func (idx *Indexer) RegisterDefaultProtocols(cfg config.Config) error {
+func (idx *Indexer) RegisterDefaultProtocols(cfg Config) error {
 	actionsProtocol := actions.NewProtocol(idx.store)
-	rewardProtocol := rewards.NewProtocol(idx.store, cfg.Genesis.NumDelegates, cfg.Genesis.NumSubEpochs)
-	producersProtocol := producers.NewProtocol(idx.store, cfg.Genesis.NumDelegates, cfg.Genesis.NumCandidateDelegates,
-		cfg.Genesis.NumSubEpochs)
+	rewardProtocol := rewards.NewProtocol(idx.store, cfg.NumDelegates, cfg.NumSubEpochs)
+	producersProtocol := producers.NewProtocol(idx.store, cfg.NumDelegates, cfg.NumCandidateDelegates,
+		cfg.NumSubEpochs)
 
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")

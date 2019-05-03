@@ -9,11 +9,9 @@ package sql
 import (
 	// this is required for sqlite3 usage
 	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/iotexproject/iotex-core/config"
 )
 
 // NewSQLite3 instantiates an sqlite3
-func NewSQLite3(cfg config.SQLITE3) Store {
-	return newStoreBase("sqlite3", cfg.SQLite3File)
+func NewSQLite3(dbPath string) Store {
+	return newStoreBase("sqlite3", dbPath)
 }

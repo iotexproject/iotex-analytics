@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/handler"
-	"github.com/iotexproject/iotex-core/config"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/protogen/iotexapi"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 
 	"github.com/iotexproject/iotex-analytics/graphql"
 	"github.com/iotexproject/iotex-analytics/indexservice"
@@ -23,8 +24,10 @@ const defaultPort = "8089"
 
 func main() {
 	var grpcAddr string
+	var configPath string
 
 	flag.StringVar(&grpcAddr, "grpc-addr", "127.0.0.1:14014", "grpc address for chain's API service")
+	flag.StringVar(&configPath, "config", "config.yaml", "path of server config file")
 	flag.Parse()
 
 	port := os.Getenv("PORT")
@@ -32,13 +35,16 @@ func main() {
 		port = defaultPort
 	}
 
-	//ctx := context.Background()
-	cfg := config.Default
-	cfg.Genesis.NumDelegates = 3
-	cfg.Genesis.NumSubEpochs = 2
-	cfg.Genesis.NumCandidateDelegates = 3
+	data, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		log.L().Fatal("Failed to load config file", zap.Error(err))
+	}
+	var cfg indexservice.Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		log.L().Fatal("failed to unmarshal config", zap.Error(err))
+	}
 
-	store := sql.NewSQLite3(cfg.DB.SQLITE3)
+	store := sql.NewSQLite3(cfg.DBPath)
 
 	idx := indexservice.NewIndexer(store)
 	if err := idx.RegisterDefaultProtocols(cfg); err != nil {
