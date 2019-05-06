@@ -1,4 +1,5 @@
 dbPath: analytics.db
-numDelegates: 3
-numCandidateDelegates: 3
-numSubEpochs: 2
+numDelegates: 24
+numCandidateDelegates: 36
+numSubEpochs: 15
+rangeQueryLimit: 1000

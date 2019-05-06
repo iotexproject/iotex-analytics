@@ -31,6 +31,7 @@ import (
 // Indexer handles the index build for blocks
 type Indexer struct {
 	store      s.Store
+	config     Config
 	registry   *protocol.Registry
 	lastHeight uint64
 	terminate  chan bool
@@ -42,12 +43,14 @@ type Config struct {
 	NumDelegates          uint64 `yaml:"numDelegates"`
 	NumCandidateDelegates uint64 `yaml:"numCandidateDelegates"`
 	NumSubEpochs          uint64 `yaml:"numSubEpochs"`
+	RangeQueryLimit       uint64 `yaml:"rangeQueryLimit"`
 }
 
 // NewIndexer creates a new indexer
-func NewIndexer(store s.Store) *Indexer {
+func NewIndexer(store s.Store, cfg Config) *Indexer {
 	return &Indexer{
 		store:    store,
+		config:   cfg,
 		registry: &protocol.Registry{},
 	}
 }
@@ -160,11 +163,11 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol protocol.Protoc
 }
 
 // RegisterDefaultProtocols registers default protocols to hte indexer
-func (idx *Indexer) RegisterDefaultProtocols(cfg Config) error {
+func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.store)
-	rewardProtocol := rewards.NewProtocol(idx.store, cfg.NumDelegates, cfg.NumSubEpochs)
-	producersProtocol := producers.NewProtocol(idx.store, cfg.NumDelegates, cfg.NumCandidateDelegates,
-		cfg.NumSubEpochs)
+	rewardProtocol := rewards.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
+	producersProtocol := producers.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumCandidateDelegates,
+		idx.config.NumSubEpochs)
 
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
@@ -177,31 +180,39 @@ func (idx *Indexer) RegisterDefaultProtocols(cfg Config) error {
 
 // IndexInBatch indexes blocks in batch
 func (idx *Indexer) IndexInBatch(client iotexapi.APIServiceClient, tipHeight uint64) error {
-	getRawBlocksRes, err := client.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
-		StartHeight:  idx.lastHeight + 1,
-		Count:        tipHeight - idx.lastHeight,
-		WithReceipts: true,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to get raw blocks from the chain")
-	}
-	for _, blkInfo := range getRawBlocksRes.Blocks {
-		blk := &block.Block{}
-		if err := blk.ConvertFromBlockPb(blkInfo.Block); err != nil {
-			return errors.Wrap(err, "failed to convert block protobuf to raw block")
+	startHeight := idx.lastHeight + 1
+	for startHeight <= tipHeight {
+		count := idx.config.RangeQueryLimit
+		if idx.config.RangeQueryLimit > tipHeight-startHeight+1 {
+			count = tipHeight-startHeight+1
 		}
+		getRawBlocksRes, err := client.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
+			StartHeight:  startHeight,
+			Count:        count,
+			WithReceipts: true,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to get raw blocks from the chain")
+		}
+		for _, blkInfo := range getRawBlocksRes.Blocks {
+			blk := &block.Block{}
+			if err := blk.ConvertFromBlockPb(blkInfo.Block); err != nil {
+				return errors.Wrap(err, "failed to convert block protobuf to raw block")
+			}
 
-		for _, receiptPb := range blkInfo.Receipts {
-			receipt := &action.Receipt{}
-			receipt.ConvertFromReceiptPb(receiptPb)
-			blk.Receipts = append(blk.Receipts, receipt)
-		}
+			for _, receiptPb := range blkInfo.Receipts {
+				receipt := &action.Receipt{}
+				receipt.ConvertFromReceiptPb(receiptPb)
+				blk.Receipts = append(blk.Receipts, receipt)
+			}
 
-		if err := idx.buildIndex(blk); err != nil {
-			return errors.Wrap(err, "failed to build index the block")
+			if err := idx.buildIndex(blk); err != nil {
+				return errors.Wrap(err, "failed to build index the block")
+			}
+			// Update lastHeight tracker
+			idx.lastHeight = blk.Height()
 		}
-		// Update lastHeight tracker
-		idx.lastHeight = blk.Height()
+		startHeight += count
 	}
 	return nil
 }

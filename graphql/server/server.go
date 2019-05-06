@@ -55,8 +55,8 @@ func main() {
 
 	store := sql.NewSQLite3(cfg.DBPath)
 
-	idx := indexservice.NewIndexer(store)
-	if err := idx.RegisterDefaultProtocols(cfg); err != nil {
+	idx := indexservice.NewIndexer(store, cfg)
+	if err := idx.RegisterDefaultProtocols(); err != nil {
 		log.L().Fatal("Failed to register default protocols")
 	}
 
