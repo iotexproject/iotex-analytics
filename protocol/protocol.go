@@ -49,3 +49,19 @@ func GetEpochNumber(numDelegates uint64, numSubEpochs uint64, height uint64) uin
 	}
 	return (height-1)/numDelegates/numSubEpochs + 1
 }
+
+// GetEpochHeight gets the start height of an epoch
+func GetEpochHeight(epochNum uint64, numDelegates uint64, numSubEpochs uint64) uint64 {
+	if epochNum == 0 {
+		return 0
+	}
+	return (epochNum-1)*numDelegates*numSubEpochs + 1
+}
+
+// GetEpochLastBlockHeight gets the last height of an epoch
+func GetEpochLastBlockHeight(epochNum uint64, numDelegates uint64, numSubEpochs uint64) uint64 {
+	if epochNum == 0 {
+		return 0
+	}
+	return epochNum * numDelegates * numSubEpochs
+}

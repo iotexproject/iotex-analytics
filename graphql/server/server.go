@@ -18,13 +18,15 @@ import (
 
 	"github.com/99designs/gqlgen/handler"
 	"github.com/iotexproject/iotex-core/pkg/log"
-	"github.com/iotexproject/iotex-core/protogen/iotexapi"
+	"github.com/iotexproject/iotex-election/pb/api"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 
 	"github.com/iotexproject/iotex-analytics/graphql"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/sql"
 )
@@ -32,10 +34,13 @@ import (
 const defaultPort = "8089"
 
 func main() {
-	var grpcAddr string
+	var chainEndpoint string
+	var electionEndpoint string
+
 	var configPath string
 
-	flag.StringVar(&grpcAddr, "grpc-addr", "127.0.0.1:14014", "grpc address for chain's API service")
+	flag.StringVar(&chainEndpoint, "chain-endpoint", "127.0.0.1:14014", "grpc address for chain's API service")
+	flag.StringVar(&electionEndpoint, "election-endpoint", "127.0.0.1:8090", "grpc address for election's API service")
 	flag.StringVar(&configPath, "config", "config.yaml", "path of server config file")
 	flag.Parse()
 
@@ -60,16 +65,25 @@ func main() {
 		log.L().Fatal("Failed to register default protocols")
 	}
 
-	grpcctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	grpcCtx1, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(grpcctx, grpcAddr, grpc.WithBlock(), grpc.WithInsecure())
+	conn1, err := grpc.DialContext(grpcCtx1, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
-		log.L().Error("Failed to connect to API server.")
+		log.L().Error("Failed to connect to chain's API server.")
 	}
-	client := iotexapi.NewAPIServiceClient(conn)
+	chainClient := iotexapi.NewAPIServiceClient(conn1)
 
-	ctx := indexservice.WithIndexerCtx(context.Background(), indexservice.IndexerCtx{
-		Client: client,
+	grpcCtx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn2, err := grpc.DialContext(grpcCtx2, electionEndpoint, grpc.WithBlock(), grpc.WithInsecure())
+	if err != nil {
+		log.L().Error("Failed to connect to election's API server.")
+	}
+	electionClient := api.NewAPIServiceClient(conn2)
+
+	ctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient:    chainClient,
+		ElectionClient: electionClient,
 	})
 
 	if err := idx.Start(ctx); err != nil {

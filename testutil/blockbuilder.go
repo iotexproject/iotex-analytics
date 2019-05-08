@@ -5,14 +5,14 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/pkg/hash"
 	"github.com/iotexproject/iotex-core/pkg/version"
-	"github.com/iotexproject/iotex-core/protogen/iotextypes"
 	"github.com/iotexproject/iotex-core/test/testaddress"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
 
 var (

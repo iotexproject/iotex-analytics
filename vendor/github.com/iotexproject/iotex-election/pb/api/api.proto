@@ -1,0 +1,95 @@
+// Copyright (c) 2019 IoTeX
+// This program is free software: you can redistribute it and/or modify it under the terms of the
+// GNU General Public License as published by the Free Software Foundation, either version 3 of
+// the License, or (at your option) any later version.
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+// the GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License along with this program. If
+// not, see <http://www.gnu.org/licenses/>.
+
+// To compile the proto, run:
+//      protoc --go_out=plugins=grpc:. *.proto
+syntax = "proto3";
+package api;
+
+import "google/protobuf/empty.proto";
+
+// The APIService service definition
+service APIService {
+	// get the blockchain meta data
+	rpc getMeta(google.protobuf.Empty) returns (ChainMeta) {}
+
+	// get candidates
+	rpc getCandidates(GetCandidatesRequest) returns (CandidateResponse) {}
+
+	// get candidate by name
+	rpc getCandidateByName(GetCandidateByNameRequest) returns (Candidate) {}
+
+	// get buckets by candidate
+	rpc getBucketsByCandidate(GetBucketsByCandidateRequest) returns (BucketResponse) {}
+
+	// health endpoint
+	rpc isHealth(google.protobuf.Empty) returns (HealthCheckResponse) {}
+}
+
+message ChainMeta {
+	string height = 1;
+	uint64 totalCandidates = 2;
+	string totalVotedStakes = 3;
+	string totalVotes = 4;
+}
+
+message Bucket {
+	// hex string
+	string voter = 1;
+	string votes = 2;
+	string weightedVotes = 3;
+	// human readable duration
+	string remainingDuration = 4;
+}
+
+message Candidate {
+	string name = 1;
+	// hex string
+	string address = 2;
+	string totalWeightedVotes = 3;
+	string selfStakingTokens = 4;
+	string operatorAddress = 5;
+	string rewardAddress = 6;
+}
+
+message GetCandidatesRequest {
+	string height = 1;
+	uint32 offset = 2;
+	uint32 limit =3;
+}
+
+message GetCandidateByNameRequest {
+	string name = 1;
+	string height = 2;
+}
+
+message GetBucketsByCandidateRequest {
+	string name = 1;
+	string height = 2;
+	uint32 offset = 3;
+	uint32 limit = 4;
+}
+
+message HealthCheckResponse {
+	enum Status {
+		STARTING = 0;
+		ACTIVE = 1;
+		INACTIVE = 2;
+	}
+	Status status = 1;
+}
+
+message CandidateResponse {
+	repeated Candidate candidates = 1;
+}
+
+message BucketResponse {
+	repeated Bucket buckets = 1;
+}

@@ -16,11 +16,12 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
-	"github.com/iotexproject/iotex-core/protogen/iotexapi"
 	"github.com/iotexproject/iotex-core/state"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/protocol"
 	"github.com/iotexproject/iotex-analytics/protocol/actions"
 	"github.com/iotexproject/iotex-analytics/protocol/producers"
@@ -57,8 +58,8 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 
 // Start starts the indexer
 func (idx *Indexer) Start(ctx context.Context) error {
-	indexerCtx := MustGetIndexerCtx(ctx)
-	client := indexerCtx.Client
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
 
 	if err := idx.store.Start(ctx); err != nil {
 		return errors.Wrap(err, "failed to start db")
@@ -75,7 +76,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 			MethodName: []byte("DelegatesByEpoch"),
 			Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
 		}
-		res, err := client.ReadState(ctx, readStateRequest)
+		res, err := chainClient.ReadState(ctx, readStateRequest)
 		if err != nil {
 			return errors.Wrap(err, "failed to read genesis delegates from blockchain")
 		}
@@ -93,13 +94,13 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	idx.lastHeight = lastHeight
 
 	log.L().Info("Catching up via network")
-	getChainMetaRes, err := client.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})
+	getChainMetaRes, err := chainClient.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})
 	if err != nil {
 		return errors.Wrap(err, "failed to get chain metadata")
 	}
 	tipHeight := getChainMetaRes.ChainMeta.Height
 
-	if err := idx.IndexInBatch(client, tipHeight); err != nil {
+	if err := idx.IndexInBatch(ctx, tipHeight); err != nil {
 		return errors.Wrap(err, "failed to index blocks in batch")
 	}
 
@@ -114,7 +115,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 				return
 			case tipHeight := <-heightChan:
 				// index blocks up to this height
-				if err := idx.IndexInBatch(client, tipHeight); err != nil {
+				if err := idx.IndexInBatch(ctx, tipHeight); err != nil {
 					log.L().Error("failed to index blocks in batch", zap.Error(err))
 				}
 			case err := <-reportChan:
@@ -122,7 +123,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 			}
 		}
 	}()
-	idx.SubscribeNewBlock(client, heightChan, reportChan, idx.terminate)
+	idx.SubscribeNewBlock(chainClient, heightChan, reportChan, idx.terminate)
 	return nil
 }
 
@@ -179,14 +180,17 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 }
 
 // IndexInBatch indexes blocks in batch
-func (idx *Indexer) IndexInBatch(client iotexapi.APIServiceClient, tipHeight uint64) error {
+func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
+
 	startHeight := idx.lastHeight + 1
 	for startHeight <= tipHeight {
 		count := idx.config.RangeQueryLimit
 		if idx.config.RangeQueryLimit > tipHeight-startHeight+1 {
-			count = tipHeight-startHeight+1
+			count = tipHeight - startHeight + 1
 		}
-		getRawBlocksRes, err := client.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
+		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
 			StartHeight:  startHeight,
 			Count:        count,
 			WithReceipts: true,
@@ -206,7 +210,7 @@ func (idx *Indexer) IndexInBatch(client iotexapi.APIServiceClient, tipHeight uin
 				blk.Receipts = append(blk.Receipts, receipt)
 			}
 
-			if err := idx.buildIndex(blk); err != nil {
+			if err := idx.buildIndex(ctx, blk); err != nil {
 				return errors.Wrap(err, "failed to build index the block")
 			}
 			// Update lastHeight tracker
@@ -282,10 +286,10 @@ func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64,
 }
 
 // buildIndex builds the index for a block
-func (idx *Indexer) buildIndex(blk *block.Block) error {
+func (idx *Indexer) buildIndex(ctx context.Context, blk *block.Block) error {
 	if err := idx.store.Transact(func(tx *sql.Tx) error {
 		for _, p := range idx.registry.All() {
-			if err := p.HandleBlock(context.Background(), tx, blk); err != nil {
+			if err := p.HandleBlock(ctx, tx, blk); err != nil {
 				return errors.Wrapf(err, "failed to build index for block on height %d", blk.Height())
 			}
 		}

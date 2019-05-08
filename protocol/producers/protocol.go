@@ -113,11 +113,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	}
 
 	epochNum := protocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, blk.Height())
-	if err := p.updateProductivityHistory(tx, epochNum, blk.Height(), blk.ProducerAddress()); err != nil {
-		return errors.Wrapf(err, "failed to update epoch number to productivity history table")
-	}
-
-	return nil
+	return p.updateProductivityHistory(tx, epochNum, blk.Height(), blk.ProducerAddress())
 }
 
 // GetLastHeight returns last inserted block height
