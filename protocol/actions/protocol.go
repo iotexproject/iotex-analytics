@@ -12,9 +12,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/pkg/hash"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/protocol"
@@ -107,11 +107,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		actionToReceipt[receipt.ActionHash] = receipt.Hash()
 	}
 
-	if err := p.updateBlockByAction(tx, actionToReceipt, blk.HashBlock()); err != nil {
-		return errors.Wrap(err, "failed to update action index to block")
-	}
-
-	return nil
+	return p.updateBlockByAction(tx, actionToReceipt, blk.HashBlock())
 }
 
 // GetActionHistory returns list of action hash by user address
