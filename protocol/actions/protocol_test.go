@@ -9,6 +9,7 @@ package actions
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,24 +42,20 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	// get receipt
-	blkHash, err := p.GetBlockByReceipt(blk.Receipts[0].Hash())
-	require.Nil(err)
-	require.Equal(blkHash, blk.HashBlock())
-
-	blkHash, err = p.GetBlockByReceipt(blk.Receipts[1].Hash())
-	require.Nil(err)
-	require.Equal(blkHash, blk.HashBlock())
-
 	// get action
-	actionHashes, err := p.GetActionHistory(testutil.Addr1)
-	require.Nil(err)
-	require.Equal(7, len(actionHashes))
-	action := blk.Actions[0].Hash()
-	require.Equal(action, actionHashes[0])
+	actionHash := blk.Actions[1].Hash()
+	receiptHash := blk.Receipts[1].Hash()
+	actionHistory, err := p.GetActionHistory(hex.EncodeToString(actionHash[:]))
+	require.NoError(err)
 
-	// action map to block
-	blkHash4, err := p.GetBlockByAction(blk.Actions[0].Hash())
-	require.Nil(err)
-	require.Equal(blkHash4, blk.HashBlock())
+	require.Equal("transfer", actionHistory.ActionType)
+	require.Equal(hex.EncodeToString(receiptHash[:]), actionHistory.ReceiptHash)
+	require.Equal(uint64(180), actionHistory.BlockHeight)
+	require.Equal(testutil.Addr1, actionHistory.From)
+	require.Equal(testutil.Addr2, actionHistory.To)
+	require.Equal("0", actionHistory.GasPrice)
+	require.Equal(uint64(2), actionHistory.GasConsumed)
+	require.Equal(uint64(102), actionHistory.Nonce)
+	require.Equal("2", actionHistory.Amount)
+	require.Equal("success", actionHistory.ReceiptStatus)
 }

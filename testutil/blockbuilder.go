@@ -50,7 +50,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 				{
 					Core: &iotextypes.ActionCore{
 						Action: &iotextypes.ActionCore_Transfer{
-							Transfer: &iotextypes.Transfer{Recipient: Addr1},
+							Transfer: &iotextypes.Transfer{Recipient: Addr1, Amount: "1"},
 						},
 						Version: version.ProtocolVersion,
 						Nonce:   101,
@@ -60,7 +60,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 				{
 					Core: &iotextypes.ActionCore{
 						Action: &iotextypes.ActionCore_Transfer{
-							Transfer: &iotextypes.Transfer{Recipient: Addr2},
+							Transfer: &iotextypes.Transfer{Recipient: Addr2, Amount: "2"},
 						},
 						Version: version.ProtocolVersion,
 						Nonce:   102,
@@ -145,7 +145,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 		},
 		{
 			ActionHash:      blk.Actions[1].Hash(),
-			Status:          2,
+			Status:          1,
 			GasConsumed:     2,
 			ContractAddress: "2",
 			Logs:            []*action.Log{},
