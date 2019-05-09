@@ -27,15 +27,16 @@ type queryResolver struct{ *Resolver }
 
 // Rewards handles GetRewardHistory request
 func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*Reward, error) {
-	rewardInfo, err := r.Indexer.GetRewardHistory(uint64(startEpoch), uint64(epochCount), rewardAddress)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get reward information")
-	}
-	return &Reward{
-		BlockReward:     rewardInfo.BlockReward.String(),
-		EpochReward:     rewardInfo.EpochReward.String(),
-		FoundationBonus: rewardInfo.FoundationBonus.String(),
-	}, nil
+	//rewardInfo, err := r.Indexer.GetRewardHistory(uint64(startEpoch), uint64(epochCount), rewardAddress)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "failed to get reward information")
+	//}
+	//return &Reward{
+	//	BlockReward:     rewardInfo.BlockReward.String(),
+	//	EpochReward:     rewardInfo.EpochReward.String(),
+	//	FoundationBonus: rewardInfo.FoundationBonus.String(),
+	//}, nil
+	return nil, nil
 }
 
 // Productivity handles GetProductivityHistory request
