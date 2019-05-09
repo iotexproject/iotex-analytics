@@ -14,6 +14,7 @@ import (
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 
@@ -24,23 +25,43 @@ import (
 const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "actions"
-	// BlockByActionTableName is the table name of block by action
-	BlockByActionTableName = "block_by_action"
 	// ActionHistoryTableName is the table name of action history
 	ActionHistoryTableName = "action_history"
 )
 
 type (
-	// BlockByAction defines the base schema of "action to block" table
-	BlockByAction struct {
-		ActionHash  []byte
-		ReceiptHash []byte
-		BlockHash   []byte
-	}
-	// ActionHistory defines the schema of "action history" table
+	// ActionHistory defines the base schema of "action history" table
 	ActionHistory struct {
-		UserAddress string
+		ActionType    string
+		ActionHash    string
+		ReceiptHash   string
+		BlockHeight   uint64
+		From          string
+		To            string
+		GasPrice      string
+		GasConsumed   uint64
+		Nonce         uint64
+		Amount        string
+		ReceiptStatus string
+	}
+
+	// ActionInfo defines an action's information
+	ActionInfo struct {
+		ActionType  string
 		ActionHash  string
+		ReceiptHash hash.Hash256
+		From        string
+		To          string
+		GasPrice    string
+		Nonce       uint64
+		Amount      string
+	}
+
+	// ReceiptInfo defines a receipt's information
+	ReceiptInfo struct {
+		ReceiptHash   string
+		GasConsumed   uint64
+		ReceiptStatus string
 	}
 )
 
@@ -58,13 +79,9 @@ func NewProtocol(store s.Store) *Protocol {
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_hash] BLOB(32) NOT NULL, [receipt_hash] BLOB(32) NOT NULL, [block_hash] BLOB(32) NOT NULL)", BlockByActionTableName)); err != nil {
-		return err
-	}
-
-	// create action history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([user_address] TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)", ActionHistoryTableName)); err != nil {
+		"([action_type] TEXT NOT NULL, [action_hash] TEXT NOT NULL, [receipt_hash] TEXT NOT NULL, [block_height] INT NOT NULL, "+
+		"[from] TEXT NOT NULL, [to] TEXT NOT NULL, [gas_price] TEXT NOT NULL, [gas_consumed] INT NOT NULL, [nonce] INT NOT NULL, "+
+		"[amount] TEXT NOT NULL, [receipt_status] TEXT NOT NULL)", ActionHistoryTableName)); err != nil {
 		return err
 	}
 	return nil
@@ -77,51 +94,87 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *proto
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
-	actionToReceipt := make(map[hash.Hash256]hash.Hash256)
+	hashToActionInfo := make(map[hash.Hash256]*ActionInfo)
 
 	// log action index
 	for _, selp := range blk.Actions {
+		actionHash := selp.Hash()
 		callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
 		if err != nil {
 			return err
 		}
-		// put new action for sender
-		if err := p.updateActionHistory(tx, callerAddr.String(), selp.Hash()); err != nil {
-			return errors.Wrap(err, "failed to update action to action history table")
+		dst, _ := selp.Destination()
+		gasPrice := selp.GasPrice().String()
+		nonce := selp.Nonce()
+
+		act := selp.Action()
+		var actionType string
+		var amount string
+		if tsf, ok := act.(*action.Transfer); ok {
+			actionType = "transfer"
+			amount = tsf.Amount().String()
+		} else if exec, ok := act.(*action.Execution); ok {
+			actionType = "execution"
+			amount = exec.Amount().String()
+		} else if df, ok := act.(*action.DepositToRewardingFund); ok {
+			actionType = "depositToRewardingFund"
+			amount = df.Amount().String()
+		} else if cf, ok := act.(*action.ClaimFromRewardingFund); ok {
+			actionType = "claimFromRewardingFund"
+			amount = cf.Amount().String()
+		} else if _, ok := act.(*action.GrantReward); ok {
+			actionType = "grantReward"
+		} else if _, ok := act.(*action.PutPollResult); ok {
+			actionType = "putPollResult"
 		}
-		// put new transfer for recipient
-		dst, ok := selp.Destination()
-		if ok {
-			if err := p.updateActionHistory(tx, dst, selp.Hash()); err != nil {
-				return errors.Wrap(err, "failed to update action to action history table")
-			}
+		hashToActionInfo[actionHash] = &ActionInfo{
+			ActionType: actionType,
+			ActionHash: hex.EncodeToString(actionHash[:]),
+			From:       callerAddr.String(),
+			To:         dst,
+			GasPrice:   gasPrice,
+			Nonce:      nonce,
+			Amount:     amount,
 		}
-		actionToReceipt[selp.Hash()] = hash.ZeroHash256
 	}
 
+	hashToReceiptInfo := make(map[hash.Hash256]*ReceiptInfo)
 	for _, receipt := range blk.Receipts {
 		// map receipt to action
-		if _, ok := actionToReceipt[receipt.ActionHash]; !ok {
+		actionInfo, ok := hashToActionInfo[receipt.ActionHash]
+		if !ok {
 			return errors.New("failed to find the corresponding action from receipt")
 		}
-		actionToReceipt[receipt.ActionHash] = receipt.Hash()
+		receiptHash := receipt.Hash()
+		actionInfo.ReceiptHash = receiptHash
+
+		receiptStatus := "failure"
+		if receipt.Status == uint64(1) {
+			receiptStatus = "success"
+		}
+
+		hashToReceiptInfo[receiptHash] = &ReceiptInfo{
+			ReceiptHash:   hex.EncodeToString(receiptHash[:]),
+			GasConsumed:   receipt.GasConsumed,
+			ReceiptStatus: receiptStatus,
+		}
 	}
 
-	return p.updateBlockByAction(tx, actionToReceipt, blk.HashBlock())
+	return p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
 }
 
-// GetActionHistory returns list of action hash by user address
-func (p *Protocol) GetActionHistory(userAddr string) ([]hash.Hash256, error) {
+// GetActionHistory returns action history by action hash
+func (p *Protocol) GetActionHistory(actionHash string) (*ActionHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE user_address=?",
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
 		ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(userAddr)
+	rows, err := stmt.Query(actionHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -132,78 +185,39 @@ func (p *Protocol) GetActionHistory(userAddr string) ([]hash.Hash256, error) {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
 
-	actionHashes := make([]hash.Hash256, 0, len(parsedRows))
-	for _, parsedRow := range parsedRows {
-		var hash hash.Hash256
-		copy(hash[:], parsedRow.(*ActionHistory).ActionHash)
-		actionHashes = append(actionHashes, hash)
+	if len(parsedRows) == 0 {
+		return nil, protocol.ErrNotExist
 	}
-	return actionHashes, nil
+
+	if len(parsedRows) > 1 {
+		return nil, errors.New("only one row is expected")
+	}
+
+	actHistory := parsedRows[0].(*ActionHistory)
+	return actHistory, nil
 }
 
-// GetBlockByAction returns block hash by action hash
-func (p *Protocol) GetBlockByAction(actionHash hash.Hash256) (hash.Hash256, error) {
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
-		BlockByActionTableName)
-	return p.blockByIndex(getQuery, actionHash)
-}
-
-// GetBlockByReceipt returns block hash by receipt hash
-func (p *Protocol) GetBlockByReceipt(receiptHash hash.Hash256) (hash.Hash256, error) {
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE receipt_hash=?",
-		BlockByActionTableName)
-	return p.blockByIndex(getQuery, receiptHash)
-}
-
-// updateBlockByAction maps action hash/receipt hash to block hash
-func (p *Protocol) updateBlockByAction(tx *sql.Tx, actionToReceipt map[hash.Hash256]hash.Hash256,
-	blockHash hash.Hash256) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,receipt_hash,block_hash) VALUES (?, ?, ?)",
-		BlockByActionTableName)
-	for actionHash, receiptHash := range actionToReceipt {
-		if _, err := tx.Exec(insertQuery, hex.EncodeToString(actionHash[:]), hex.EncodeToString(receiptHash[:]), blockHash[:]); err != nil {
+// updateActionHistory stores action information into action history table
+func (p *Protocol) updateActionHistory(
+	tx *sql.Tx,
+	hashToActionInfo map[hash.Hash256]*ActionInfo,
+	hashToReceiptInfo map[hash.Hash256]*ReceiptInfo,
+	block *block.Block,
+) error {
+	for _, selp := range block.Actions {
+		actionInfo := hashToActionInfo[selp.Hash()]
+		if actionInfo.ReceiptHash == hash.ZeroHash256 {
+			return errors.New("action receipt is missing")
+		}
+		receiptInfo := hashToReceiptInfo[actionInfo.ReceiptHash]
+		insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, [from], [to], "+
+			"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			ActionHistoryTableName)
+		if _, err := tx.Exec(insertQuery, actionInfo.ActionType, actionInfo.ActionHash, receiptInfo.ReceiptHash, block.Height(),
+			actionInfo.From, actionInfo.To, actionInfo.GasPrice, receiptInfo.GasConsumed, actionInfo.Nonce,
+			actionInfo.Amount, receiptInfo.ReceiptStatus); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// updateActionHistory stores action information into action history table
-func (p *Protocol) updateActionHistory(tx *sql.Tx, userAddr string,
-	actionHash hash.Hash256) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (user_address,action_hash) VALUES (?, ?)",
-		ActionHistoryTableName)
-	if _, err := tx.Exec(insertQuery, userAddr, actionHash[:]); err != nil {
-		return err
-	}
-	return nil
-}
-
-// blockByIndex returns block by index hash
-func (p *Protocol) blockByIndex(getQuery string, indexHash hash.Hash256) (hash.Hash256, error) {
-	db := p.Store.GetDB()
-
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrap(err, "failed to prepare get query")
-	}
-
-	rows, err := stmt.Query(hex.EncodeToString(indexHash[:]))
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrap(err, "failed to execute get query")
-	}
-
-	var blockByAction BlockByAction
-	parsedRows, err := s.ParseSQLRows(rows, &blockByAction)
-	if err != nil {
-		return hash.ZeroHash256, errors.Wrap(err, "failed to parse results")
-	}
-
-	if len(parsedRows) == 0 {
-		return hash.ZeroHash256, protocol.ErrNotExist
-	}
-
-	var hash hash.Hash256
-	copy(hash[:], parsedRows[0].(*BlockByAction).BlockHash)
-	return hash, nil
 }

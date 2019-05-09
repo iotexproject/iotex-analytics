@@ -138,36 +138,36 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 }
 
 // GetBlockHistory gets block history
-func (p *Protocol) GetBlockHistory(blockHeight uint64) (string, string, string, error) {
+func (p *Protocol) GetBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE block_height=?", BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to prepare get query")
+		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
 	rows, err := stmt.Query(blockHeight)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to execute get query")
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var blockHistory BlockHistory
 	parsedRows, err := s.ParseSQLRows(rows, &blockHistory)
 	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to parse results")
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 
 	if len(parsedRows) == 0 {
-		return "", "", "", protocol.ErrNotExist
+		return nil, protocol.ErrNotExist
 	}
 
 	if len(parsedRows) > 1 {
-		return "", "", "", errors.New("only one row is expected")
+		return nil, errors.New("only one row is expected")
 	}
 
 	blockInfo := parsedRows[0].(*BlockHistory)
-	return blockInfo.BlockHash, blockInfo.ProducerName, blockInfo.ExpectedProducerName, nil
+	return blockInfo, nil
 }
 
 // updateBlockHistory stores reward information into reward history table
