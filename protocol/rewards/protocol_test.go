@@ -9,15 +9,26 @@ package rewards
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
+	"github.com/iotexproject/iotex-election/pb/api"
+	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
 
 func TestProtocol(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	require := require.New(t)
 	ctx := context.Background()
 	testPath := "analytics.db"
@@ -34,16 +45,54 @@ func TestProtocol(t *testing.T) {
 
 	require.NoError(p.CreateTables(ctx))
 
-	blk, err := testutil.BuildCompleteBlock(uint64(180), uint64(361))
+	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(361))
 	require.NoError(err)
+
+	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
+	electionClient := mock_election.NewMockAPIServiceClient(ctrl)
+	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient:    chainClient,
+		ElectionClient: electionClient,
+	})
+
+	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: byteutil.Uint64ToBytes(uint64(1000)),
+	}, nil)
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
+		&api.CandidateResponse{
+			Candidates: []*api.Candidate{
+				{
+					Name:          "alfa",
+					RewardAddress: testutil.RewardAddr1,
+				},
+				{
+					Name:          "bravo",
+					RewardAddress: testutil.RewardAddr2,
+				},
+				{
+					Name:          "charlie",
+					RewardAddress: testutil.RewardAddr3,
+				},
+			},
+		}, nil,
+	)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	rewardInfo, err := p.GetRewardHistory(uint64(1), uint64(1), testutil.RewardAddr1)
+	actionHash1 := blk.Actions[4].Hash()
+	rewardHistoryList, err := p.GetRewardHistory(hex.EncodeToString(actionHash1[:]))
 	require.NoError(err)
-	require.Equal("16", rewardInfo.BlockReward.String())
-	require.Equal("10", rewardInfo.EpochReward.String())
-	require.Equal("100", rewardInfo.FoundationBonus.String())
+	require.Equal(1, len(rewardHistoryList))
+	require.Equal("alfa", rewardHistoryList[0].DelegateName)
+	require.Equal(testutil.RewardAddr1, rewardHistoryList[0].RewardAddress)
+	require.Equal("16", rewardHistoryList[0].BlockReward)
+	require.Equal("0", rewardHistoryList[0].EpochReward)
+	require.Equal("0", rewardHistoryList[0].FoundationBonus)
+
+	actionHash2 := blk.Actions[5].Hash()
+	rewardHistoryList, err = p.GetRewardHistory(hex.EncodeToString(actionHash2[:]))
+	require.NoError(err)
+	require.Equal(3, len(rewardHistoryList))
 }

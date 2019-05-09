@@ -260,17 +260,17 @@ func (idx *Indexer) GetLastHeight() (uint64, error) {
 }
 
 // GetRewardHistory gets reward history
-func (idx *Indexer) GetRewardHistory(startEpoch uint64, epochCount uint64, rewardAddr string) (*rewards.RewardInfo, error) {
-	p, ok := idx.registry.Find(rewards.ProtocolID)
-	if !ok {
-		return nil, errors.New("rewards protocol is unregistered")
-	}
-	rp, ok := p.(*rewards.Protocol)
-	if !ok {
-		return nil, errors.New("failed to cast protocol interface to rewards protocol")
-	}
-	return rp.GetRewardHistory(startEpoch, epochCount, rewardAddr)
-}
+//func (idx *Indexer) GetRewardHistory(startEpoch uint64, epochCount uint64, rewardAddr string) (*rewards.RewardInfo, error) {
+//	p, ok := idx.registry.Find(rewards.ProtocolID)
+//	if !ok {
+//		return nil, errors.New("rewards protocol is unregistered")
+//	}
+//	rp, ok := p.(*rewards.Protocol)
+//	if !ok {
+//		return nil, errors.New("failed to cast protocol interface to rewards protocol")
+//	}
+//	return rp.GetRewardHistory(startEpoch, epochCount, rewardAddr)
+//}
 
 // GetProductivityHistory gets productivity history
 func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64, address string) (uint64, uint64, error) {

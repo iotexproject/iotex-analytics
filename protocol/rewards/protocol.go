@@ -9,18 +9,25 @@ package rewards
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-core/action"
+	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-election/pb/api"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/protocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -35,8 +42,9 @@ const (
 type (
 	// RewardHistory defines the schema of "reward history" table
 	RewardHistory struct {
-		EpochNumber     string
+		ActionHash      string
 		RewardAddress   string
+		DelegateName    string
 		BlockReward     string
 		EpochReward     string
 		FoundationBonus string
@@ -45,9 +53,11 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store        s.Store
-	NumDelegates uint64
-	NumSubEpochs uint64
+	Store                 s.Store
+	NumDelegates          uint64
+	NumCandidateDelegates uint64
+	NumSubEpochs          uint64
+	RewardAddrToName      map[string]string
 }
 
 // RewardInfo indicates the amount of different reward types
@@ -66,8 +76,9 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([epoch_number] TEXT NOT NULL, [reward_address] TEXT NOT NULL, [block_reward] TEXT NOT NULL, "+
-		"[epoch_reward] TEXT NOT NULL, [foundation_bonus] TEXT NOT NULL)", RewardHistoryTableName)); err != nil {
+		"([action_hash] TEXT NOT NULL, [reward_address] TEXT NOT NULL, [delegate_name] TEXT NOT NULL, "+
+		"[block_reward] TEXT NOT NULL, [epoch_reward] TEXT NOT NULL, [foundation_bonus] TEXT NOT NULL)",
+		RewardHistoryTableName)); err != nil {
 		return err
 	}
 	return nil
@@ -80,6 +91,18 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *proto
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
+	height := blk.Height()
+	epochNumber := protocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
+	electionClient := indexCtx.ElectionClient
+	// Special handling for epoch start height
+	if height == protocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
+		if err := p.updateDelegateRewardAddress(chainClient, electionClient, height); err != nil {
+			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
+		}
+	}
+
 	grantRewardActs := make(map[hash.Hash256]bool)
 	// log action index
 	for _, selp := range blk.Actions {
@@ -87,7 +110,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			grantRewardActs[selp.Hash()] = true
 		}
 	}
-	epochNum := protocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, blk.Height())
 	// log receipt index
 	for _, receipt := range blk.Receipts {
 		if _, ok := grantRewardActs[receipt.ActionHash]; ok {
@@ -97,7 +119,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrap(err, "failed to get reward info from receipt")
 			}
 			// Update reward info in DB
-			if err := p.updateRewardHistory(tx, epochNum, rewardInfoMap); err != nil {
+			actionHash := hex.EncodeToString(receipt.ActionHash[:])
+			if err := p.updateRewardHistory(tx, actionHash, rewardInfoMap); err != nil {
 				return errors.Wrap(err, "failed to update epoch number and reward address to reward history table")
 			}
 		}
@@ -105,22 +128,18 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// GetRewardHistory read reward history
-func (p *Protocol) GetRewardHistory(
-	startEpochNumber uint64,
-	epochCount uint64, rewardAddress string,
-) (*RewardInfo, error) {
+// GetRewardHistory reads reward history
+func (p *Protocol) GetRewardHistory(actionHash string) ([]*RewardHistory, error) {
 	db := p.Store.GetDB()
 
-	endEpochNumber := startEpochNumber + epochCount - 1
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE CAST(epoch_number AS INT) >= %d AND CAST(epoch_number AS INT) <= %d AND reward_address=?",
-		RewardHistoryTableName, startEpochNumber, endEpochNumber)
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
+		RewardHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(rewardAddress)
+	rows, err := stmt.Query(actionHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -135,42 +154,27 @@ func (p *Protocol) GetRewardHistory(
 		return nil, protocol.ErrNotExist
 	}
 
-	rewardInfo := &RewardInfo{
-		BlockReward:     big.NewInt(0),
-		EpochReward:     big.NewInt(0),
-		FoundationBonus: big.NewInt(0),
-	}
+	var rewardHistoryList []*RewardHistory
 	for _, parsedRow := range parsedRows {
 		rewards := parsedRow.(*RewardHistory)
-		blockReward, ok := big.NewInt(0).SetString(rewards.BlockReward, 10)
-		if !ok {
-			return nil, errors.New("failed to convert block reward from string to big int")
-		}
-		epochReward, ok := big.NewInt(0).SetString(rewards.EpochReward, 10)
-		if !ok {
-			return nil, errors.New("failed to convert epoch reward from string to big int")
-		}
-		foundationBonus, ok := big.NewInt(0).SetString(rewards.FoundationBonus, 10)
-		if !ok {
-			return nil, errors.New("failed to convert foundation bonus from string to big int")
-		}
-		rewardInfo.BlockReward.Add(rewardInfo.BlockReward, blockReward)
-		rewardInfo.EpochReward.Add(rewardInfo.EpochReward, epochReward)
-		rewardInfo.FoundationBonus.Add(rewardInfo.FoundationBonus, foundationBonus)
+		rewardHistoryList = append(rewardHistoryList, rewards)
 	}
-	return rewardInfo, nil
+	return rewardHistoryList, nil
 }
 
 // updateRewardHistory stores reward information into reward history table
-func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNum uint64, rewardInfoMap map[string]*RewardInfo) error {
-	for rewardAddress, rewardDelta := range rewardInfoMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_Number,reward_address,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, ?)", RewardHistoryTableName)
-		epochNumber := strconv.Itoa(int(epochNum))
-		blockReward := rewardDelta.BlockReward.String()
-		epochReward := rewardDelta.EpochReward.String()
-		foundationBonus := rewardDelta.FoundationBonus.String()
-		if _, err := tx.Exec(insertQuery, epochNumber, rewardAddress, blockReward, epochReward, foundationBonus); err != nil {
+func (p *Protocol) updateRewardHistory(tx *sql.Tx, actionHash string, rewardInfoMap map[string]*RewardInfo) error {
+	for rewardAddress, rewards := range rewardInfoMap {
+		insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,reward_address,delegate_name,block_reward,epoch_reward,"+
+			"foundation_bonus) VALUES (?, ?, ?, ?, ?, ?)", RewardHistoryTableName)
+		blockReward := rewards.BlockReward.String()
+		epochReward := rewards.EpochReward.String()
+		foundationBonus := rewards.FoundationBonus.String()
+		delegateName, ok := p.RewardAddrToName[rewardAddress]
+		if !ok {
+			return errors.New("cannot find delegate name by reward address")
+		}
+		if _, err := tx.Exec(insertQuery, actionHash, rewardAddress, delegateName, blockReward, epochReward, foundationBonus); err != nil {
 			return err
 		}
 	}
@@ -200,14 +204,48 @@ func (p *Protocol) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string
 		}
 		switch rewardLog.Type {
 		case rewardingpb.RewardLog_BLOCK_REWARD:
-			rewards.BlockReward = amount
+			rewards.BlockReward.Add(rewards.BlockReward, amount)
 		case rewardingpb.RewardLog_EPOCH_REWARD:
-			rewards.EpochReward = amount
+			rewards.EpochReward.Add(rewards.EpochReward, amount)
 		case rewardingpb.RewardLog_FOUNDATION_BONUS:
-			rewards.FoundationBonus = amount
+			rewards.FoundationBonus.Add(rewards.FoundationBonus, amount)
 		default:
 			log.L().Fatal("Unknown type of reward")
 		}
 	}
 	return rewardInfoMap, nil
+}
+
+func (p *Protocol) updateDelegateRewardAddress(
+	chainClient iotexapi.APIServiceClient,
+	electionClient api.APIServiceClient,
+	height uint64,
+) error {
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("GetGravityChainStartHeight"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(height)},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get gravity chain start height")
+	}
+	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
+
+	getCandidatesRequest := &api.GetCandidatesRequest{
+		Height: strconv.Itoa(int(gravityChainStartHeight)),
+		Offset: uint32(0),
+		Limit:  math.MaxUint32,
+	}
+
+	getCanidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get candidates from election service")
+	}
+
+	p.RewardAddrToName = make(map[string]string)
+	for _, candidate := range getCanidatesResponse.Candidates {
+		p.RewardAddrToName[candidate.RewardAddress] = candidate.Name
+	}
+	return nil
 }
