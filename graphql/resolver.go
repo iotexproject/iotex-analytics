@@ -25,23 +25,22 @@ func (r *Resolver) Query() QueryResolver {
 
 type queryResolver struct{ *Resolver }
 
-// Rewards handles GetRewardHistory request
-func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*Reward, error) {
-	//rewardInfo, err := r.Indexer.GetRewardHistory(uint64(startEpoch), uint64(epochCount), rewardAddress)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "failed to get reward information")
-	//}
-	//return &Reward{
-	//	BlockReward:     rewardInfo.BlockReward.String(),
-	//	EpochReward:     rewardInfo.EpochReward.String(),
-	//	FoundationBonus: rewardInfo.FoundationBonus.String(),
-	//}, nil
-	return nil, nil
+// Rewards handles GetAccountReward request
+func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, candidateName string) (*Reward, error) {
+	blockReward, epochReward, foundationBonus, err := r.Indexer.GetAccountReward(uint64(startEpoch), uint64(epochCount), candidateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get reward information")
+	}
+	return &Reward{
+		BlockReward:     blockReward,
+		EpochReward:     epochReward,
+		FoundationBonus: foundationBonus,
+	}, nil
 }
 
 // Productivity handles GetProductivityHistory request
-func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochCount int, address string) (*Productivity, error) {
-	production, expectedProduction, err := r.Indexer.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), address)
+func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error) {
+	production, expectedProduction, err := r.Indexer.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), producerName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get productivity information")
 	}

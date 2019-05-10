@@ -1,6 +1,6 @@
 type Query {
-    rewards(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): Reward
-    productivity(startEpoch: Int!, epochCount: Int!, address: String!): Productivity
+    rewards(startEpoch: Int!, epochCount: Int!, candidateName: String!): Reward
+    productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
 }
 
 type Reward {

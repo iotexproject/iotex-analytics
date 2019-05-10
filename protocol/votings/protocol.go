@@ -125,8 +125,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// GetVotingHistory gets voting history
-func (p *Protocol) GetVotingHistory(epochNumber uint64, candidateName string) ([]*VotingHistory, error) {
+// getVotingHistory gets voting history
+func (p *Protocol) getVotingHistory(epochNumber uint64, candidateName string) ([]*VotingHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
@@ -159,8 +159,8 @@ func (p *Protocol) GetVotingHistory(epochNumber uint64, candidateName string) ([
 	return votingHistoryList, nil
 }
 
-// GetVotingResult gets voting result
-func (p *Protocol) GetVotingResult(epochNumber uint64, delegateName string) (*VotingResult, error) {
+// getVotingResult gets voting result
+func (p *Protocol) getVotingResult(epochNumber uint64, delegateName string) (*VotingResult, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?",

@@ -9,6 +9,7 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -24,8 +25,9 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/protocol"
 	"github.com/iotexproject/iotex-analytics/protocol/actions"
-	"github.com/iotexproject/iotex-analytics/protocol/producers"
+	"github.com/iotexproject/iotex-analytics/protocol/blocks"
 	"github.com/iotexproject/iotex-analytics/protocol/rewards"
+	"github.com/iotexproject/iotex-analytics/protocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -166,17 +168,20 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol protocol.Protoc
 // RegisterDefaultProtocols registers default protocols to hte indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.store)
-	rewardProtocol := rewards.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-	producersProtocol := producers.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumCandidateDelegates,
-		idx.config.NumSubEpochs)
+	blocksProtocol := blocks.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
+	rewardsProtocol := rewards.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
+	votingsProtocol := votings.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
 
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
 	}
-	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardProtocol); err != nil {
+	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
+		return errors.Wrap(err, "failed to register blocks protocol")
+	}
+	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register rewards protocol")
 	}
-	return idx.RegisterProtocol(producers.ProtocolID, producersProtocol)
+	return idx.RegisterProtocol(votings.ProtocolID, votingsProtocol)
 }
 
 // IndexInBatch indexes blocks in batch
@@ -248,41 +253,71 @@ func (idx *Indexer) SubscribeNewBlock(
 
 // GetLastHeight gets last height stored in the underlying db
 func (idx *Indexer) GetLastHeight() (uint64, error) {
-	p, ok := idx.registry.Find(producers.ProtocolID)
-	if !ok {
+	if _, ok := idx.registry.Find(blocks.ProtocolID); !ok {
 		return uint64(0), errors.New("producers protocol is unregistered")
 	}
-	pp, ok := p.(*producers.Protocol)
-	if !ok {
-		return uint64(0), errors.New("failed to cast protocol interface to producers protocol")
+
+	db := idx.store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT block_height FROM %s ORDER BY block_height DESC LIMIT 1", blocks.BlockHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to prepare get query")
 	}
-	return pp.GetLastHeight()
+	var lastHeight uint64
+	err = stmt.QueryRow().Scan(&lastHeight)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to execute get query")
+	}
+	return lastHeight, nil
 }
 
-// GetRewardHistory gets reward history
-//func (idx *Indexer) GetRewardHistory(startEpoch uint64, epochCount uint64, rewardAddr string) (*rewards.RewardInfo, error) {
-//	p, ok := idx.registry.Find(rewards.ProtocolID)
-//	if !ok {
-//		return nil, errors.New("rewards protocol is unregistered")
-//	}
-//	rp, ok := p.(*rewards.Protocol)
-//	if !ok {
-//		return nil, errors.New("failed to cast protocol interface to rewards protocol")
-//	}
-//	return rp.GetRewardHistory(startEpoch, epochCount, rewardAddr)
-//}
+// GetAccountReward gets account reward
+func (idx *Indexer) GetAccountReward(startEpoch uint64, epochCount uint64, candidateName string) (string, string, string, error) {
+	if _, ok := idx.registry.Find(rewards.ProtocolID); !ok {
+		return "", "", "", errors.New("rewards protocol is unregistered")
+	}
+
+	db := idx.store.GetDB()
+
+	endEpoch := startEpoch + epochCount - 1
+
+	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
+		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardViewName, startEpoch, endEpoch)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "failed to prepare get query")
+	}
+
+	var blockReward, epochReward, foundationBonus string
+	if err = stmt.QueryRow(candidateName).Scan(&blockReward, &epochReward, &foundationBonus); err != nil {
+		return "", "", "", errors.Wrap(err, "failed to execute get query")
+	}
+	return blockReward, epochReward, foundationBonus, nil
+}
 
 // GetProductivityHistory gets productivity history
-func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64, address string) (uint64, uint64, error) {
-	p, ok := idx.registry.Find(producers.ProtocolID)
-	if !ok {
+func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64, producerName string) (uint64, uint64, error) {
+	if _, ok := idx.registry.Find(blocks.ProtocolID); !ok {
 		return uint64(0), uint64(0), errors.New("producers protocol is unregistered")
 	}
-	pp, ok := p.(*producers.Protocol)
-	if !ok {
-		return uint64(0), uint64(0), errors.New("failed to cast protocol interface to rewards protocol")
+
+	db := idx.store.GetDB()
+
+	endEpoch := startEpoch + epochCount - 1
+
+	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
+		"epoch_number >= %d AND epoch_number <= %d AND producer_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
 	}
-	return pp.GetProductivityHistory(startEpoch, epochCount, address)
+
+	var production, expectedProduction uint64
+	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
+		return uint64(0), uint64(0), errors.Wrap(err, "failed to execute get query")
+	}
+	return production, expectedProduction, nil
 }
 
 // buildIndex builds the index for a block
