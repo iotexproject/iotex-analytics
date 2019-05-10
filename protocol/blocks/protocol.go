@@ -26,11 +26,14 @@ const (
 	ProtocolID = "blocks"
 	// BlockHistoryTableName is the table name of block history
 	BlockHistoryTableName = "block_history"
+	// ProductivityViewName is the view name of block producers' productivity
+	ProductivityViewName = "productivity_history"
 )
 
 type (
 	// BlockHistory defines the schema of "block history" table
 	BlockHistory struct {
+		EpochNumber             uint64
 		BlockHeight             uint64
 		BlockHash               string
 		Transfer                uint64
@@ -44,6 +47,14 @@ type (
 		ProducerName            string
 		ExpectedProducerAddress string
 		ExpectedProducerName    string
+	}
+
+	// ProductivityHistory defines the schema of "productivity history" table
+	ProductivityHistory struct {
+		EpochNumber        uint64
+		ProducerName       string
+		Production         uint64
+		ExpectedProduction uint64
 	}
 )
 
@@ -70,14 +81,24 @@ func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint6
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([block_height] INT NOT NULL, "+
-		"[block_hash] TEXT NOT NULL, [transfer] INT NOT NULL, [execution] INT NOT NULL, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] INT NOT NULL, "+
+		"[block_height] INT NOT NULL, [block_hash] TEXT NOT NULL, [transfer] INT NOT NULL, [execution] INT NOT NULL, "+
 		"[depositToRewardingFund] INT NOT NULL, [claimFromRewardingFund] INT NOT NULL, [grantReward] INT NOT NULL, "+
 		"[putPollResult] INT NOT NULL, [gas_consumed] INT NOT NULL, [producer_address] TEXT NOT NULL, "+
 		"[producer_name] TEXT NOT NULL, [expected_producer_address] TEXT NOT NULL, "+
 		"[expected_producer_name] TEXT NOT NULL)", BlockHistoryTableName)); err != nil {
 		return err
 	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT epoch_number, producer_name, "+
+		"production, expected_production FROM (SELECT epoch_number, producer_name, COUNT(producer_address) AS production "+
+		"FROM %s GROUP BY epoch_number, producer_name) AS t1 INNER JOIN (SELECT epoch_number AS epoch, expected_producer_name, "+
+		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name) "+
+		"AS t2 ON t1.epoch_number = t2.epoch AND t1.producer_name=t2.expected_producer_name", ProductivityViewName,
+		BlockHistoryTableName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -132,7 +153,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	producerName := p.OperatorAddrToName[producerAddr]
 	expectedProducerAddr := p.ActiveBlockProducers[int(height)%len(p.ActiveBlockProducers)]
 	expectedProducerName := p.OperatorAddrToName[expectedProducerAddr]
-	return p.updateBlockHistory(tx, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
+	return p.updateBlockHistory(tx, epochNumber, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
 		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, gasConsumed,
 		producerAddr, producerName, expectedProducerAddr, expectedProducerName)
 }
@@ -170,9 +191,43 @@ func (p *Protocol) GetBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	return blockInfo, nil
 }
 
+// GetProductivityHistory gets productivity history
+func (p *Protocol) GetProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
+	db := p.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND producer_name=?", ProductivityViewName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(epochNumber, producerName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var productivityHistory ProductivityHistory
+	parsedRows, err := s.ParseSQLRows(rows, &productivityHistory)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, protocol.ErrNotExist
+	}
+
+	if len(parsedRows) > 1 {
+		return nil, errors.New("only one row is expected")
+	}
+
+	productivityInfo := parsedRows[0].(*ProductivityHistory)
+	return productivityInfo, nil
+}
+
 // updateBlockHistory stores reward information into reward history table
 func (p *Protocol) updateBlockHistory(
 	tx *sql.Tx,
+	epochNumber uint64,
 	height uint64,
 	hash string,
 	transfers uint64,
@@ -187,11 +242,11 @@ func (p *Protocol) updateBlockHistory(
 	expectedProducerAddress string,
 	expectedProducerName string,
 ) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (block_height, block_hash, transfer, execution, "+
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, "+
 		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, "+
-		"producer_name, expected_producer_address, expected_producer_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"producer_name, expected_producer_address, expected_producer_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		BlockHistoryTableName)
-	if _, err := tx.Exec(insertQuery, height, hash, transfers, executions, depositToRewardingFunds,
+	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds,
 		claimFromRewardingFunds, grantRewards, putPollResults, gasConsumed, producerAddress, producerName,
 		expectedProducerAddress, expectedProducerName); err != nil {
 		return err

@@ -37,14 +37,26 @@ const (
 	ProtocolID = "rewards"
 	// RewardHistoryTableName is the table name of reward history
 	RewardHistoryTableName = "reward_history"
+	// AccountRewardViewName is the view name of account rewards
+	AccountRewardViewName = "account_reward"
 )
 
 type (
 	// RewardHistory defines the schema of "reward history" table
 	RewardHistory struct {
+		EpochNumber     uint64
 		ActionHash      string
 		RewardAddress   string
-		DelegateName    string
+		CandidateName   string
+		BlockReward     string
+		EpochReward     string
+		FoundationBonus string
+	}
+
+	// AccountReward defines the schema of "account reward" table
+	AccountReward struct {
+		EpochNumber     uint64
+		CandidateName   string
 		BlockReward     string
 		EpochReward     string
 		FoundationBonus string
@@ -75,12 +87,19 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_hash] TEXT NOT NULL, [reward_address] TEXT NOT NULL, [delegate_name] TEXT NOT NULL, "+
-		"[block_reward] TEXT NOT NULL, [epoch_reward] TEXT NOT NULL, [foundation_bonus] TEXT NOT NULL)",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] INT NOT NULL, "+
+		"[action_hash] TEXT NOT NULL, [reward_address] TEXT NOT NULL, [candidate_name] TEXT NOT NULL, "+
+		"[block_reward] BIGINT NOT NULL, [epoch_reward] BIGINT NOT NULL, [foundation_bonus] BIGINT NOT NULL)",
 		RewardHistoryTableName)); err != nil {
 		return err
 	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT epoch_number, candidate_name, "+
+		"SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s GROUP BY epoch_number, candidate_name",
+		AccountRewardViewName, RewardHistoryTableName)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -98,8 +117,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
 	if height == protocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
-		if err := p.updateDelegateRewardAddress(chainClient, electionClient, height); err != nil {
-			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
+		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
+			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
 	}
 
@@ -120,7 +139,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			}
 			// Update reward info in DB
 			actionHash := hex.EncodeToString(receipt.ActionHash[:])
-			if err := p.updateRewardHistory(tx, actionHash, rewardInfoMap); err != nil {
+			if err := p.updateRewardHistory(tx, epochNumber, actionHash, rewardInfoMap); err != nil {
 				return errors.Wrap(err, "failed to update epoch number and reward address to reward history table")
 			}
 		}
@@ -162,19 +181,52 @@ func (p *Protocol) GetRewardHistory(actionHash string) ([]*RewardHistory, error)
 	return rewardHistoryList, nil
 }
 
+// GetAccountReward reads account reward details
+func (p *Protocol) GetAccountReward(epochNumber uint64, candidateName string) (*AccountReward, error) {
+	db := p.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
+		AccountRewardViewName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(epochNumber, candidateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var accountReward AccountReward
+	parsedRows, err := s.ParseSQLRows(rows, &accountReward)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, protocol.ErrNotExist
+	}
+
+	if len(parsedRows) > 1 {
+		return nil, errors.New("only one row is expected")
+	}
+
+	return parsedRows[0].(*AccountReward), nil
+}
+
 // updateRewardHistory stores reward information into reward history table
-func (p *Protocol) updateRewardHistory(tx *sql.Tx, actionHash string, rewardInfoMap map[string]*RewardInfo) error {
+func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHash string, rewardInfoMap map[string]*RewardInfo) error {
 	for rewardAddress, rewards := range rewardInfoMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (action_hash,reward_address,delegate_name,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, ?, ?)", RewardHistoryTableName)
+		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
+			"foundation_bonus) VALUES (?, ?, ?, ?, CAST(? as BIGINT), CAST(? as BIGINT), CAST(? as BIGINT))", RewardHistoryTableName)
 		blockReward := rewards.BlockReward.String()
 		epochReward := rewards.EpochReward.String()
 		foundationBonus := rewards.FoundationBonus.String()
-		delegateName, ok := p.RewardAddrToName[rewardAddress]
+		candidateName, ok := p.RewardAddrToName[rewardAddress]
 		if !ok {
-			return errors.New("cannot find delegate name by reward address")
+			return errors.New("cannot find candidate name by reward address")
 		}
-		if _, err := tx.Exec(insertQuery, actionHash, rewardAddress, delegateName, blockReward, epochReward, foundationBonus); err != nil {
+		if _, err := tx.Exec(insertQuery, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus); err != nil {
 			return err
 		}
 	}
@@ -216,7 +268,7 @@ func (p *Protocol) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string
 	return rewardInfoMap, nil
 }
 
-func (p *Protocol) updateDelegateRewardAddress(
+func (p *Protocol) updateCandidateRewardAddress(
 	chainClient iotexapi.APIServiceClient,
 	electionClient api.APIServiceClient,
 	height uint64,
