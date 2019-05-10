@@ -238,13 +238,13 @@ func (p *Protocol) updateDelegateRewardAddress(
 		Limit:  math.MaxUint32,
 	}
 
-	getCanidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
+	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get candidates from election service")
 	}
 
 	p.RewardAddrToName = make(map[string]string)
-	for _, candidate := range getCanidatesResponse.Candidates {
+	for _, candidate := range getCandidatesResponse.Candidates {
 		p.RewardAddrToName[candidate.RewardAddress] = candidate.Name
 	}
 	return nil
