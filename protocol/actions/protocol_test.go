@@ -45,7 +45,7 @@ func TestProtocol(t *testing.T) {
 	// get action
 	actionHash := blk.Actions[1].Hash()
 	receiptHash := blk.Receipts[1].Hash()
-	actionHistory, err := p.GetActionHistory(hex.EncodeToString(actionHash[:]))
+	actionHistory, err := p.getActionHistory(hex.EncodeToString(actionHash[:]))
 	require.NoError(err)
 
 	require.Equal("transfer", actionHistory.ActionType)

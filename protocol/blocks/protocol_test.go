@@ -70,7 +70,7 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk1)
 	}))
 
-	blockHistory, err := p.GetBlockHistory(uint64(1))
+	blockHistory, err := p.getBlockHistory(uint64(1))
 	require.NoError(err)
 
 	blk1Hash := blk1.HashBlock()
@@ -79,7 +79,7 @@ func TestProtocol(t *testing.T) {
 	require.Equal("alfa", blockHistory.ProducerName)
 	require.Equal("alfa", blockHistory.ExpectedProducerName)
 
-	productivityHistory, err := p.GetProductivityHistory(uint64(1), "alfa")
+	productivityHistory, err := p.getProductivityHistory(uint64(1), "alfa")
 	require.NoError(err)
 	require.Equal(uint64(1), productivityHistory.Production)
 	require.Equal(uint64(1), productivityHistory.ExpectedProduction)

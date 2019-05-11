@@ -163,8 +163,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
 }
 
-// GetActionHistory returns action history by action hash
-func (p *Protocol) GetActionHistory(actionHash string) (*ActionHistory, error) {
+// getActionHistory returns action history by action hash
+func (p *Protocol) getActionHistory(actionHash string) (*ActionHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",

@@ -158,8 +158,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		producerAddr, producerName, expectedProducerAddr, expectedProducerName)
 }
 
-// GetBlockHistory gets block history
-func (p *Protocol) GetBlockHistory(blockHeight uint64) (*BlockHistory, error) {
+// getBlockHistory gets block history
+func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE block_height=?", BlockHistoryTableName)
@@ -191,8 +191,8 @@ func (p *Protocol) GetBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	return blockInfo, nil
 }
 
-// GetProductivityHistory gets productivity history
-func (p *Protocol) GetProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
+// getProductivityHistory gets productivity history
+func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND producer_name=?", ProductivityViewName)

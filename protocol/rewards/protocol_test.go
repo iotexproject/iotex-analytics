@@ -82,7 +82,7 @@ func TestProtocol(t *testing.T) {
 	}))
 
 	actionHash1 := blk.Actions[4].Hash()
-	rewardHistoryList, err := p.GetRewardHistory(hex.EncodeToString(actionHash1[:]))
+	rewardHistoryList, err := p.getRewardHistory(hex.EncodeToString(actionHash1[:]))
 	require.NoError(err)
 	require.Equal(1, len(rewardHistoryList))
 	require.Equal(uint64(1), rewardHistoryList[0].EpochNumber)
@@ -93,11 +93,11 @@ func TestProtocol(t *testing.T) {
 	require.Equal("0", rewardHistoryList[0].FoundationBonus)
 
 	actionHash2 := blk.Actions[5].Hash()
-	rewardHistoryList, err = p.GetRewardHistory(hex.EncodeToString(actionHash2[:]))
+	rewardHistoryList, err = p.getRewardHistory(hex.EncodeToString(actionHash2[:]))
 	require.NoError(err)
 	require.Equal(3, len(rewardHistoryList))
 
-	accountReward, err := p.GetAccountReward(uint64(1), "alfa")
+	accountReward, err := p.getAccountReward(uint64(1), "alfa")
 	require.NoError(err)
 	require.Equal("16", accountReward.BlockReward)
 	require.Equal("10", accountReward.EpochReward)

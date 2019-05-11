@@ -12,6 +12,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -23,7 +24,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 
 	"github.com/iotexproject/iotex-analytics/graphql"
 	"github.com/iotexproject/iotex-analytics/indexcontext"

@@ -147,8 +147,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// GetRewardHistory reads reward history
-func (p *Protocol) GetRewardHistory(actionHash string) ([]*RewardHistory, error) {
+// getRewardHistory reads reward history
+func (p *Protocol) getRewardHistory(actionHash string) ([]*RewardHistory, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
@@ -181,8 +181,8 @@ func (p *Protocol) GetRewardHistory(actionHash string) ([]*RewardHistory, error)
 	return rewardHistoryList, nil
 }
 
-// GetAccountReward reads account reward details
-func (p *Protocol) GetAccountReward(epochNumber uint64, candidateName string) (*AccountReward, error) {
+// getAccountReward reads account reward details
+func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*AccountReward, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
