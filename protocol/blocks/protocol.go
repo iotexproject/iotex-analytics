@@ -90,11 +90,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT epoch_number, producer_name, "+
-		"production, expected_production FROM (SELECT epoch_number, producer_name, COUNT(producer_address) AS production "+
-		"FROM %s GROUP BY epoch_number, producer_name) AS t1 INNER JOIN (SELECT epoch_number AS epoch, expected_producer_name, "+
-		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name) "+
-		"AS t2 ON t1.epoch_number = t2.epoch AND t1.producer_name=t2.expected_producer_name", ProductivityViewName,
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
+		"IFNULL(production, 0) AS production, expected_production FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production "+
+		"FROM %s GROUP BY epoch_number, expected_producer_name) AS t1 LEFT JOIN (SELECT epoch_number, producer_name, "+
+		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name) "+
+		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityViewName,
 		BlockHistoryTableName, BlockHistoryTableName)); err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND producer_name=?", ProductivityViewName)
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?", ProductivityViewName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

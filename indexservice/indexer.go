@@ -280,6 +280,16 @@ func (idx *Indexer) GetAccountReward(startEpoch uint64, epochCount uint64, candi
 
 	db := idx.store.GetDB()
 
+	// Check existence
+	exist, err := idx.rowExists(fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and candidate_name = ?",
+		rewards.AccountRewardViewName), startEpoch, candidateName)
+	if err != nil {
+		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return "", "", "", protocol.ErrNotExist
+	}
+
 	endEpoch := startEpoch + epochCount - 1
 
 	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
@@ -304,10 +314,20 @@ func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64,
 
 	db := idx.store.GetDB()
 
+	// Check existence
+	exist, err := idx.rowExists(fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
+		blocks.ProductivityViewName), startEpoch, producerName)
+	if err != nil {
+		return uint64(0), uint64(0), errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return uint64(0), uint64(0), protocol.ErrNotExist
+	}
+
 	endEpoch := startEpoch + epochCount - 1
 
 	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
-		"epoch_number >= %d AND epoch_number <= %d AND producer_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
+		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
@@ -333,4 +353,19 @@ func (idx *Indexer) buildIndex(ctx context.Context, blk *block.Block) error {
 		return err
 	}
 	return nil
+}
+
+func (idx *Indexer) rowExists(query string, args ...interface{}) (bool, error) {
+	db := idx.store.GetDB()
+	var exists bool
+	query = fmt.Sprintf("SELECT exists (%s)", query)
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to prepare query")
+	}
+	err = stmt.QueryRow(args...).Scan(&exists)
+	if err != nil && err != sql.ErrNoRows {
+		return false, errors.Wrap(err, "failed to query the row")
+	}
+	return exists, nil
 }

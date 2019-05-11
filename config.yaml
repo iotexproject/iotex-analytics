@@ -2,4 +2,4 @@ dbPath: analytics.db
 numDelegates: 24
 numCandidateDelegates: 36
 numSubEpochs: 15
-rangeQueryLimit: 1000
+rangeQueryLimit: 100

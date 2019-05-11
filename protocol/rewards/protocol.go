@@ -95,7 +95,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT epoch_number, candidate_name, "+
-		"SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s GROUP BY epoch_number, candidate_name",
+		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s GROUP BY epoch_number, candidate_name",
 		AccountRewardViewName, RewardHistoryTableName)); err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
@@ -111,6 +112,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			}
 			getBucketsResponse, err := electionClient.GetBucketsByCandidate(ctx, getBucketsRequest)
 			if err != nil {
+				// TODO: Need a better way to handle the case that a candidate has no votes (len(voters) == 0)
+				if strings.Contains(err.Error(), "offset is out of range") {
+					continue
+				}
 				return errors.Wrapf(err, "failed to get buckets by candidate in epoch %d", epochNumber)
 			}
 			buckets := getBucketsResponse.Buckets
