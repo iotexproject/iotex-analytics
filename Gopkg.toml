@@ -24,6 +24,8 @@
 #   go-tests = true
 #   unused-packages = true
 
+[metadata.heroku]
+  root-package = "github.com/iotexproject/iotex-analytics"
 
 [[constraint]]
   name = "github.com/go-sql-driver/mysql"
