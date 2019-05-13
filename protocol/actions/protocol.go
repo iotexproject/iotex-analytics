@@ -20,6 +20,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/protocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/protocol/blocks"
 )
 
 const (
@@ -79,9 +80,10 @@ func NewProtocol(store s.Store) *Protocol {
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_type] TEXT NOT NULL, [action_hash] TEXT NOT NULL, [receipt_hash] TEXT NOT NULL, [block_height] INT NOT NULL, "+
-		"[from] TEXT NOT NULL, [to] TEXT NOT NULL, [gas_price] TEXT NOT NULL, [gas_consumed] INT NOT NULL, [nonce] INT NOT NULL, "+
-		"[amount] TEXT NOT NULL, [receipt_status] TEXT NOT NULL)", ActionHistoryTableName)); err != nil {
+		"([action_type] TEXT NOT NULL, [action_hash] VARCHAR(64) NOT NULL, [receipt_hash] VARCHAR(64) NOT NULL UNIQUE, [block_height] BIGINT, "+
+		"[from] VARCHAR(41) NOT NULL, [to] VARCHAR(41) NOT NULL, [gas_price] BIGINT NOT NULL, [gas_consumed] BIGINT NOT NULL, [nonce] BIGINT NOT NULL, "+
+		"[amount] BIGINT NOT NULL, [receipt_status] TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
+		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
 	return nil

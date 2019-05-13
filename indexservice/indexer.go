@@ -259,7 +259,7 @@ func (idx *Indexer) GetLastHeight() (uint64, error) {
 
 	db := idx.store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT block_height FROM %s ORDER BY block_height DESC LIMIT 1", blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf("SELECT MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return uint64(0), errors.Wrap(err, "failed to prepare get query")

@@ -81,11 +81,11 @@ func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint6
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] INT NOT NULL, "+
-		"[block_height] INT NOT NULL, [block_hash] TEXT NOT NULL, [transfer] INT NOT NULL, [execution] INT NOT NULL, "+
-		"[depositToRewardingFund] INT NOT NULL, [claimFromRewardingFund] INT NOT NULL, [grantReward] INT NOT NULL, "+
-		"[putPollResult] INT NOT NULL, [gas_consumed] INT NOT NULL, [producer_address] TEXT NOT NULL, "+
-		"[producer_name] TEXT NOT NULL, [expected_producer_address] TEXT NOT NULL, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] BIGINT NOT NULL, "+
+		"[block_height] BIGINT NOT NULL, [block_hash] VARCHAR(64) NOT NULL, [transfer] BIGINT NOT NULL, [execution] BIGINT NOT NULL, "+
+		"[depositToRewardingFund] BIGINT NOT NULL, [claimFromRewardingFund] BIGINT NOT NULL, [grantReward] BIGINT NOT NULL, "+
+		"[putPollResult] BIGINT NOT NULL, [gas_consumed] BIGINT NOT NULL, [producer_address] VARCHAR(41) NOT NULL, "+
+		"[producer_name] TEXT NOT NULL, [expected_producer_address] VARCHAR(41) NOT NULL, "+
 		"[expected_producer_name] TEXT NOT NULL)", BlockHistoryTableName)); err != nil {
 		return err
 	}
