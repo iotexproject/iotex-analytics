@@ -11,7 +11,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -34,19 +33,24 @@ import (
 const defaultPort = "8089"
 
 func main() {
-	var chainEndpoint string
-	var electionEndpoint string
-
-	var configPath string
-
-	flag.StringVar(&chainEndpoint, "chain-endpoint", "127.0.0.1:14014", "grpc address for chain's API service")
-	flag.StringVar(&electionEndpoint, "election-endpoint", "127.0.0.1:8090", "grpc address for election's API service")
-	flag.StringVar(&configPath, "config", "config.yaml", "path of server config file")
-	flag.Parse()
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
+	}
+
+	configPath := os.Getenv("CONFIG")
+	if configPath == "" {
+		configPath = "config.yaml"
+	}
+
+	chainEndpoint := os.Getenv("CHAIN_ENDPOINT")
+	if chainEndpoint == "" {
+		chainEndpoint = "127.0.0.1:14014"
+	}
+
+	electionEndpoint := os.Getenv("ELECTION_ENDPOINT")
+	if electionEndpoint == "" {
+		electionEndpoint = "127.0.0.1:8090"
 	}
 
 	data, err := ioutil.ReadFile(configPath)
