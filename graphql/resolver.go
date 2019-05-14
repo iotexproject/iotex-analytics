@@ -47,7 +47,7 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 		return nil, errors.Wrap(err, "failed to get productivity information")
 	}
 	return &Productivity{
-		Production:         int(production),
-		ExpectedProduction: int(expectedProduction),
+		Production:         production,
+		ExpectedProduction: expectedProduction,
 	}, nil
 }

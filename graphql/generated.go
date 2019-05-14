@@ -212,8 +212,8 @@ type Reward {
 }
 
 type Productivity {
-    production: Int!
-    expectedProduction: Int!
+    production: String!
+    expectedProduction: String!
 }`},
 )
 
@@ -348,10 +348,10 @@ func (ec *executionContext) _Productivity_production(ctx context.Context, field 
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(string)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Productivity_expectedProduction(ctx context.Context, field graphql.CollectedField, obj *Productivity) graphql.Marshaler {
@@ -375,10 +375,10 @@ func (ec *executionContext) _Productivity_expectedProduction(ctx context.Context
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(string)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_rewards(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {

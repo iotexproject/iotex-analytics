@@ -97,7 +97,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW IF NOT EXISTS %s AS SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
-		"IFNULL(production, 0) AS production, expected_production FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production "+
+		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
+		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production "+
 		"FROM %s GROUP BY epoch_number, expected_producer_name) AS t1 LEFT JOIN (SELECT epoch_number, producer_name, "+
 		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name) "+
 		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityViewName,

@@ -10,6 +10,6 @@ type Reward {
 }
 
 type Productivity {
-    production: Int!
-    expectedProduction: Int!
+    production: String!
+    expectedProduction: String!
 }

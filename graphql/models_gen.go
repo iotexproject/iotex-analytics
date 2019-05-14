@@ -3,8 +3,8 @@
 package graphql
 
 type Productivity struct {
-	Production         int `json:"production"`
-	ExpectedProduction int `json:"expectedProduction"`
+	Production         string `json:"production"`
+	ExpectedProduction string `json:"expectedProduction"`
 }
 
 type Reward struct {

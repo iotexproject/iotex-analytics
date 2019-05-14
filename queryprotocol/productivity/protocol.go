@@ -28,9 +28,9 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // GetProductivityHistory gets productivity history
-func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, producerName string) (uint64, uint64, error) {
+func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, producerName string) (string, string, error) {
 	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
-		return uint64(0), uint64(0), errors.New("producers protocol is unregistered")
+		return "", "", errors.New("producers protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
@@ -39,10 +39,10 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
 		blocks.ProductivityViewName), startEpoch, producerName)
 	if err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to check if the row exists")
+		return "", "", errors.Wrap(err, "failed to check if the row exists")
 	}
 	if !exist {
-		return uint64(0), uint64(0), indexprotocol.ErrNotExist
+		return "", "", indexprotocol.ErrNotExist
 	}
 
 	endEpoch := startEpoch + epochCount - 1
@@ -51,12 +51,12 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
+		return "", "", errors.Wrap(err, "failed to prepare get query")
 	}
 
-	var production, expectedProduction uint64
+	var production, expectedProduction string
 	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to execute get query")
+		return "", "", errors.Wrap(err, "failed to execute get query")
 	}
 	return production, expectedProduction, nil
 }
