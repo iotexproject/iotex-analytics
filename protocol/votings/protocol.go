@@ -66,16 +66,16 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create voting history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([epoch_number] BIGINT NOT NULL, [candidate_name] TEXT NOT NULL, [voter_address] VARCHAR(40) NOT NULL, [votes] BIGINT NOT NULL, "+
-		"[weighted_votes] BIGINT NOT NULL, [remaining_duration] TEXT NOT NULL)",
+		"([epoch_number] DECIMAL(65, 0) NOT NULL, [candidate_name] TEXT NOT NULL, [voter_address] VARCHAR(40) NOT NULL, [votes] DECIMAL(65, 0) NOT NULL, "+
+		"[weighted_votes] DECIMAL(65, 0) NOT NULL, [remaining_duration] TEXT NOT NULL)",
 		VotingHistoryTableName)); err != nil {
 		return err
 	}
 
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([epoch_number] BIGINT NOT NULL, [delegate_name] TEXT NOT NULL, [operator_address] VARCHAR(41) NOT NULL, "+
-		"[reward_address] VARCHAR(41) NOT NULL, [total_weighted_votes] BIGINT NOT NULL)",
+		"([epoch_number] DECIMAL(65, 0) NOT NULL, [delegate_name] TEXT NOT NULL, [operator_address] VARCHAR(41) NOT NULL, "+
+		"[reward_address] VARCHAR(41) NOT NULL, [total_weighted_votes] DECIMAL(65, 0) NOT NULL)",
 		VotingResultTableName)); err != nil {
 		return err
 	}

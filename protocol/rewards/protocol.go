@@ -87,14 +87,14 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] BIGINT NOT NULL, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] DECIMAL(65, 0) NOT NULL, "+
 		"[action_hash] VARCHAR(64) NOT NULL, [reward_address] VARCHAR(41) NOT NULL, [candidate_name] TEXT NOT NULL, "+
-		"[block_reward] BIGINT NOT NULL, [epoch_reward] BIGINT NOT NULL, [foundation_bonus] BIGINT NOT NULL)",
+		"[block_reward] DECIMAL(65, 0) NOT NULL, [epoch_reward] DECIMAL(65, 0) NOT NULL, [foundation_bonus] DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW %s AS SELECT epoch_number, candidate_name, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW IF NOT EXISTS %s AS SELECT epoch_number, candidate_name, "+
 		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s GROUP BY epoch_number, candidate_name",
 		AccountRewardViewName, RewardHistoryTableName)); err != nil {
 		return err
@@ -218,7 +218,7 @@ func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*
 func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHash string, rewardInfoMap map[string]*RewardInfo) error {
 	for rewardAddress, rewards := range rewardInfoMap {
 		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, CAST(? as BIGINT), CAST(? as BIGINT), CAST(? as BIGINT))", RewardHistoryTableName)
+			"foundation_bonus) VALUES (?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))", RewardHistoryTableName)
 		blockReward := rewards.BlockReward.String()
 		epochReward := rewards.EpochReward.String()
 		foundationBonus := rewards.FoundationBonus.String()
