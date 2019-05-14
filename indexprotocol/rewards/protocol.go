@@ -28,8 +28,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
-	"github.com/iotexproject/iotex-analytics/protocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
 const (
@@ -104,19 +104,19 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 }
 
 // Initialize initializes rewards protocol
-func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *indexprotocol.GenesisConfig) error {
 	return nil
 }
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := protocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	if height == protocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
+	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
 		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
@@ -170,7 +170,7 @@ func (p *Protocol) getRewardHistory(actionHash string) ([]*RewardHistory, error)
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, protocol.ErrNotExist
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	var rewardHistoryList []*RewardHistory
@@ -204,7 +204,7 @@ func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, protocol.ErrNotExist
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	if len(parsedRows) > 1 {

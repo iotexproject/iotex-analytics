@@ -1,3 +1,9 @@
+// Copyright (c) 2019 IoTeX
+// This is an alpha (internal) release and is not suitable for production. This source code is provided 'as is' and no
+// warranties are given as to title or non-infringement, merchantability or fitness for purpose and, to the extent
+// permitted by law, all liability for your use of the code is disclaimed. This source code is governed by Apache
+// License 2.0 that can be found in the LICENSE file.
+
 package blocks
 
 import (
@@ -17,8 +23,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
-	"github.com/iotexproject/iotex-analytics/protocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
 const (
@@ -103,19 +109,19 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 }
 
 // Initialize initializes rewards protocol
-func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *indexprotocol.GenesisConfig) error {
 	return nil
 }
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := protocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	if height == protocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.OperatorAddrToName == nil {
+	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.OperatorAddrToName == nil {
 		if err := p.updateDelegates(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
 		}
@@ -180,7 +186,7 @@ func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, protocol.ErrNotExist
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	if len(parsedRows) > 1 {
@@ -213,7 +219,7 @@ func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName strin
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, protocol.ErrNotExist
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	if len(parsedRows) > 1 {

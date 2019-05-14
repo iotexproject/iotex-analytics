@@ -23,19 +23,19 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
-	"github.com/iotexproject/iotex-analytics/protocol"
-	"github.com/iotexproject/iotex-analytics/protocol/actions"
-	"github.com/iotexproject/iotex-analytics/protocol/blocks"
-	"github.com/iotexproject/iotex-analytics/protocol/rewards"
-	"github.com/iotexproject/iotex-analytics/protocol/votings"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
 // Indexer handles the index build for blocks
 type Indexer struct {
-	store      s.Store
+	Store      s.Store
+	Registry   *indexprotocol.Registry
 	config     Config
-	registry   *protocol.Registry
 	lastHeight uint64
 	terminate  chan bool
 }
@@ -52,9 +52,9 @@ type Config struct {
 // NewIndexer creates a new indexer
 func NewIndexer(store s.Store, cfg Config) *Indexer {
 	return &Indexer{
-		store:    store,
+		Store:    store,
+		Registry: &indexprotocol.Registry{},
 		config:   cfg,
-		registry: &protocol.Registry{},
 	}
 }
 
@@ -63,11 +63,11 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 
-	if err := idx.store.Start(ctx); err != nil {
+	if err := idx.Store.Start(ctx); err != nil {
 		return errors.Wrap(err, "failed to start db")
 	}
 
-	lastHeight, err := idx.GetLastHeight()
+	lastHeight, err := idx.getLastHeight()
 	if err != nil {
 		if err := idx.CreateTablesIfNotExist(); err != nil {
 			return errors.Wrap(err, "failed to create tables")
@@ -86,7 +86,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		if err := genesisDelegates.Deserialize(res.Data); err != nil {
 			return errors.Wrap(err, "failed to deserialize gensisDelegates")
 		}
-		gensisConfig := &protocol.GenesisConfig{InitCandidates: genesisDelegates}
+		gensisConfig := &indexprotocol.GenesisConfig{InitCandidates: genesisDelegates}
 
 		// Initialize indexer
 		if err := idx.Initialize(gensisConfig); err != nil {
@@ -132,13 +132,13 @@ func (idx *Indexer) Start(ctx context.Context) error {
 // Stop stops the indexer
 func (idx *Indexer) Stop(ctx context.Context) error {
 	idx.terminate <- true
-	return idx.store.Stop(ctx)
+	return idx.Store.Stop(ctx)
 }
 
 // Initialize initialize the registered protocols
-func (idx *Indexer) Initialize(genesisCfg *protocol.GenesisConfig) error {
-	if err := idx.store.Transact(func(tx *sql.Tx) error {
-		for _, p := range idx.registry.All() {
+func (idx *Indexer) Initialize(genesisCfg *indexprotocol.GenesisConfig) error {
+	if err := idx.Store.Transact(func(tx *sql.Tx) error {
+		for _, p := range idx.Registry.All() {
 			if err := p.Initialize(context.Background(), tx, genesisCfg); err != nil {
 				return errors.Wrap(err, "failed to initialize the protocol")
 			}
@@ -152,7 +152,7 @@ func (idx *Indexer) Initialize(genesisCfg *protocol.GenesisConfig) error {
 
 // CreateTablesIfNotExist creates tables in local database
 func (idx *Indexer) CreateTablesIfNotExist() error {
-	for _, p := range idx.registry.All() {
+	for _, p := range idx.Registry.All() {
 		if err := p.CreateTables(context.Background()); err != nil {
 			return errors.Wrap(err, "failed to create a table")
 		}
@@ -161,16 +161,16 @@ func (idx *Indexer) CreateTablesIfNotExist() error {
 }
 
 // RegisterProtocol registers a protocol to the indexer
-func (idx *Indexer) RegisterProtocol(protocolID string, protocol protocol.Protocol) error {
-	return idx.registry.Register(protocolID, protocol)
+func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.Protocol) error {
+	return idx.Registry.Register(protocolID, protocol)
 }
 
 // RegisterDefaultProtocols registers default protocols to hte indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.store)
-	blocksProtocol := blocks.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
-	rewardsProtocol := rewards.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-	votingsProtocol := votings.NewProtocol(idx.store, idx.config.NumDelegates, idx.config.NumSubEpochs)
+	actionsProtocol := actions.NewProtocol(idx.Store)
+	blocksProtocol := blocks.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
+	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
+	votingsProtocol := votings.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
 
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
@@ -252,12 +252,12 @@ func (idx *Indexer) SubscribeNewBlock(
 }
 
 // GetLastHeight gets last height stored in the underlying db
-func (idx *Indexer) GetLastHeight() (uint64, error) {
-	if _, ok := idx.registry.Find(blocks.ProtocolID); !ok {
+func (idx *Indexer) getLastHeight() (uint64, error) {
+	if _, ok := idx.Registry.Find(blocks.ProtocolID); !ok {
 		return uint64(0), errors.New("producers protocol is unregistered")
 	}
 
-	db := idx.store.GetDB()
+	db := idx.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
@@ -272,78 +272,10 @@ func (idx *Indexer) GetLastHeight() (uint64, error) {
 	return lastHeight, nil
 }
 
-// GetAccountReward gets account reward
-func (idx *Indexer) GetAccountReward(startEpoch uint64, epochCount uint64, candidateName string) (string, string, string, error) {
-	if _, ok := idx.registry.Find(rewards.ProtocolID); !ok {
-		return "", "", "", errors.New("rewards protocol is unregistered")
-	}
-
-	db := idx.store.GetDB()
-
-	// Check existence
-	exist, err := idx.rowExists(fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and candidate_name = ?",
-		rewards.AccountRewardViewName), startEpoch, candidateName)
-	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return "", "", "", protocol.ErrNotExist
-	}
-
-	endEpoch := startEpoch + epochCount - 1
-
-	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
-		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardViewName, startEpoch, endEpoch)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to prepare get query")
-	}
-
-	var blockReward, epochReward, foundationBonus string
-	if err = stmt.QueryRow(candidateName).Scan(&blockReward, &epochReward, &foundationBonus); err != nil {
-		return "", "", "", errors.Wrap(err, "failed to execute get query")
-	}
-	return blockReward, epochReward, foundationBonus, nil
-}
-
-// GetProductivityHistory gets productivity history
-func (idx *Indexer) GetProductivityHistory(startEpoch uint64, epochCount uint64, producerName string) (uint64, uint64, error) {
-	if _, ok := idx.registry.Find(blocks.ProtocolID); !ok {
-		return uint64(0), uint64(0), errors.New("producers protocol is unregistered")
-	}
-
-	db := idx.store.GetDB()
-
-	// Check existence
-	exist, err := idx.rowExists(fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
-		blocks.ProductivityViewName), startEpoch, producerName)
-	if err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return uint64(0), uint64(0), protocol.ErrNotExist
-	}
-
-	endEpoch := startEpoch + epochCount - 1
-
-	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
-		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
-	}
-
-	var production, expectedProduction uint64
-	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to execute get query")
-	}
-	return production, expectedProduction, nil
-}
-
 // buildIndex builds the index for a block
 func (idx *Indexer) buildIndex(ctx context.Context, blk *block.Block) error {
-	if err := idx.store.Transact(func(tx *sql.Tx) error {
-		for _, p := range idx.registry.All() {
+	if err := idx.Store.Transact(func(tx *sql.Tx) error {
+		for _, p := range idx.Registry.All() {
 			if err := p.HandleBlock(ctx, tx, blk); err != nil {
 				return errors.Wrapf(err, "failed to build index for block on height %d", blk.Height())
 			}
@@ -353,19 +285,4 @@ func (idx *Indexer) buildIndex(ctx context.Context, blk *block.Block) error {
 		return err
 	}
 	return nil
-}
-
-func (idx *Indexer) rowExists(query string, args ...interface{}) (bool, error) {
-	db := idx.store.GetDB()
-	var exists bool
-	query = fmt.Sprintf("SELECT exists (%s)", query)
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to prepare query")
-	}
-	err = stmt.QueryRow(args...).Scan(&exists)
-	if err != nil && err != sql.ErrNoRows {
-		return false, errors.Wrap(err, "failed to query the row")
-	}
-	return exists, nil
 }

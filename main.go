@@ -4,7 +4,7 @@
 // permitted by law, all liability for your use of the code is disclaimed. This source code is governed by Apache
 // License 2.0 that can be found in the LICENSE file.
 
-// usage: go build -o ./bin/server -v ./graphql/server
+// usage: go build -o ./bin/server -v .
 // ./bin/server
 
 package main
@@ -28,6 +28,8 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 )
 
 const defaultPort = "8089"
@@ -101,7 +103,10 @@ func main() {
 	}()
 
 	http.Handle("/", handler.Playground("GraphQL playground", "/query"))
-	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{idx}})))
+	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
+		PP: productivity.NewProtocol(idx),
+		RP: rewards.NewProtocol(idx),
+	}})))
 
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

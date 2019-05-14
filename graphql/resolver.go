@@ -10,12 +10,14 @@ import (
 	"context"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-analytics/indexservice"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 // Resolver is the resolver that handles graphql request
 type Resolver struct {
-	Indexer *indexservice.Indexer
+	PP *productivity.Protocol
+	RP *rewards.Protocol
 }
 
 // Query returns a query resolver
@@ -27,7 +29,7 @@ type queryResolver struct{ *Resolver }
 
 // Rewards handles GetAccountReward request
 func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, candidateName string) (*Reward, error) {
-	blockReward, epochReward, foundationBonus, err := r.Indexer.GetAccountReward(uint64(startEpoch), uint64(epochCount), candidateName)
+	blockReward, epochReward, foundationBonus, err := r.RP.GetAccountReward(uint64(startEpoch), uint64(epochCount), candidateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get reward information")
 	}
@@ -40,7 +42,7 @@ func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount 
 
 // Productivity handles GetProductivityHistory request
 func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error) {
-	production, expectedProduction, err := r.Indexer.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), producerName)
+	production, expectedProduction, err := r.PP.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), producerName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get productivity information")
 	}

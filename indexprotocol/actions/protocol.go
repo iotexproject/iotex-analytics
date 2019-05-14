@@ -18,9 +18,9 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-analytics/protocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
-	"github.com/iotexproject/iotex-analytics/protocol/blocks"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 )
 
 const (
@@ -90,7 +90,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 }
 
 // Initialize initializes actions protocol
-func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *protocol.GenesisConfig) error {
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *indexprotocol.GenesisConfig) error {
 	return nil
 }
 
@@ -188,7 +188,7 @@ func (p *Protocol) getActionHistory(actionHash string) (*ActionHistory, error) {
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, protocol.ErrNotExist
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	if len(parsedRows) > 1 {
