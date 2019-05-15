@@ -58,9 +58,7 @@ type ComplexityRoot struct {
 	}
 
 	VotingInfo struct {
-		EpochNumber       func(childComplexity int) int
-		RemainingDuration func(childComplexity int) int
-		VoterAddress      func(childComplexity int) int
+		VoterAddress  func(childComplexity int) int
 		WeightedVotes     func(childComplexity int) int
 	}
 }
@@ -135,6 +133,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.VotingInformation(childComplexity, args["epochNum"].(int), args["delegateName"].(string)), true
+
 	case "Reward.BlockReward":
 		if e.complexity.Reward.BlockReward == nil {
 			break
@@ -155,20 +154,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Reward.FoundationBonus(childComplexity), true
-
-	case "VotingInfo.EpochNumber":
-		if e.complexity.VotingInfo.EpochNumber == nil {
-			break
-		}
-
-		return e.complexity.VotingInfo.EpochNumber(childComplexity), true
-
-	case "VotingInfo.RemainingDuration":
-		if e.complexity.VotingInfo.RemainingDuration == nil {
-			break
-		}
-
-		return e.complexity.VotingInfo.RemainingDuration(childComplexity), true
 
 	case "VotingInfo.VoterAddress":
 		if e.complexity.VotingInfo.VoterAddress == nil {
@@ -266,10 +251,8 @@ type Productivity {
 }
 
 type VotingInfo {
-    EpochNumber: Int!
-    VoterAddress: String!
-    WeightedVotes: String!
-    RemainingDuration: String!
+    voterAddress: String!
+    weightedVotes: String!
 }`},
 )
 
@@ -688,34 +671,7 @@ func (ec *executionContext) _Reward_foundationBonus(ctx context.Context, field g
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _VotingInfo_EpochNumber(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "VotingInfo",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.EpochNumber, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _VotingInfo_VoterAddress(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
+func (ec *executionContext) _VotingInfo_voterAddress(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -742,7 +698,7 @@ func (ec *executionContext) _VotingInfo_VoterAddress(ctx context.Context, field 
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _VotingInfo_WeightedVotes(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
+func (ec *executionContext) _VotingInfo_weightedVotes(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -756,33 +712,6 @@ func (ec *executionContext) _VotingInfo_WeightedVotes(ctx context.Context, field
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.WeightedVotes, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _VotingInfo_RemainingDuration(ctx context.Context, field graphql.CollectedField, obj *VotingInfo) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "VotingInfo",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.RemainingDuration, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1778,23 +1707,13 @@ func (ec *executionContext) _VotingInfo(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("VotingInfo")
-		case "EpochNumber":
-			out.Values[i] = ec._VotingInfo_EpochNumber(ctx, field, obj)
+		case "voterAddress":
+			out.Values[i] = ec._VotingInfo_voterAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "VoterAddress":
-			out.Values[i] = ec._VotingInfo_VoterAddress(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "WeightedVotes":
-			out.Values[i] = ec._VotingInfo_WeightedVotes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "RemainingDuration":
-			out.Values[i] = ec._VotingInfo_RemainingDuration(ctx, field, obj)
+		case "weightedVotes":
+			out.Values[i] = ec._VotingInfo_weightedVotes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

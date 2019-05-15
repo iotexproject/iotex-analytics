@@ -16,8 +16,6 @@ type Productivity {
 }
 
 type VotingInfo {
-    EpochNumber: Int!
-    VoterAddress: String!
-    WeightedVotes: String!
-    RemainingDuration: String!
+    voterAddress: String!
+    weightedVotes: String!
 }

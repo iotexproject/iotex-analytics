@@ -9,10 +9,9 @@ package votings
 import (
 	"fmt"
 
-	"github.com/iotexproject/iotex-analytics/indexprotocol"
-
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -23,19 +22,25 @@ type Protocol struct {
 	indexer *indexservice.Indexer
 }
 
+// VotingInfo defines voting infos
+type VotingInfo struct {
+	VoterAddress  string
+	WeightedVotes string
+}
+
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
 }
 
-// GetAccountReward gets account reward
-func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (votingInfos []*votings.VotingHistory, err error) {
+// GetVotingInformation gets voting infos
+func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		err = errors.New("votings protocol is unregistered")
 		return
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
+	getQuery := fmt.Sprintf("SELECT voter_address,weighted_votes FROM %s WHERE epoch_number = ? and candidate_name = ?",
 		votings.VotingHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -49,7 +54,7 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 		return
 	}
 
-	var votingHistory votings.VotingHistory
+	var votingHistory VotingInfo
 	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
 	if err != nil {
 		err = errors.Wrap(err, "failed to parse results")
@@ -62,7 +67,7 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 	}
 
 	for _, parsedRow := range parsedRows {
-		voting := parsedRow.(*votings.VotingHistory)
+		voting := parsedRow.(*VotingInfo)
 		votingInfos = append(votingInfos, voting)
 	}
 	return

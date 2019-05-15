@@ -12,9 +12,8 @@ type Reward struct {
 	EpochReward     string `json:"epochReward"`
 	FoundationBonus string `json:"foundationBonus"`
 }
+
 type VotingInfo struct {
-	EpochNumber       int    `json:"EpochNumber"`
-	VoterAddress      string `json:"VoterAddress"`
-	WeightedVotes     string `json:"WeightedVotes"`
-	RemainingDuration string `json:"RemainingDuration"`
+	VoterAddress  string `json:"voterAddress"`
+	WeightedVotes string `json:"weightedVotes"`
 }

@@ -55,19 +55,18 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 	}, nil
 }
 
-// VotingInformation handles GetProductivityHistory request
+// VotingInformation handles VotingInformation request
 func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
 	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get productivity information")
+		err = errors.Wrap(err, "failed to get voting information")
 		return
 	}
 	for _, votingHistory := range votingHistorys {
 		v := new(VotingInfo)
 		v.WeightedVotes = votingHistory.WeightedVotes
 		v.VoterAddress = votingHistory.VoterAddress
-		v.RemainingDuration = votingHistory.RemainingDuration
-		v.EpochNumber = int(votingHistory.EpochNumber)
+		votingInfos = append(votingInfos, v)
 	}
 	return
 }
