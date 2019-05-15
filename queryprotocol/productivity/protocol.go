@@ -11,15 +11,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 )
 
 // Protocol defines the protocol of querying tables
 type Protocol struct {
-	indexer        *indexservice.Indexer
+	indexer *indexservice.Indexer
 }
 
 // NewProtocol creates a new protocol

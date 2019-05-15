@@ -7,11 +7,10 @@
 package queryprotocol
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
-
 )
 
 // RowExists checks whether a row exists

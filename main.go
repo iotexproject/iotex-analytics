@@ -27,9 +27,9 @@ import (
 	"github.com/iotexproject/iotex-analytics/graphql"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexservice"
-	"github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
+	"github.com/iotexproject/iotex-analytics/sql"
 )
 
 const defaultPort = "8089"
@@ -71,6 +71,21 @@ func main() {
 		log.L().Fatal("Failed to register default protocols")
 	}
 
+	http.Handle("/", handler.Playground("GraphQL playground", "/query"))
+	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
+		PP: productivity.NewProtocol(idx),
+		RP: rewards.NewProtocol(idx),
+	}})))
+
+	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
+
+	// Start GraphQL query service
+	go func() {
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.L().Fatal("Failed to serve index query service", zap.Error(err))
+		}
+	}()
+
 	grpcCtx1, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	conn1, err := grpc.DialContext(grpcCtx1, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
@@ -102,14 +117,5 @@ func main() {
 		}
 	}()
 
-	http.Handle("/", handler.Playground("GraphQL playground", "/query"))
-	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
-		PP: productivity.NewProtocol(idx),
-		RP: rewards.NewProtocol(idx),
-	}})))
-
-	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.L().Fatal("Failed to serve indexing service", zap.Error(err))
-	}
+	select {}
 }

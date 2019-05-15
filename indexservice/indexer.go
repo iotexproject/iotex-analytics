@@ -23,12 +23,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
-	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
 // Indexer handles the index build for blocks

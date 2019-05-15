@@ -19,8 +19,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
-	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
