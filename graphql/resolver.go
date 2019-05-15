@@ -20,7 +20,7 @@ import (
 type Resolver struct {
 	PP *productivity.Protocol
 	RP *rewards.Protocol
-	Ap *actions.Protocol
+	AP *actions.Protocol
 }
 
 // Query returns a query resolver
@@ -57,7 +57,7 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 
 // ActiveAccount handles ActiveAccount request
 func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
-	addrs, err := r.Ap.GetActiveAccount(count)
+	addrs, err := r.AP.GetActiveAccount(count)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get active account information")
 	}
