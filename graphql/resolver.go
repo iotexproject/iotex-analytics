@@ -8,16 +8,19 @@ package graphql
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 // Resolver is the resolver that handles graphql request
 type Resolver struct {
 	PP *productivity.Protocol
 	RP *rewards.Protocol
+	VP *votings.Protocol
 }
 
 // Query returns a query resolver
@@ -50,4 +53,21 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 		Production:         production,
 		ExpectedProduction: expectedProduction,
 	}, nil
+}
+
+// VotingInformation handles GetProductivityHistory request
+func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
+	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get productivity information")
+		return
+	}
+	for _, votingHistory := range votingHistorys {
+		v := new(VotingInfo)
+		v.WeightedVotes = votingHistory.WeightedVotes
+		v.VoterAddress = votingHistory.VoterAddress
+		v.RemainingDuration = votingHistory.RemainingDuration
+		v.EpochNumber = int(votingHistory.EpochNumber)
+	}
+	return
 }
