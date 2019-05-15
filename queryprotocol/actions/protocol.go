@@ -28,7 +28,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
 }
 
-// GetProductivityHistory gets productivity history
+// GetActiveAccount gets active account address
 func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
