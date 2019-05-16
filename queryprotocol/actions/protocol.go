@@ -18,6 +18,10 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+type activeAccout struct {
+	From string
+}
+
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
@@ -55,17 +59,11 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
-	type activeAccout struct {
-		From string
-	}
+
 	var acc activeAccout
 	parsedRows, err := s.ParseSQLRows(rows, &acc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
-	}
-
-	if len(parsedRows) == 0 {
-		return nil, indexprotocol.ErrNotExist
 	}
 
 	var addrs []string

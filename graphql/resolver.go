@@ -57,9 +57,5 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 
 // ActiveAccount handles ActiveAccount request
 func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
-	addrs, err := r.AP.GetActiveAccount(count)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get active account information")
-	}
-	return addrs, nil
+	return r.AP.GetActiveAccount(count)
 }
