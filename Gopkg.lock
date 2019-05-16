@@ -1533,7 +1533,6 @@
     "github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb",
     "github.com/iotexproject/iotex-core/blockchain/block",
     "github.com/iotexproject/iotex-core/config",
-    "github.com/iotexproject/iotex-core/crypto",
     "github.com/iotexproject/iotex-core/pkg/lifecycle",
     "github.com/iotexproject/iotex-core/pkg/log",
     "github.com/iotexproject/iotex-core/pkg/util/byteutil",

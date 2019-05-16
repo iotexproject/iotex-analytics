@@ -16,8 +16,8 @@ import (
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/crypto"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
@@ -284,22 +284,33 @@ func (p *Protocol) updateDelegates(
 		Limit:  uint32(p.NumCandidateDelegates),
 	}
 
-	getCanidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
+	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get candidates from election service")
 	}
 
 	p.OperatorAddrToName = make(map[string]string)
-	var candidateAddrList []string
-	for _, candidate := range getCanidatesResponse.Candidates {
-		candidateAddrList = append(candidateAddrList, candidate.OperatorAddress)
+	for _, candidate := range getCandidatesResponse.Candidates {
 		p.OperatorAddrToName[candidate.OperatorAddress] = candidate.Name
 	}
 
-	crypto.SortCandidates(candidateAddrList, epochNumber, crypto.CryptoSeed)
-	p.ActiveBlockProducers = candidateAddrList
-	if len(p.ActiveBlockProducers) > int(p.NumDelegates) {
-		p.ActiveBlockProducers = p.ActiveBlockProducers[:p.NumDelegates]
+	readStateRequest = &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("ActiveBlockProducersByEpoch"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(epochNumber)},
+	}
+	readStateRes, err = chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get active block producers")
+	}
+
+	var activeBlockProducers state.CandidateList
+	if err := activeBlockProducers.Deserialize(readStateRes.Data); err != nil {
+		return errors.Wrap(err, "failed to deserialize active block producers")
+	}
+	p.ActiveBlockProducers = []string{}
+	for _, activeBlockProducer := range activeBlockProducers {
+		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
 	}
 
 	return nil

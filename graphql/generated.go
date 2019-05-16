@@ -46,9 +46,9 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveAccount func(childComplexity int, count int) int
-		Productivity func(childComplexity int, startEpoch int, epochCount int, producerName string) int
-		Rewards      func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
+		ActiveAccount     func(childComplexity int, count int) int
+		Productivity      func(childComplexity int, startEpoch int, epochCount int, producerName string) int
+		Rewards           func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
 		VotingInformation func(childComplexity int, epochNum int, delegateName string) int
 	}
 
