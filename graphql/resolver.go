@@ -14,6 +14,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
 // Resolver is the resolver that handles graphql request
@@ -21,6 +22,7 @@ type Resolver struct {
 	PP *productivity.Protocol
 	RP *rewards.Protocol
 	AP *actions.Protocol
+	VP *votings.Protocol
 }
 
 // Query returns a query resolver
@@ -58,4 +60,21 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 // ActiveAccount handles ActiveAccount request
 func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
 	return r.AP.GetActiveAccount(count)
+}
+
+// VotingInformation handles VotingInformation request
+func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
+	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get voting information")
+		return
+	}
+	for _, votingHistory := range votingHistorys {
+		v := &VotingInfo{
+			WeightedVotes: votingHistory.WeightedVotes,
+			VoterAddress: votingHistory.VoterAddress,
+		}
+		votingInfos = append(votingInfos, v)
+	}
+	return
 }
