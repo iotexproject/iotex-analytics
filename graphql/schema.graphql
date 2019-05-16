@@ -2,6 +2,7 @@ type Query {
     rewards(startEpoch: Int!, epochCount: Int!, candidateName: String!): Reward
     productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
     activeAccount(count: Int!):[String!]
+    votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
 }
 
 type Reward {
@@ -13,4 +14,9 @@ type Reward {
 type Productivity {
     production: String!
     expectedProduction: String!
+}
+
+type VotingInfo {
+    voterAddress: String!
+    weightedVotes: String!
 }

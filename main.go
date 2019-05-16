@@ -30,6 +30,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -76,6 +77,7 @@ func main() {
 	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
 		PP: productivity.NewProtocol(idx),
 		RP: rewards.NewProtocol(idx),
+		VP: votings.NewProtocol(idx),
 		AP: actions.NewProtocol(idx),
 	}})))
 
