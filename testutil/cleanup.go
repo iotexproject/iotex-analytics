@@ -7,15 +7,22 @@
 package testutil
 
 import (
-	"os"
+	"database/sql"
+	"fmt"
 	"testing"
-
-	"github.com/iotexproject/iotex-core/pkg/util/fileutil"
 )
 
-// CleanupPath detects the existence of test DB file and removes it if found
-func CleanupPath(t *testing.T, path string) {
-	if fileutil.FileExists(path) && os.RemoveAll(path) != nil {
-		t.Error("Fail to remove testDB file")
+// CleanupDatabase detects the existence of a MySQL database and drops it if found
+func CleanupDatabase(t *testing.T, connectStr string, dbName string) {
+	db, err := sql.Open("mysql", connectStr)
+	if err != nil {
+		t.Error("Failed to open the database")
+	}
+	if _, err := db.Exec("DROP DATABASE IF EXISTS " + dbName); err != nil {
+		fmt.Println(err)
+		t.Error("Failed to drop the database")
+	}
+	if err := db.Close(); err != nil {
+		t.Error("Failed to close the database")
 	}
 }

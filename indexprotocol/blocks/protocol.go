@@ -90,16 +90,16 @@ func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint6
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] DECIMAL(65, 0) NOT NULL, "+
-		"[block_height] DECIMAL(65, 0) NOT NULL PRIMARY KEY, [block_hash] VARCHAR(64) NOT NULL, [transfer] DECIMAL(65, 0) NOT NULL, [execution] DECIMAL(65, 0) NOT NULL, "+
-		"[depositToRewardingFund] DECIMAL(65, 0) NOT NULL, [claimFromRewardingFund] DECIMAL(65, 0) NOT NULL, [grantReward] DECIMAL(65, 0) NOT NULL, "+
-		"[putPollResult] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [producer_address] VARCHAR(41) NOT NULL, "+
-		"[producer_name] TEXT NOT NULL, [expected_producer_address] VARCHAR(41) NOT NULL, "+
-		"[expected_producer_name] TEXT NOT NULL, [timestamp] INTEGER(8, 0) NOT NULL)", BlockHistoryTableName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, "+
+		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, "+
+		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, "+
+		"producer_name TEXT NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
+		"expected_producer_name TEXT NOT NULL, timestamp INTEGER(8, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW IF NOT EXISTS %s AS SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
 		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
 		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production "+
 		"FROM %s GROUP BY epoch_number, expected_producer_name) AS t1 LEFT JOIN (SELECT epoch_number, producer_name, "+

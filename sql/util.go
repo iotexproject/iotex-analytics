@@ -7,9 +7,8 @@
 package sql
 
 import (
-	"reflect"
-
 	"database/sql"
+	"reflect"
 )
 
 // ParseSQLRows will parse the row

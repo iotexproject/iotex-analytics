@@ -80,9 +80,9 @@ func NewProtocol(store s.Store) *Protocol {
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_type] TEXT NOT NULL, [action_hash] VARCHAR(64) NOT NULL PRIMARY KEY, [receipt_hash] VARCHAR(64) NOT NULL UNIQUE, [block_height] DECIMAL(65, 0), "+
-		"[from] VARCHAR(41) NOT NULL, [to] VARCHAR(41) NOT NULL, [gas_price] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [nonce] DECIMAL(65, 0) NOT NULL, "+
-		"[amount] DECIMAL(65, 0) NOT NULL, [receipt_status] TEXT NOT NULL, FOREIGN KEY (block_height) REFERENCES %s(block_height))",
+		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, "+
+		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, "+
+		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 
 		act := selp.Action()
 		var actionType string
-		var amount string
+		amount := "0"
 		if tsf, ok := act.(*action.Transfer); ok {
 			actionType = "transfer"
 			amount = tsf.Amount().String()
@@ -212,7 +212,7 @@ func (p *Protocol) updateActionHistory(
 			return errors.New("action receipt is missing")
 		}
 		receiptInfo := hashToReceiptInfo[actionInfo.ReceiptHash]
-		insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, [from], [to], "+
+		insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
 			"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			ActionHistoryTableName)
 		if _, err := tx.Exec(insertQuery, actionInfo.ActionType, actionInfo.ActionHash, receiptInfo.ReceiptHash, block.Height(),

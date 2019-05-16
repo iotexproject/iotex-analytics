@@ -7,29 +7,24 @@
 package sql
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 )
 
 const (
-	path = "analytics.db"
+	connectStr = "root:rootuser@tcp(127.0.0.1:3306)/"
+	dbName     = "analytics"
 )
 
-func TestSQLite3StorePutGet(t *testing.T) {
+func TestMySQLStorePutGet(t *testing.T) {
 	testRDSStorePutGet := TestStorePutGet
-	testFile, _ := ioutil.TempFile(os.TempDir(), path)
-	testPath := testFile.Name()
-	t.Run("SQLite3 Store", func(t *testing.T) {
-		testRDSStorePutGet(NewSQLite3(testPath), t)
+	t.Run("MySQL Store", func(t *testing.T) {
+		testRDSStorePutGet(NewMySQL(connectStr, dbName), t)
 	})
 }
 
-func TestSQLite3StoreTransaction(t *testing.T) {
+func TestMySQLStoreTransaction(t *testing.T) {
 	testSQLite3StoreTransaction := TestStoreTransaction
-	testFile, _ := ioutil.TempFile(os.TempDir(), path)
-	testPath := testFile.Name()
-	t.Run("SQLite3 Store", func(t *testing.T) {
-		testSQLite3StoreTransaction(NewSQLite3(testPath), t)
+	t.Run("MySQL Store", func(t *testing.T) {
+		testSQLite3StoreTransaction(NewMySQL(connectStr, dbName), t)
 	})
 }

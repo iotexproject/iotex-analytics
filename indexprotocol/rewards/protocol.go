@@ -88,14 +88,14 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] DECIMAL(65, 0) NOT NULL, "+
-		"[action_hash] VARCHAR(64) NOT NULL, [reward_address] VARCHAR(41) NOT NULL, [candidate_name] TEXT NOT NULL, "+
-		"[block_reward] DECIMAL(65, 0) NOT NULL, [epoch_reward] DECIMAL(65, 0) NOT NULL, [foundation_bonus] DECIMAL(65, 0) NOT NULL)",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name TEXT NOT NULL, "+
+		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW IF NOT EXISTS %s AS SELECT epoch_number, candidate_name, "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, candidate_name, "+
 		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s GROUP BY epoch_number, candidate_name",
 		AccountRewardViewName, RewardHistoryTableName)); err != nil {
 		return err

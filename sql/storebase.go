@@ -13,8 +13,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-
-	// this is required for sqlite3 usage
+	// this is required for mysql usage
 	"github.com/iotexproject/iotex-core/pkg/lifecycle"
 )
 
@@ -29,11 +28,12 @@ type Store interface {
 	Transact(txFunc func(*sql.Tx) error) (err error)
 }
 
-// storebase is local sqlite3
+// storebase is a MySQL instance
 type storeBase struct {
 	mutex      sync.RWMutex
 	db         *sql.DB
 	connectStr string
+	dbName     string
 	driverName string
 }
 
@@ -41,12 +41,12 @@ type storeBase struct {
 var logger = zerolog.New(os.Stderr).Level(zerolog.InfoLevel).With().Timestamp().Logger()
 
 // NewStoreBase instantiates an store base
-func newStoreBase(driverName string, connectStr string) Store {
-	return &storeBase{db: nil, connectStr: connectStr, driverName: driverName}
+func newStoreBase(driverName string, connectStr string, dbName string) Store {
+	return &storeBase{db: nil, connectStr: connectStr, dbName: dbName, driverName: driverName}
 }
 
 // Start opens the SQL (creates new file if not existing yet)
-func (s *storeBase) Start(_ context.Context) error {
+func (s *storeBase) Start(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -57,6 +57,12 @@ func (s *storeBase) Start(_ context.Context) error {
 	// Use db to perform SQL operations on database
 	db, err := sql.Open(s.driverName, s.connectStr)
 	if err != nil {
+		return err
+	}
+	if _, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + s.dbName); err != nil {
+		return err
+	}
+	if _, err = db.Exec("USE " + s.dbName); err != nil {
 		return err
 	}
 	s.db = db

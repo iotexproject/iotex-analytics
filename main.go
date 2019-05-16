@@ -67,7 +67,7 @@ func main() {
 		log.L().Fatal("failed to unmarshal config", zap.Error(err))
 	}
 
-	store := sql.NewSQLite3(cfg.DBPath)
+	store := sql.NewMySQL(cfg.MySQL.ConnectStr, cfg.MySQL.DBName)
 
 	idx := indexservice.NewIndexer(store, cfg)
 	if err := idx.RegisterDefaultProtocols(); err != nil {

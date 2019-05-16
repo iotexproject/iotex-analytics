@@ -12,9 +12,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/iotexproject/go-pkgs/hash"
+	"github.com/stretchr/testify/require"
 )
 
 // ActionHistory define the schema for action history
@@ -43,8 +42,8 @@ func TestStorePutGet(sqlStore Store, t *testing.T) {
 	actionHash := hash.ZeroHash256
 
 	// create table
-	_, err = dbinstance.Exec("CREATE TABLE IF NOT EXISTS action_history ([node_address] TEXT NOT NULL, [user_address] " +
-		"TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)")
+	_, err = dbinstance.Exec("CREATE TABLE IF NOT EXISTS action_history (node_address TEXT NOT NULL, user_address " +
+		"TEXT NOT NULL, action_hash BLOB(32) NOT NULL)")
 	require.Nil(err)
 
 	// insert
@@ -116,8 +115,8 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 	actionHash := hash.ZeroHash256
 
 	// create table
-	_, err = dbinstance.Exec("CREATE TABLE IF NOT EXISTS action_history ([node_address] TEXT NOT NULL, [user_address] " +
-		"TEXT NOT NULL, [action_hash] BLOB(32) NOT NULL)")
+	_, err = dbinstance.Exec("CREATE TABLE IF NOT EXISTS action_history (node_address TEXT NOT NULL, user_address " +
+		"TEXT NOT NULL, action_hash BLOB(32) NOT NULL)")
 	require.Nil(err)
 
 	// get
