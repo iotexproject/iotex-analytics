@@ -1,6 +1,7 @@
 type Query {
     rewards(startEpoch: Int!, epochCount: Int!, candidateName: String!): Reward
     productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
+    activeAccount(count: Int!):[String!]
 }
 
 type Reward {

@@ -8,8 +8,10 @@ package graphql
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
@@ -18,6 +20,7 @@ import (
 type Resolver struct {
 	PP *productivity.Protocol
 	RP *rewards.Protocol
+	AP *actions.Protocol
 }
 
 // Query returns a query resolver
@@ -50,4 +53,9 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 		Production:         production,
 		ExpectedProduction: expectedProduction,
 	}, nil
+}
+
+// ActiveAccount handles ActiveAccount request
+func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
+	return r.AP.GetActiveAccount(count)
 }
