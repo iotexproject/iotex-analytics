@@ -70,9 +70,10 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 		return
 	}
 	for _, votingHistory := range votingHistorys {
-		v := new(VotingInfo)
-		v.WeightedVotes = votingHistory.WeightedVotes
-		v.VoterAddress = votingHistory.VoterAddress
+		v := &VotingInfo{
+			WeightedVotes: votingHistory.WeightedVotes,
+			VoterAddress: votingHistory.VoterAddress,
+		}
 		votingInfos = append(votingInfos, v)
 	}
 	return
