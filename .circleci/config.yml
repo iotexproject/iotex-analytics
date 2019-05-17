@@ -17,12 +17,11 @@ jobs:
     #### expecting it in the form of
     ####   /go/src/github.com/circleci/go-tool
     ####   /go/src/bitbucket.org/circleci/go-tool
-    working_directory: /go/src/github.com/iotexproject/iotex-analytics
+    working_directory: ~/apps/iotex-analytics
     steps:
       - checkout
 
       # specify any bash command here prefixed with `run: `
       - run: golint -set_exit_status $(go list ./... | grep -v /vendor/)
-      - run: dep ensure --vendor-only
       - run: bash ./go.test.sh
       - run: bash <(curl -s https://codecov.io/bash)
