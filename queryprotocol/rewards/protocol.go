@@ -81,13 +81,11 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 	if err != nil {
 		return
 	}
-	fmt.Println("reward to split:", rewardToSplit.Text(10))
 	// Second get TotalWeightedVotes
 	sumTotalWeightedVotes, err := p.totalWeightedVotes(startEpoch, epochCount, delegateName)
 	if err != nil {
 		return
 	}
-	fmt.Println("sum total weightedVotes:", sumTotalWeightedVotes.Text(10))
 	// get voter's weighted votes
 	voteSums, err := p.voterVotes(startEpoch, epochCount, delegateName)
 	if err != nil {
@@ -99,14 +97,12 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 			err = errors.Wrap(errs, "reward convert to int error")
 			return
 		}
-		fmt.Println(voteSum.VoterAddress, ":", voteSum.Amount)
 		amount := new(big.Int).Set(rewardToSplit)
 		amount = amount.Mul(amount, rewardInt).Div(amount, sumTotalWeightedVotes)
 		v := &RewardDistribution{
 			VoterAddress: voteSum.VoterAddress,
 			Amount:       amount.Text(10),
 		}
-		fmt.Println("cal:", v)
 		rds = append(rds, v)
 	}
 	return
@@ -150,8 +146,6 @@ func (p *Protocol) sumOfRewardPool(startEpoch int, epochCount int, delegateName 
 	if err != nil {
 		return
 	}
-	fmt.Println("epoch reward:", epochRewardInt)
-	fmt.Println("foundation bonus:", foundationBonusInt)
 	rewardInt := epochRewardInt
 	if includeFoundationBonus {
 		rewardInt = epochRewardInt.Add(epochRewardInt, foundationBonusInt)
