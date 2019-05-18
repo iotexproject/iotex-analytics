@@ -47,6 +47,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		ActiveAccount     func(childComplexity int, count int) int
+		GetBookkeeping    func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
 		Productivity      func(childComplexity int, startEpoch int, epochCount int, producerName string) int
 		Rewards           func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
 		VotingInformation func(childComplexity int, epochNum int, delegateName string) int
@@ -56,6 +57,11 @@ type ComplexityRoot struct {
 		BlockReward     func(childComplexity int) int
 		EpochReward     func(childComplexity int) int
 		FoundationBonus func(childComplexity int) int
+	}
+
+	RewardDistribution struct {
+		Amount       func(childComplexity int) int
+		VoterAddress func(childComplexity int) int
 	}
 
 	VotingInfo struct {
@@ -69,6 +75,7 @@ type QueryResolver interface {
 	Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error)
 	ActiveAccount(ctx context.Context, count int) ([]string, error)
 	VotingInformation(ctx context.Context, epochNum int, delegateName string) ([]*VotingInfo, error)
+	GetBookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
 }
 
 type executableSchema struct {
@@ -111,6 +118,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.ActiveAccount(childComplexity, args["count"].(int)), true
+
+	case "Query.GetBookkeeping":
+		if e.complexity.Query.GetBookkeeping == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getBookkeeping_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetBookkeeping(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool)), true
 
 	case "Query.Productivity":
 		if e.complexity.Query.Productivity == nil {
@@ -168,6 +187,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Reward.FoundationBonus(childComplexity), true
+
+	case "RewardDistribution.Amount":
+		if e.complexity.RewardDistribution.Amount == nil {
+			break
+		}
+
+		return e.complexity.RewardDistribution.Amount(childComplexity), true
+
+	case "RewardDistribution.VoterAddress":
+		if e.complexity.RewardDistribution.VoterAddress == nil {
+			break
+		}
+
+		return e.complexity.RewardDistribution.VoterAddress(childComplexity), true
 
 	case "VotingInfo.VoterAddress":
 		if e.complexity.VotingInfo.VoterAddress == nil {
@@ -252,6 +285,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
     activeAccount(count: Int!):[String!]
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
+    getBookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
 }
 
 type Reward {
@@ -268,6 +302,11 @@ type Productivity {
 type VotingInfo {
     voterAddress: String!
     weightedVotes: String!
+}
+
+type RewardDistribution {
+    voterAddress: String!
+    amount: String!
 }`},
 )
 
@@ -300,6 +339,52 @@ func (ec *executionContext) field_Query_activeAccount_args(ctx context.Context, 
 		}
 	}
 	args["count"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getBookkeeping_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["delegateName"]; ok {
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["delegateName"] = arg2
+	var arg3 int
+	if tmp, ok := rawArgs["percentage"]; ok {
+		arg3, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["percentage"] = arg3
+	var arg4 bool
+	if tmp, ok := rawArgs["includeFoundationBonus"]; ok {
+		arg4, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["includeFoundationBonus"] = arg4
 	return args, nil
 }
 
@@ -595,6 +680,37 @@ func (ec *executionContext) _Query_votingInformation(ctx context.Context, field 
 	return ec.marshalOVotingInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVotingInfo(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_getBookkeeping(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getBookkeeping_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetBookkeeping(rctx, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*RewardDistribution)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalORewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -718,6 +834,60 @@ func (ec *executionContext) _Reward_foundationBonus(ctx context.Context, field g
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.FoundationBonus, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _RewardDistribution_voterAddress(ctx context.Context, field graphql.CollectedField, obj *RewardDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "RewardDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _RewardDistribution_amount(ctx context.Context, field graphql.CollectedField, obj *RewardDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "RewardDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1715,6 +1885,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				res = ec._Query_votingInformation(ctx, field)
 				return res
 			})
+		case "getBookkeeping":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getBookkeeping(ctx, field)
+				return res
+			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -1753,6 +1934,38 @@ func (ec *executionContext) _Reward(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "foundationBonus":
 			out.Values[i] = ec._Reward_foundationBonus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var rewardDistributionImplementors = []string{"RewardDistribution"}
+
+func (ec *executionContext) _RewardDistribution(ctx context.Context, sel ast.SelectionSet, obj *RewardDistribution) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, rewardDistributionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RewardDistribution")
+		case "voterAddress":
+			out.Values[i] = ec._RewardDistribution_voterAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "amount":
+			out.Values[i] = ec._RewardDistribution_amount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -2325,6 +2538,57 @@ func (ec *executionContext) marshalOReward2ᚖgithubᚗcomᚋiotexprojectᚋiote
 		return graphql.Null
 	}
 	return ec._Reward(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORewardDistribution2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx context.Context, sel ast.SelectionSet, v RewardDistribution) graphql.Marshaler {
+	return ec._RewardDistribution(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalORewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx context.Context, sel ast.SelectionSet, v []*RewardDistribution) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalORewardDistribution2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalORewardDistribution2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx context.Context, sel ast.SelectionSet, v *RewardDistribution) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._RewardDistribution(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
