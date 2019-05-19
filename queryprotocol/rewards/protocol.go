@@ -17,6 +17,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
+	qvotings "github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -76,40 +77,62 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 		err = errors.New("votings protocol is unregistered")
 		return
 	}
-	// First get sum of reward pool from startEpoch to startEpoch+epochCount-1
-	rewardToSplit, err := p.sumOfRewardPool(startEpoch, epochCount, delegateName, percentage, includeFoundationBonus)
-	if err != nil {
-		return
-	}
-	// Second get TotalWeightedVotes
-	sumTotalWeightedVotes, err := p.totalWeightedVotes(startEpoch, epochCount, delegateName)
-	if err != nil {
-		return
-	}
-	// get voter's weighted votes
-	voteSums, err := p.voterVotes(startEpoch, epochCount, delegateName)
-	if err != nil {
-		return
-	}
-	for _, voteSum := range voteSums {
-		rewardInt, errs := stringToBigInt(voteSum.Amount)
+	votersSum := make(map[string]*big.Int, 0)
+	for i := startEpoch; i < startEpoch+epochCount; i++ {
+		rd, errs := p.getBookkeeping(i, delegateName, percentage, includeFoundationBonus)
 		if errs != nil {
-			err = errors.Wrap(errs, "reward convert to int error")
+			err = errors.Wrap(errs, "getBookkeeping")
 			return
 		}
-		amount := new(big.Int).Set(rewardToSplit)
-		amount = amount.Mul(amount, rewardInt).Div(amount, sumTotalWeightedVotes)
-		v := &RewardDistribution{
-			VoterAddress: voteSum.VoterAddress,
-			Amount:       amount.Text(10),
+		for k, v := range rd {
+			existBig, ok := votersSum[k]
+			if ok {
+				existBig.Add(existBig, v)
+			} else {
+				votersSum[k] = v
+			}
 		}
-		rds = append(rds, v)
+	}
+	for k, v := range votersSum {
+		rd := &RewardDistribution{
+			VoterAddress: k,
+			Amount:       v.Text(10),
+		}
+		rds = append(rds, rd)
 	}
 	return
 }
-func (p *Protocol) totalWeightedVotes(startEpoch int, epochCount int, delegateName string) (sumVotesInt *big.Int, err error) {
+
+func (p *Protocol) getBookkeeping(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rds map[string]*big.Int, err error) {
+	// First get sum of reward pool of epoch
+	rewardToSplit, err := p.sumOfRewardPool(epoch, delegateName, percentage, includeFoundationBonus)
+	if err != nil {
+		err = errors.Wrap(err, "sumOfRewardPool")
+		return
+	}
+	// Second get TotalWeightedVotes
+	sumTotalWeightedVotes, err := p.totalWeightedVotes(epoch, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "totalWeightedVotes")
+		return
+	}
+	// get voter's weighted votes
+	voteSums, err := p.voterVotes(epoch, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "voterVotes")
+		return
+	}
+	rds = make(map[string]*big.Int, 0)
+	for k, v := range voteSums {
+		amount := new(big.Int).Set(rewardToSplit)
+		amount = amount.Mul(amount, v).Div(amount, sumTotalWeightedVotes)
+		rds[k] = amount
+	}
+	return
+}
+func (p *Protocol) totalWeightedVotes(epoch int, delegateName string) (sumVotesInt *big.Int, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes) FROM %s WHERE epoch_number>=? AND epoch_number<? AND delegate_name=?",
+	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes) FROM %s WHERE epoch_number=? AND delegate_name=?",
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -117,7 +140,7 @@ func (p *Protocol) totalWeightedVotes(startEpoch int, epochCount int, delegateNa
 		return
 	}
 	var sumVotes string
-	if err = stmt.QueryRow(startEpoch, startEpoch+epochCount, delegateName).Scan(&sumVotes); err != nil {
+	if err = stmt.QueryRow(epoch, delegateName).Scan(&sumVotes); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
@@ -132,8 +155,8 @@ func (p *Protocol) totalWeightedVotes(startEpoch int, epochCount int, delegateNa
 	}
 	return
 }
-func (p *Protocol) sumOfRewardPool(startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
-	_, epochReward, foundationBonus, err := p.GetAccountReward(uint64(startEpoch), uint64(epochCount), delegateName)
+func (p *Protocol) sumOfRewardPool(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
+	_, epochReward, foundationBonus, err := p.GetAccountReward(uint64(epoch), uint64(1), delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "GetAccountReward err")
 		return
@@ -151,32 +174,27 @@ func (p *Protocol) sumOfRewardPool(startEpoch int, epochCount int, delegateName 
 		rewardInt = epochRewardInt.Add(epochRewardInt, foundationBonusInt)
 	}
 	rewardToSplit = rewardInt.Mul(rewardInt, big.NewInt(int64(percentage))).Div(rewardInt, big.NewInt(100))
-	if rewardToSplit.Cmp(big.NewInt(0)) == 0 {
-		err = errors.New("reward is 0")
-		return
-	}
 	return
 }
 
 // get voter's weighted votes
-func (p *Protocol) voterVotes(startEpoch int, epochCount int, delegateName string) (votingSums []*RewardDistribution, err error) {
+func (p *Protocol) voterVotes(epoch int, delegateName string) (votingSums map[string]*big.Int, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT reward_address,SUM(total_weighted_votes) FROM %s WHERE epoch_number>=? AND epoch_number<? AND delegate_name=?  GROUP BY reward_address",
-		votings.VotingResultTableName)
+	getQuery := fmt.Sprintf("SELECT voter_address,SUM(weighted_votes) FROM %s WHERE epoch_number=? AND candidate_name=?  GROUP BY voter_address",
+		votings.VotingHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
-
-	rows, err := stmt.Query(startEpoch, startEpoch+epochCount, delegateName)
+	rows, err := stmt.Query(epoch, delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
 
-	var rd RewardDistribution
-	parsedRows, err := s.ParseSQLRows(rows, &rd)
+	var votingHistory qvotings.VotingInfo
+	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
 	if err != nil {
 		err = errors.Wrap(err, "failed to parse results")
 		return
@@ -186,10 +204,15 @@ func (p *Protocol) voterVotes(startEpoch int, epochCount int, delegateName strin
 		err = indexprotocol.ErrNotExist
 		return
 	}
-
+	votingSums = make(map[string]*big.Int, 0)
 	for _, parsedRow := range parsedRows {
-		rd := parsedRow.(*RewardDistribution)
-		votingSums = append(votingSums, rd)
+		voting := parsedRow.(*qvotings.VotingInfo)
+		epochRewardInt, errs := stringToBigInt(voting.WeightedVotes)
+		if errs != nil {
+			err = errors.Wrap(errs, "failed to convert to big int")
+			return
+		}
+		votingSums[voting.VoterAddress] = epochRewardInt
 	}
 	return
 }
