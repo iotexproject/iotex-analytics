@@ -81,6 +81,10 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 
 // GetBookkeeping handles GetBookkeeping request
 func (r *queryResolver) GetBookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
+	if percentage < 0 || percentage > 100 {
+		err = errors.New("percentage should be 0-100")
+		return
+	}
 	rets, err := r.RP.GetBookkeeping(startEpoch, epochCount, delegateName, percentage, includeFoundationBonus)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get bookkeeping information")

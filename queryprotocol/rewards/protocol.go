@@ -32,6 +32,10 @@ type RewardDistribution struct {
 	Amount       string `json:"amount"`
 }
 
+type totalWeight struct {
+	TotalWeight string
+}
+
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
@@ -77,11 +81,20 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 		err = errors.New("votings protocol is unregistered")
 		return
 	}
+	currentEpoch, err := p.getMostRecentEpoch()
+	if err != nil {
+		err = errors.New("failed to get most recent epoch")
+		return
+	}
+	endEpoch := startEpoch + epochCount - 1
+	if endEpoch > currentEpoch {
+		endEpoch = currentEpoch
+	}
 	votersSum := make(map[string]*big.Int, 0)
-	for i := startEpoch; i < startEpoch+epochCount; i++ {
+	for i := startEpoch; i <= endEpoch; i++ {
 		rd, errs := p.getBookkeeping(i, delegateName, percentage, includeFoundationBonus)
 		if errs != nil {
-			err = errors.Wrap(errs, "getBookkeeping")
+			err = errors.Wrap(errs, "failed to get bookkeeping")
 			return
 		}
 		for k, v := range rd {
@@ -103,62 +116,94 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 	return
 }
 
+func (p *Protocol) getMostRecentEpoch() (epoch int, err error) {
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf("SELECT epoch_number FROM %s ORDER BY epoch_number desc LIMIT 1", votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+	if err = stmt.QueryRow().Scan(&epoch); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
+
 func (p *Protocol) getBookkeeping(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rds map[string]*big.Int, err error) {
 	// First get sum of reward pool of epoch
-	rewardToSplit, err := p.sumOfRewardPool(epoch, delegateName, percentage, includeFoundationBonus)
+	rewardToSplit, err := p.rewardToSplit(epoch, delegateName, percentage, includeFoundationBonus)
 	if err != nil {
-		err = errors.Wrap(err, "sumOfRewardPool")
+		err = errors.Wrap(err, "failed to get reward to split")
 		return
 	}
 	// Second get TotalWeightedVotes
-	sumTotalWeightedVotes, err := p.totalWeightedVotes(epoch, delegateName)
+	totalWeightedVotes, err := p.totalWeightedVotes(epoch, delegateName)
 	if err != nil {
-		err = errors.Wrap(err, "totalWeightedVotes")
+		err = errors.Wrap(err, "failed to get total weighted votes")
 		return
 	}
 	// get voter's weighted votes
 	voteSums, err := p.voterVotes(epoch, delegateName)
 	if err != nil {
-		err = errors.Wrap(err, "voterVotes")
+		err = errors.Wrap(err, "failed to get voters' weighted votes")
 		return
 	}
 	rds = make(map[string]*big.Int, 0)
 	for k, v := range voteSums {
 		amount := new(big.Int).Set(rewardToSplit)
-		amount = amount.Mul(amount, v).Div(amount, sumTotalWeightedVotes)
+		amount = amount.Mul(amount, v).Div(amount, totalWeightedVotes)
 		rds[k] = amount
 	}
 	return
 }
 func (p *Protocol) totalWeightedVotes(epoch int, delegateName string) (sumVotesInt *big.Int, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes) FROM %s WHERE epoch_number=? AND delegate_name=?",
+	getQuery := fmt.Sprintf("SELECT total_weighted_votes FROM %s WHERE epoch_number=? AND delegate_name=?",
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
-	var sumVotes string
-	if err = stmt.QueryRow(epoch, delegateName).Scan(&sumVotes); err != nil {
+	rows, err := stmt.Query(epoch, delegateName)
+	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
-	sumVotesInt, err = stringToBigInt(sumVotes)
+
+	var tw totalWeight
+	parsedRows, err := s.ParseSQLRows(rows, &tw)
+	if err != nil {
+		err = errors.Wrap(err, "failed to parse results")
+		return
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return
+	}
+	if len(parsedRows) != 1 {
+		err = errors.Wrap(err, "failed to get total weighted vote")
+		return
+	}
+
+	t := parsedRows[0].(*totalWeight)
+	sumVotesInt, err = stringToBigInt(t.TotalWeight)
 	if err != nil {
 		err = errors.New("reward convert to int error")
 		return
 	}
-	if sumVotesInt.Cmp(big.NewInt(0)) == 0 {
+	if sumVotesInt.Sign() == 0 {
 		err = errors.New("sum of votes is 0")
 		return
 	}
 	return
 }
-func (p *Protocol) sumOfRewardPool(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
+func (p *Protocol) rewardToSplit(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
 	_, epochReward, foundationBonus, err := p.GetAccountReward(uint64(epoch), uint64(1), delegateName)
 	if err != nil {
-		err = errors.Wrap(err, "GetAccountReward err")
+		err = errors.Wrap(err, "failed to get account reward")
 		return
 	}
 	epochRewardInt, err := stringToBigInt(epochReward)
@@ -171,7 +216,7 @@ func (p *Protocol) sumOfRewardPool(epoch int, delegateName string, percentage in
 	}
 	rewardInt := epochRewardInt
 	if includeFoundationBonus {
-		rewardInt = epochRewardInt.Add(epochRewardInt, foundationBonusInt)
+		rewardInt.Add(rewardInt, foundationBonusInt)
 	}
 	rewardToSplit = rewardInt.Mul(rewardInt, big.NewInt(int64(percentage))).Div(rewardInt, big.NewInt(100))
 	return
@@ -220,7 +265,7 @@ func stringToBigInt(estr string) (ret *big.Int, err error) {
 	// convert string like this:2.687455198114428e+21
 	retFloat, _, err := new(big.Float).Parse(estr, 10)
 	if err != nil {
-		err = errors.Wrap(err, "stringToBigInt err")
+		err = errors.Wrap(err, "failed to parse string to big float")
 		return
 	}
 	ret = new(big.Int)
