@@ -17,6 +17,7 @@ type RewardDistribution struct {
 	VoterAddress string `json:"voterAddress"`
 	Amount       string `json:"amount"`
 }
+
 type VotingInfo struct {
 	VoterAddress  string `json:"voterAddress"`
 	WeightedVotes string `json:"weightedVotes"`

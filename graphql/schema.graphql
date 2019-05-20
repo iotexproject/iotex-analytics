@@ -3,7 +3,7 @@ type Query {
     productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
     activeAccount(count: Int!):[String!]
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
-    getBookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
+    bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
 }
 
 type Reward {

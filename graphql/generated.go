@@ -47,7 +47,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		ActiveAccount     func(childComplexity int, count int) int
-		GetBookkeeping    func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
+		Bookkeeping       func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
 		Productivity      func(childComplexity int, startEpoch int, epochCount int, producerName string) int
 		Rewards           func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
 		VotingInformation func(childComplexity int, epochNum int, delegateName string) int
@@ -75,7 +75,7 @@ type QueryResolver interface {
 	Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error)
 	ActiveAccount(ctx context.Context, count int) ([]string, error)
 	VotingInformation(ctx context.Context, epochNum int, delegateName string) ([]*VotingInfo, error)
-	GetBookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
+	Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
 }
 
 type executableSchema struct {
@@ -119,17 +119,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.ActiveAccount(childComplexity, args["count"].(int)), true
 
-	case "Query.GetBookkeeping":
-		if e.complexity.Query.GetBookkeeping == nil {
+	case "Query.Bookkeeping":
+		if e.complexity.Query.Bookkeeping == nil {
 			break
 		}
 
-		args, err := ec.field_Query_getBookkeeping_args(context.TODO(), rawArgs)
+		args, err := ec.field_Query_bookkeeping_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.GetBookkeeping(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool)), true
+		return e.complexity.Query.Bookkeeping(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool)), true
 
 	case "Query.Productivity":
 		if e.complexity.Query.Productivity == nil {
@@ -285,7 +285,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
     activeAccount(count: Int!):[String!]
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
-    getBookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
+    bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
 }
 
 type Reward {
@@ -342,7 +342,7 @@ func (ec *executionContext) field_Query_activeAccount_args(ctx context.Context, 
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_getBookkeeping_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_bookkeeping_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
@@ -680,7 +680,7 @@ func (ec *executionContext) _Query_votingInformation(ctx context.Context, field 
 	return ec.marshalOVotingInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVotingInfo(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_getBookkeeping(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+func (ec *executionContext) _Query_bookkeeping(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -691,7 +691,7 @@ func (ec *executionContext) _Query_getBookkeeping(ctx context.Context, field gra
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_getBookkeeping_args(ctx, rawArgs)
+	args, err := ec.field_Query_bookkeeping_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -700,7 +700,7 @@ func (ec *executionContext) _Query_getBookkeeping(ctx context.Context, field gra
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetBookkeeping(rctx, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool))
+		return ec.resolvers.Query().Bookkeeping(rctx, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool))
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -739,7 +739,7 @@ func (ec *executionContext) _Query___type(ctx context.Context, field graphql.Col
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -763,7 +763,7 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	res := resTmp.(*introspection.Schema)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Schema2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
+	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Reward_blockReward(ctx context.Context, field graphql.CollectedField, obj *Reward) graphql.Marshaler {
@@ -1057,7 +1057,7 @@ func (ec *executionContext) ___Directive_args(ctx context.Context, field graphql
 	res := resTmp.([]introspection.InputValue)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
+	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___EnumValue_name(ctx context.Context, field graphql.CollectedField, obj *introspection.EnumValue) graphql.Marshaler {
@@ -1237,7 +1237,7 @@ func (ec *executionContext) ___Field_args(ctx context.Context, field graphql.Col
 	res := resTmp.([]introspection.InputValue)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
+	return ec.marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Field_type(ctx context.Context, field graphql.CollectedField, obj *introspection.Field) graphql.Marshaler {
@@ -1264,7 +1264,7 @@ func (ec *executionContext) ___Field_type(ctx context.Context, field graphql.Col
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalN__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Field_isDeprecated(ctx context.Context, field graphql.CollectedField, obj *introspection.Field) graphql.Marshaler {
@@ -1393,7 +1393,7 @@ func (ec *executionContext) ___InputValue_type(ctx context.Context, field graphq
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalN__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___InputValue_defaultValue(ctx context.Context, field graphql.CollectedField, obj *introspection.InputValue) graphql.Marshaler {
@@ -1444,7 +1444,7 @@ func (ec *executionContext) ___Schema_types(ctx context.Context, field graphql.C
 	res := resTmp.([]introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__Type2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalN__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Schema_queryType(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) graphql.Marshaler {
@@ -1471,7 +1471,7 @@ func (ec *executionContext) ___Schema_queryType(ctx context.Context, field graph
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalN__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Schema_mutationType(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) graphql.Marshaler {
@@ -1495,7 +1495,7 @@ func (ec *executionContext) ___Schema_mutationType(ctx context.Context, field gr
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Schema_subscriptionType(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) graphql.Marshaler {
@@ -1519,7 +1519,7 @@ func (ec *executionContext) ___Schema_subscriptionType(ctx context.Context, fiel
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Schema_directives(ctx context.Context, field graphql.CollectedField, obj *introspection.Schema) graphql.Marshaler {
@@ -1546,7 +1546,7 @@ func (ec *executionContext) ___Schema_directives(ctx context.Context, field grap
 	res := resTmp.([]introspection.Directive)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalN__Directive2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx, field.Selections, res)
+	return ec.marshalN__Directive2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_kind(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1652,7 +1652,7 @@ func (ec *executionContext) ___Type_fields(ctx context.Context, field graphql.Co
 	res := resTmp.([]introspection.Field)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Field2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx, field.Selections, res)
+	return ec.marshalO__Field2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_interfaces(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1676,7 +1676,7 @@ func (ec *executionContext) ___Type_interfaces(ctx context.Context, field graphq
 	res := resTmp.([]introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_possibleTypes(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1700,7 +1700,7 @@ func (ec *executionContext) ___Type_possibleTypes(ctx context.Context, field gra
 	res := resTmp.([]introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_enumValues(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1731,7 +1731,7 @@ func (ec *executionContext) ___Type_enumValues(ctx context.Context, field graphq
 	res := resTmp.([]introspection.EnumValue)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__EnumValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx, field.Selections, res)
+	return ec.marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_inputFields(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1755,7 +1755,7 @@ func (ec *executionContext) ___Type_inputFields(ctx context.Context, field graph
 	res := resTmp.([]introspection.InputValue)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__InputValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
+	return ec.marshalO__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.CollectedField, obj *introspection.Type) graphql.Marshaler {
@@ -1779,7 +1779,7 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 	res := resTmp.(*introspection.Type)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalO__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
+	return ec.marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, field.Selections, res)
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -1885,7 +1885,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				res = ec._Query_votingInformation(ctx, field)
 				return res
 			})
-		case "getBookkeeping":
+		case "bookkeeping":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -1893,7 +1893,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_getBookkeeping(ctx, field)
+				res = ec._Query_bookkeeping(ctx, field)
 				return res
 			})
 		case "__type":
@@ -2281,11 +2281,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return graphql.MarshalString(v)
 }
 
-func (ec *executionContext) marshalN__Directive2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
+func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
 	return ec.___Directive(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalN__Directive2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v []introspection.Directive) graphql.Marshaler {
+func (ec *executionContext) marshalN__Directive2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v []introspection.Directive) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -2309,7 +2309,7 @@ func (ec *executionContext) marshalN__Directive2ᚕgithubᚗcomᚋiotexproject�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__Directive2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx, sel, v[i])
+			ret[i] = ec.marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2387,19 +2387,19 @@ func (ec *executionContext) marshalN__DirectiveLocation2ᚕstring(ctx context.Co
 	return ret
 }
 
-func (ec *executionContext) marshalN__EnumValue2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v introspection.EnumValue) graphql.Marshaler {
+func (ec *executionContext) marshalN__EnumValue2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v introspection.EnumValue) graphql.Marshaler {
 	return ec.___EnumValue(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalN__Field2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx context.Context, sel ast.SelectionSet, v introspection.Field) graphql.Marshaler {
+func (ec *executionContext) marshalN__Field2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx context.Context, sel ast.SelectionSet, v introspection.Field) graphql.Marshaler {
 	return ec.___Field(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalN__InputValue2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v introspection.InputValue) graphql.Marshaler {
+func (ec *executionContext) marshalN__InputValue2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v introspection.InputValue) graphql.Marshaler {
 	return ec.___InputValue(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalN__InputValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v []introspection.InputValue) graphql.Marshaler {
+func (ec *executionContext) marshalN__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v []introspection.InputValue) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -2423,7 +2423,7 @@ func (ec *executionContext) marshalN__InputValue2ᚕgithubᚗcomᚋiotexproject�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__InputValue2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, sel, v[i])
+			ret[i] = ec.marshalN__InputValue2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2436,11 +2436,11 @@ func (ec *executionContext) marshalN__InputValue2ᚕgithubᚗcomᚋiotexproject�
 	return ret
 }
 
-func (ec *executionContext) marshalN__Type2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalN__Type2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v introspection.Type) graphql.Marshaler {
 	return ec.___Type(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalN__Type2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v []introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalN__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v []introspection.Type) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -2464,7 +2464,7 @@ func (ec *executionContext) marshalN__Type2ᚕgithubᚗcomᚋiotexprojectᚋiote
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__Type2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, sel, v[i])
+			ret[i] = ec.marshalN__Type2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2477,7 +2477,7 @@ func (ec *executionContext) marshalN__Type2ᚕgithubᚗcomᚋiotexprojectᚋiote
 	return ret
 }
 
-func (ec *executionContext) marshalN__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v *introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalN__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v *introspection.Type) graphql.Marshaler {
 	if v == nil {
 		if !ec.HasError(graphql.GetResolverContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2697,7 +2697,7 @@ func (ec *executionContext) marshalOVotingInfo2ᚖgithubᚗcomᚋiotexprojectᚋ
 	return ec._VotingInfo(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
+func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -2724,7 +2724,7 @@ func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋiotexproject�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__EnumValue2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx, sel, v[i])
+			ret[i] = ec.marshalN__EnumValue2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2737,7 +2737,7 @@ func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋiotexproject�
 	return ret
 }
 
-func (ec *executionContext) marshalO__Field2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx context.Context, sel ast.SelectionSet, v []introspection.Field) graphql.Marshaler {
+func (ec *executionContext) marshalO__Field2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx context.Context, sel ast.SelectionSet, v []introspection.Field) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -2764,7 +2764,7 @@ func (ec *executionContext) marshalO__Field2ᚕgithubᚗcomᚋiotexprojectᚋiot
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__Field2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx, sel, v[i])
+			ret[i] = ec.marshalN__Field2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐField(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2777,7 +2777,7 @@ func (ec *executionContext) marshalO__Field2ᚕgithubᚗcomᚋiotexprojectᚋiot
 	return ret
 }
 
-func (ec *executionContext) marshalO__InputValue2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v []introspection.InputValue) graphql.Marshaler {
+func (ec *executionContext) marshalO__InputValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx context.Context, sel ast.SelectionSet, v []introspection.InputValue) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -2804,7 +2804,7 @@ func (ec *executionContext) marshalO__InputValue2ᚕgithubᚗcomᚋiotexproject�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__InputValue2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, sel, v[i])
+			ret[i] = ec.marshalN__InputValue2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐInputValue(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2817,22 +2817,22 @@ func (ec *executionContext) marshalO__InputValue2ᚕgithubᚗcomᚋiotexproject�
 	return ret
 }
 
-func (ec *executionContext) marshalO__Schema2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx context.Context, sel ast.SelectionSet, v introspection.Schema) graphql.Marshaler {
+func (ec *executionContext) marshalO__Schema2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx context.Context, sel ast.SelectionSet, v introspection.Schema) graphql.Marshaler {
 	return ec.___Schema(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalO__Schema2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx context.Context, sel ast.SelectionSet, v *introspection.Schema) graphql.Marshaler {
+func (ec *executionContext) marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx context.Context, sel ast.SelectionSet, v *introspection.Schema) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec.___Schema(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalO__Type2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalO__Type2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v introspection.Type) graphql.Marshaler {
 	return ec.___Type(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalO__Type2ᚕgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v []introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalO__Type2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v []introspection.Type) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -2859,7 +2859,7 @@ func (ec *executionContext) marshalO__Type2ᚕgithubᚗcomᚋiotexprojectᚋiote
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalN__Type2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, sel, v[i])
+			ret[i] = ec.marshalN__Type2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2872,7 +2872,7 @@ func (ec *executionContext) marshalO__Type2ᚕgithubᚗcomᚋiotexprojectᚋiote
 	return ret
 }
 
-func (ec *executionContext) marshalO__Type2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋvendorᚋgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v *introspection.Type) graphql.Marshaler {
+func (ec *executionContext) marshalO__Type2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐType(ctx context.Context, sel ast.SelectionSet, v *introspection.Type) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

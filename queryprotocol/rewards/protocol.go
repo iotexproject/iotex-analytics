@@ -28,8 +28,8 @@ type Protocol struct {
 
 // RewardDistribution defines reward distribute info
 type RewardDistribution struct {
-	VoterAddress string `json:"voterAddress"`
-	Amount       string `json:"amount"`
+	VoterAddress string
+	Amount       string
 }
 
 type totalWeight struct {

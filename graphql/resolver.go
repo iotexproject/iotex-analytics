@@ -57,12 +57,12 @@ func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochC
 	}, nil
 }
 
-// ActiveAccount handles ActiveAccount request
+// ActiveAccount handles GetActiveAccount request
 func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
 	return r.AP.GetActiveAccount(count)
 }
 
-// VotingInformation handles VotingInformation request
+// VotingInformation handles GetVotingInformation request
 func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
 	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
 	if err != nil {
@@ -79,8 +79,8 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 	return
 }
 
-// GetBookkeeping handles GetBookkeeping request
-func (r *queryResolver) GetBookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
+// Bookkeeping handles GetBookkeeping request
+func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
 	if percentage < 0 || percentage > 100 {
 		err = errors.New("percentage should be 0-100")
 		return
