@@ -81,6 +81,18 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 		err = errors.New("votings protocol is unregistered")
 		return
 	}
+	// Check existence
+	db := p.indexer.Store.GetDB()
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
+		votings.VotingResultTableName), startEpoch, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "failed to check if the row exists")
+		return
+	}
+	if !exist {
+		err = indexprotocol.ErrNotExist
+		return
+	}
 	currentEpoch, err := p.getMostRecentEpoch()
 	if err != nil {
 		err = errors.New("failed to get most recent epoch")
@@ -118,7 +130,7 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 
 func (p *Protocol) getMostRecentEpoch() (epoch int, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT epoch_number FROM %s ORDER BY epoch_number desc LIMIT 1", votings.VotingResultTableName)
+	getQuery := fmt.Sprintf("SELECT MAX(epoch_number) FROM %s", votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
@@ -184,7 +196,7 @@ func (p *Protocol) totalWeightedVotes(epoch int, delegateName string) (sumVotesI
 		return
 	}
 	if len(parsedRows) != 1 {
-		err = errors.Wrap(err, "failed to get total weighted vote")
+		err = errors.New("Only one row is expected")
 		return
 	}
 
