@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
@@ -92,7 +93,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"[depositToRewardingFund] DECIMAL(65, 0) NOT NULL, [claimFromRewardingFund] DECIMAL(65, 0) NOT NULL, [grantReward] DECIMAL(65, 0) NOT NULL, "+
 		"[putPollResult] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [producer_address] VARCHAR(41) NOT NULL, "+
 		"[producer_name] TEXT NOT NULL, [expected_producer_address] VARCHAR(41) NOT NULL, "+
-		"[expected_producer_name] TEXT NOT NULL)", BlockHistoryTableName)); err != nil {
+		"[expected_producer_name] TEXT NOT NULL, [timestamp] INTEGER(8, 0) NOT NULL)", BlockHistoryTableName)); err != nil {
 		return err
 	}
 
@@ -162,7 +163,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	expectedProducerName := p.OperatorAddrToName[expectedProducerAddr]
 	return p.updateBlockHistory(tx, epochNumber, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
 		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, gasConsumed,
-		producerAddr, producerName, expectedProducerAddr, expectedProducerName)
+		producerAddr, producerName, expectedProducerAddr, expectedProducerName,blk.Timestamp())
 }
 
 // getBlockHistory gets block history
@@ -248,14 +249,15 @@ func (p *Protocol) updateBlockHistory(
 	producerName string,
 	expectedProducerAddress string,
 	expectedProducerName string,
+	timestamp time.Time,
 ) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, "+
 		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, "+
-		"producer_name, expected_producer_address, expected_producer_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		BlockHistoryTableName)
 	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds,
 		claimFromRewardingFunds, grantRewards, putPollResults, gasConsumed, producerAddress, producerName,
-		expectedProducerAddress, expectedProducerName); err != nil {
+		expectedProducerAddress, expectedProducerName,timestamp.Unix()); err != nil {
 		return err
 	}
 	return nil
