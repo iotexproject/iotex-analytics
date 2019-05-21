@@ -54,6 +54,7 @@ type (
 		ProducerName            string
 		ExpectedProducerAddress string
 		ExpectedProducerName    string
+		Timestamp               uint64
 	}
 
 	// ProductivityHistory defines the schema of "productivity history" table
