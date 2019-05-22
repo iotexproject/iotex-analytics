@@ -26,7 +26,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/chainmeta"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -172,7 +171,6 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
 	votingsProtocol := votings.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-	chainmetaProtocol := chainmeta.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
 	}
@@ -182,10 +180,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register rewards protocol")
 	}
-	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register votings protocol")
-	}
-	return idx.RegisterProtocol(chainmeta.ProtocolID, chainmetaProtocol)
+	return idx.RegisterProtocol(votings.ProtocolID, votingsProtocol)
 }
 
 // IndexInBatch indexes blocks in batch

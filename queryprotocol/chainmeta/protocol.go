@@ -13,8 +13,6 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/chainmeta"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -32,9 +30,13 @@ type ChainMeta struct {
 }
 
 type blkInfo struct {
-	Transfer  int
-	Execution int
-	Timestamp int
+	Transfer               int
+	Execution              int
+	DepositToRewardingFund int
+	ClaimFromRewardingFund int
+	GrantReward            int
+	PutPollResult          int
+	Timestamp              int
 }
 
 // NewProtocol creates a new protocol
@@ -43,41 +45,20 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // MostRecentEpoch get most recent epoch number
-func (p *Protocol) MostRecentEpoch() (epoch int, err error) {
-	_, ok := p.indexer.Registry.Find(chainmeta.ProtocolID)
+func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight int, err error) {
+	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
-		err = errors.New("chainmeta protocol is unregistered")
+		err = errors.New("blocks protocol is unregistered")
 		return
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT MAX(epoch_number) FROM %s", votings.VotingResultTableName)
+	getQuery := fmt.Sprintf("SELECT MAX(epoch_number),MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
-	if err = stmt.QueryRow().Scan(&epoch); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	return
-}
-
-// MostRecentBlockHeight get most recent block height
-func (p *Protocol) MostRecentBlockHeight() (height int, err error) {
-	_, ok := p.indexer.Registry.Find(chainmeta.ProtocolID)
-	if !ok {
-		err = errors.New("chainmeta protocol is unregistered")
-		return
-	}
-	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	if err = stmt.QueryRow().Scan(&height); err != nil {
+	if err = stmt.QueryRow().Scan(&epoch, &tipHeight); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
@@ -85,18 +66,18 @@ func (p *Protocol) MostRecentBlockHeight() (height int, err error) {
 }
 
 // MostRecentTPS get most tps
-func (p *Protocol) MostRecentTPS(ranges int) (tps, tipHeight int, err error) {
-	_, ok := p.indexer.Registry.Find(chainmeta.ProtocolID)
+func (p *Protocol) MostRecentTPS(ranges int) (tps int, err error) {
+	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
-		err = errors.New("chainmeta protocol is unregistered")
+		err = errors.New("blocks protocol is unregistered")
 		return
 	}
 	if ranges <= 0 {
-		err = errors.Wrap(err, "should be greater than 0")
+		err = errors.Wrap(err, "TPS block window should be greater than 0")
 		return
 	}
 	db := p.indexer.Store.GetDB()
-	tipHeight, err = p.MostRecentBlockHeight()
+	_, tipHeight, err := p.CurrentEpochAndHeight()
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent block height")
 		return
@@ -107,7 +88,7 @@ func (p *Protocol) MostRecentTPS(ranges int) (tps, tipHeight int, err error) {
 	}
 	start := tipHeight - blockLimit + 1
 	end := tipHeight
-	getQuery := fmt.Sprintf("SELECT transfer,execution,timestamp FROM %s WHERE block_height>=? AND block_height<=?",
+	getQuery := fmt.Sprintf("SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?",
 		blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -129,12 +110,12 @@ func (p *Protocol) MostRecentTPS(ranges int) (tps, tipHeight int, err error) {
 		err = indexprotocol.ErrNotExist
 		return
 	}
-	numActions := 0
+	var numActions int
 	startTime := parsedRows[0].(*blkInfo).Timestamp
 	endTime := parsedRows[0].(*blkInfo).Timestamp
 	for _, parsedRow := range parsedRows {
 		blk := parsedRow.(*blkInfo)
-		numActions += blk.Transfer + blk.Execution
+		numActions += blk.Transfer + blk.Execution + blk.ClaimFromRewardingFund + blk.DepositToRewardingFund + blk.GrantReward + blk.PutPollResult
 		if blk.Timestamp > startTime {
 			startTime = blk.Timestamp
 		}
@@ -152,17 +133,12 @@ func (p *Protocol) MostRecentTPS(ranges int) (tps, tipHeight int, err error) {
 
 // GetChainMeta gets chain meta
 func (p *Protocol) GetChainMeta(ranges int) (votingInfos *ChainMeta, err error) {
-	_, ok := p.indexer.Registry.Find(chainmeta.ProtocolID)
-	if !ok {
-		err = errors.New("chainmeta protocol is unregistered")
-		return
-	}
-	mostEpoch, err := p.MostRecentEpoch()
+	mostEpoch, tip, err := p.CurrentEpochAndHeight()
 	if err != nil {
-		err = errors.Wrap(err, "failed to get most recent epoch")
+		err = errors.Wrap(err, "failed to get most recent block height")
 		return
 	}
-	tps, tip, err := p.MostRecentTPS(ranges)
+	tps, err := p.MostRecentTPS(ranges)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent TPS")
 		return

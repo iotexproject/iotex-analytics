@@ -105,7 +105,7 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 // ChainMeta handles ChainMeta request
 func (r *queryResolver) ChainMeta(ctx context.Context, tpsBlockWindow int) (rets *ChainMeta, err error) {
 	if tpsBlockWindow <= 0 {
-		err = errors.New("range Arg should be greater than 0")
+		err = errors.New("TPS block window should be greater than 0")
 		return
 	}
 	ret, err := r.CP.GetChainMeta(tpsBlockWindow)
