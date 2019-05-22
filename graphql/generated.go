@@ -52,12 +52,14 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveAccount     func(childComplexity int, count int) int
-		Bookkeeping       func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
-		ChainMeta         func(childComplexity int, rangeArg int) int
-		Productivity      func(childComplexity int, startEpoch int, epochCount int, producerName string) int
-		Rewards           func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
-		VotingInformation func(childComplexity int, epochNum int, delegateName string) int
+		ActiveAccount       func(childComplexity int, count int) int
+		AverageProductivity func(childComplexity int, startEpochNumber int, epochCount int) int
+		Bookkeeping         func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
+		ChainMeta           func(childComplexity int, rangeArg int) int
+		Productivity        func(childComplexity int, startEpoch int, epochCount int, producerName string) int
+		Rewards             func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
+		VotingInformation   func(childComplexity int, epochNum int, delegateName string) int
+
 	}
 
 	Reward struct {
@@ -83,6 +85,7 @@ type QueryResolver interface {
 	ActiveAccount(ctx context.Context, count int) ([]string, error)
 	VotingInformation(ctx context.Context, epochNum int, delegateName string) ([]*VotingInfo, error)
 	Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
+	AverageProductivity(ctx context.Context, startEpochNumber int, epochCount int) (string, error)
 	ChainMeta(ctx context.Context, rangeArg int) (*ChainMeta, error)
 }
 
@@ -147,6 +150,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.ActiveAccount(childComplexity, args["count"].(int)), true
+
+	case "Query.AverageProductivity":
+		if e.complexity.Query.AverageProductivity == nil {
+			break
+		}
+
+		args, err := ec.field_Query_averageProductivity_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.AverageProductivity(childComplexity, args["startEpochNumber"].(int), args["epochCount"].(int)), true
 
 	case "Query.Bookkeeping":
 		if e.complexity.Query.Bookkeeping == nil {
@@ -327,6 +342,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     activeAccount(count: Int!):[String!]
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
     bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
+    averageProductivity(startEpochNumber: Int!, epochCount: Int!):String!
     chainMeta(range: Int!): ChainMeta
 }
 
@@ -387,6 +403,28 @@ func (ec *executionContext) field_Query_activeAccount_args(ctx context.Context, 
 		}
 	}
 	args["count"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_averageProductivity_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpochNumber"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
 	return args, nil
 }
 
@@ -852,6 +890,40 @@ func (ec *executionContext) _Query_bookkeeping(ctx context.Context, field graphq
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalORewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_averageProductivity(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_averageProductivity_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().AverageProductivity(rctx, args["startEpochNumber"].(int), args["epochCount"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_chainMeta(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -2105,6 +2177,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_bookkeeping(ctx, field)
+				return res
+			})
+		case "averageProductivity":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_averageProductivity(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
 				return res
 			})
 		case "chainMeta":

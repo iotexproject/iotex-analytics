@@ -8,6 +8,7 @@ package graphql
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -99,6 +100,21 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 		}
 		rds = append(rds, v)
 	}
+	return
+}
+
+// AverageProductivity handles AverageProductivity request
+func (r *queryResolver) AverageProductivity(ctx context.Context, startEpochNumber int, epochCount int) (averageProcucitvity string, err error) {
+	if startEpochNumber <= 0 || epochCount <= 0 {
+		err = errors.New("epoch num and count should be greater than 0")
+		return
+	}
+	ap, err := r.PP.GetAverageProductivity(startEpochNumber, epochCount)
+	if err != nil {
+		return
+	}
+	ap *= 100
+	averageProcucitvity = fmt.Sprintf("%.2f", ap)
 	return
 }
 
