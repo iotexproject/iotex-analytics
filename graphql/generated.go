@@ -59,6 +59,7 @@ type ComplexityRoot struct {
 		Productivity        func(childComplexity int, startEpoch int, epochCount int, producerName string) int
 		Rewards             func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
 		VotingInformation   func(childComplexity int, epochNum int, delegateName string) int
+
 	}
 
 	Reward struct {
