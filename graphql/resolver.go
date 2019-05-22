@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
@@ -23,6 +24,7 @@ type Resolver struct {
 	RP *rewards.Protocol
 	AP *actions.Protocol
 	VP *votings.Protocol
+	CP *chainmeta.Protocol
 }
 
 // Query returns a query resolver
@@ -96,6 +98,25 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 			Amount:       ret.Amount,
 		}
 		rds = append(rds, v)
+	}
+	return
+}
+
+// ChainMeta handles ChainMeta request
+func (r *queryResolver) ChainMeta(ctx context.Context, rangeArg int) (rets *ChainMeta, err error) {
+	if rangeArg <= 0 {
+		err = errors.New("range Arg should be greater than 0")
+		return
+	}
+	ret, err := r.CP.GetChainMeta(rangeArg)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get chain meta")
+		return
+	}
+	rets = &ChainMeta{
+		ret.MostRecentEpoch,
+		ret.MostRecentBlockHeight,
+		ret.MostRecentTps,
 	}
 	return
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
@@ -79,6 +80,7 @@ func main() {
 		RP: rewards.NewProtocol(idx),
 		VP: votings.NewProtocol(idx),
 		AP: actions.NewProtocol(idx),
+		CP: chainmeta.NewProtocol(idx),
 	}})))
 
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)

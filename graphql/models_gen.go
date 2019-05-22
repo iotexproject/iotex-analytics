@@ -2,6 +2,12 @@
 
 package graphql
 
+type ChainMeta struct {
+	MostRecentEpoch       string `json:"mostRecentEpoch"`
+	MostRecentBlockHeight string `json:"mostRecentBlockHeight"`
+	MostRecentTps         string `json:"mostRecentTPS"`
+}
+
 type Productivity struct {
 	Production         string `json:"production"`
 	ExpectedProduction string `json:"expectedProduction"`
