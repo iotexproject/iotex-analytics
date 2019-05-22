@@ -73,7 +73,6 @@ func (p *Protocol) AverageProductivity(startEpochNumber int, epochCount int) (av
 		err = errors.New("blocks protocol is unregistered")
 		return
 	}
-
 	db := p.indexer.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT MAX(epoch_number) FROM %s", blocks.ProductivityViewName)

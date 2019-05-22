@@ -5,6 +5,7 @@ type Query {
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
     bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
     averageProductivity(startEpochNumber: Int!, epochCount: Int!):String!
+    chainMeta(range: Int!): ChainMeta
 }
 
 type Reward {
@@ -26,4 +27,10 @@ type VotingInfo {
 type RewardDistribution {
     voterAddress: String!
     amount: String!
+}
+
+type ChainMeta {
+    mostRecentEpoch: String!
+    mostRecentBlockHeight: String!
+    mostRecentTPS: String!
 }
