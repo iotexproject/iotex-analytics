@@ -44,7 +44,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
 }
 
-// MostRecentEpoch get most recent epoch number
+// CurrentEpochAndHeight get most recent epoch number and block height
 func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight int, err error) {
 	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
