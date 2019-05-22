@@ -60,3 +60,24 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	}
 	return production, expectedProduction, nil
 }
+
+// AverageProductivity handles AverageProductivity request
+func (p *Protocol) AverageProductivity(startEpochNumber int, epochCount int) (averageProcucitvity float64, err error) {
+	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
+		err = errors.New("producers protocol is unregistered")
+		return
+	}
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf("SELECT AVG(production) FROM %s WHERE epoch_number>=? AND epoch_number<=?", blocks.ProductivityViewName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+	if err = stmt.QueryRow(startEpochNumber, startEpochNumber+epochCount-1).Scan(&averageProcucitvity); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
