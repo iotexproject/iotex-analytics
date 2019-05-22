@@ -68,7 +68,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 }
 
 // AverageProductivity handles AverageProductivity request
-func (p *Protocol) AverageProductivity(startEpochNumber int, epochCount int) (averageProcucitvity float64, err error) {
+func (p *Protocol) GetAverageProductivity(startEpochNumber int, epochCount int) (averageProcucitvity float64, err error) {
 	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
 		err = errors.New("blocks protocol is unregistered")
 		return
@@ -81,12 +81,12 @@ func (p *Protocol) AverageProductivity(startEpochNumber int, epochCount int) (av
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
-	var tipHeight int
-	if err = stmt.QueryRow().Scan(&tipHeight); err != nil {
+	var currentEpoch int
+	if err = stmt.QueryRow().Scan(&currentEpoch); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
-	if startEpochNumber > tipHeight {
+	if startEpochNumber > currentEpoch {
 		err = errors.New("epoch number is not exist")
 		return
 	}

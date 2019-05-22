@@ -109,7 +109,7 @@ func (r *queryResolver) AverageProductivity(ctx context.Context, startEpochNumbe
 		err = errors.New("epoch num and count should be greater than 0")
 		return
 	}
-	ap, err := r.PP.AverageProductivity(startEpochNumber, epochCount)
+	ap, err := r.PP.GetAverageProductivity(startEpochNumber, epochCount)
 	if err != nil {
 		return
 	}
