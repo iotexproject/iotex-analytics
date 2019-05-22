@@ -17,6 +17,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	qvotings "github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -76,7 +77,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 }
 
 // GetBookkeeping get reward distribution info
-func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
+func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		err = errors.New("votings protocol is unregistered")
 		return
@@ -93,7 +94,7 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 		err = indexprotocol.ErrNotExist
 		return
 	}
-	currentEpoch, err := p.getMostRecentEpoch()
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
 		err = errors.New("failed to get most recent epoch")
 		return
@@ -128,22 +129,7 @@ func (p *Protocol) GetBookkeeping(startEpoch int, epochCount int, delegateName s
 	return
 }
 
-func (p *Protocol) getMostRecentEpoch() (epoch int, err error) {
-	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT MAX(epoch_number) FROM %s", votings.VotingResultTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	if err = stmt.QueryRow().Scan(&epoch); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	return
-}
-
-func (p *Protocol) getBookkeeping(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rds map[string]*big.Int, err error) {
+func (p *Protocol) getBookkeeping(epoch uint64, delegateName string, percentage int, includeFoundationBonus bool) (rds map[string]*big.Int, err error) {
 	// First get sum of reward pool of epoch
 	rewardToSplit, err := p.rewardToSplit(epoch, delegateName, percentage, includeFoundationBonus)
 	if err != nil {
@@ -170,7 +156,7 @@ func (p *Protocol) getBookkeeping(epoch int, delegateName string, percentage int
 	}
 	return
 }
-func (p *Protocol) totalWeightedVotes(epoch int, delegateName string) (sumVotesInt *big.Int, err error) {
+func (p *Protocol) totalWeightedVotes(epoch uint64, delegateName string) (sumVotesInt *big.Int, err error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf("SELECT total_weighted_votes FROM %s WHERE epoch_number=? AND delegate_name=?",
 		votings.VotingResultTableName)
@@ -212,7 +198,7 @@ func (p *Protocol) totalWeightedVotes(epoch int, delegateName string) (sumVotesI
 	}
 	return
 }
-func (p *Protocol) rewardToSplit(epoch int, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
+func (p *Protocol) rewardToSplit(epoch uint64, delegateName string, percentage int, includeFoundationBonus bool) (rewardToSplit *big.Int, err error) {
 	_, epochReward, foundationBonus, err := p.GetAccountReward(uint64(epoch), uint64(1), delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get account reward")
@@ -235,7 +221,7 @@ func (p *Protocol) rewardToSplit(epoch int, delegateName string, percentage int,
 }
 
 // get voter's weighted votes
-func (p *Protocol) voterVotes(epoch int, delegateName string) (votingSums map[string]*big.Int, err error) {
+func (p *Protocol) voterVotes(epoch uint64, delegateName string) (votingSums map[string]*big.Int, err error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf("SELECT voter_address,SUM(weighted_votes) FROM %s WHERE epoch_number=? AND candidate_name=?  GROUP BY voter_address",
 		votings.VotingHistoryTableName)

@@ -9,7 +9,6 @@ package indexservice
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -28,6 +27,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -67,7 +67,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to start db")
 	}
 
-	lastHeight, err := idx.getLastHeight()
+	_, lastHeight, err := chainmetautil.GetCurrentEpochAndHeight(idx.Registry, idx.Store)
 	if err != nil {
 		if err := idx.CreateTablesIfNotExist(); err != nil {
 			return errors.Wrap(err, "failed to create tables")
@@ -248,27 +248,6 @@ func (idx *Indexer) SubscribeNewBlock(
 			}
 		}
 	}()
-}
-
-// GetLastHeight gets last height stored in the underlying db
-func (idx *Indexer) getLastHeight() (uint64, error) {
-	if _, ok := idx.Registry.Find(blocks.ProtocolID); !ok {
-		return uint64(0), errors.New("producers protocol is unregistered")
-	}
-
-	db := idx.Store.GetDB()
-
-	getQuery := fmt.Sprintf("SELECT MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return uint64(0), errors.Wrap(err, "failed to prepare get query")
-	}
-	var lastHeight uint64
-	err = stmt.QueryRow().Scan(&lastHeight)
-	if err != nil {
-		return uint64(0), errors.Wrap(err, "failed to execute get query")
-	}
-	return lastHeight, nil
 }
 
 // buildIndex builds the index for a block

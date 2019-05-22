@@ -164,7 +164,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	expectedProducerName := p.OperatorAddrToName[expectedProducerAddr]
 	return p.updateBlockHistory(tx, epochNumber, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
 		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, gasConsumed,
-		producerAddr, producerName, expectedProducerAddr, expectedProducerName,blk.Timestamp())
+		producerAddr, producerName, expectedProducerAddr, expectedProducerName, blk.Timestamp())
 }
 
 // getBlockHistory gets block history
@@ -258,7 +258,7 @@ func (p *Protocol) updateBlockHistory(
 		BlockHistoryTableName)
 	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds,
 		claimFromRewardingFunds, grantRewards, putPollResults, gasConsumed, producerAddress, producerName,
-		expectedProducerAddress, expectedProducerName,timestamp.Unix()); err != nil {
+		expectedProducerAddress, expectedProducerName, timestamp.Unix()); err != nil {
 		return err
 	}
 	return nil

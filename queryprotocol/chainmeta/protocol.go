@@ -14,6 +14,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -44,27 +45,6 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
 }
 
-// CurrentEpochAndHeight get most recent epoch number and block height
-func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight uint64, err error) {
-	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
-	if !ok {
-		err = errors.New("blocks protocol is unregistered")
-		return
-	}
-	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT MAX(epoch_number),MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	if err = stmt.QueryRow().Scan(&epoch, &tipHeight); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	return
-}
-
 // MostRecentTPS get most tps
 func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
@@ -77,7 +57,7 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 		return
 	}
 	db := p.indexer.Store.GetDB()
-	_, tipHeight, err := p.CurrentEpochAndHeight()
+	_, tipHeight, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent block height")
 		return
@@ -133,7 +113,7 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 
 // GetChainMeta gets chain meta
 func (p *Protocol) GetChainMeta(ranges int) (chainMeta *ChainMeta, err error) {
-	currentEpoch, tipHeight, err := p.CurrentEpochAndHeight()
+	currentEpoch, tipHeight, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent block height")
 		return
