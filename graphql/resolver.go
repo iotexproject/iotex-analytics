@@ -111,6 +111,7 @@ func (r *queryResolver) AverageProductivity(ctx context.Context, startEpochNumbe
 	if err != nil {
 		return
 	}
+	ap *= 100
 	averageProcucitvity = fmt.Sprintf("%.2f", ap)
 	return
 }
