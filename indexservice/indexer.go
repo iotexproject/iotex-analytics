@@ -171,7 +171,6 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
 	votingsProtocol := votings.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
 	}

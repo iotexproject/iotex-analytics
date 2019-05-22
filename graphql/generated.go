@@ -40,6 +40,12 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ChainMeta struct {
+		MostRecentBlockHeight func(childComplexity int) int
+		MostRecentEpoch       func(childComplexity int) int
+		MostRecentTps         func(childComplexity int) int
+	}
+
 	Productivity struct {
 		ExpectedProduction func(childComplexity int) int
 		Production         func(childComplexity int) int
@@ -48,6 +54,7 @@ type ComplexityRoot struct {
 	Query struct {
 		ActiveAccount     func(childComplexity int, count int) int
 		Bookkeeping       func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
+		ChainMeta         func(childComplexity int, rangeArg int) int
 		Productivity      func(childComplexity int, startEpoch int, epochCount int, producerName string) int
 		Rewards           func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
 		VotingInformation func(childComplexity int, epochNum int, delegateName string) int
@@ -76,6 +83,7 @@ type QueryResolver interface {
 	ActiveAccount(ctx context.Context, count int) ([]string, error)
 	VotingInformation(ctx context.Context, epochNum int, delegateName string) ([]*VotingInfo, error)
 	Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
+	ChainMeta(ctx context.Context, rangeArg int) (*ChainMeta, error)
 }
 
 type executableSchema struct {
@@ -92,6 +100,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "ChainMeta.MostRecentBlockHeight":
+		if e.complexity.ChainMeta.MostRecentBlockHeight == nil {
+			break
+		}
+
+		return e.complexity.ChainMeta.MostRecentBlockHeight(childComplexity), true
+
+	case "ChainMeta.MostRecentEpoch":
+		if e.complexity.ChainMeta.MostRecentEpoch == nil {
+			break
+		}
+
+		return e.complexity.ChainMeta.MostRecentEpoch(childComplexity), true
+
+	case "ChainMeta.MostRecentTps":
+		if e.complexity.ChainMeta.MostRecentTps == nil {
+			break
+		}
+
+		return e.complexity.ChainMeta.MostRecentTps(childComplexity), true
 
 	case "Productivity.ExpectedProduction":
 		if e.complexity.Productivity.ExpectedProduction == nil {
@@ -130,6 +159,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Bookkeeping(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["delegateName"].(string), args["percentage"].(int), args["includeFoundationBonus"].(bool)), true
+
+	case "Query.ChainMeta":
+		if e.complexity.Query.ChainMeta == nil {
+			break
+		}
+
+		args, err := ec.field_Query_chainMeta_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ChainMeta(childComplexity, args["range"].(int)), true
 
 	case "Query.Productivity":
 		if e.complexity.Query.Productivity == nil {
@@ -286,6 +327,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     activeAccount(count: Int!):[String!]
     votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
     bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
+    chainMeta(range: Int!): ChainMeta
 }
 
 type Reward {
@@ -307,6 +349,12 @@ type VotingInfo {
 type RewardDistribution {
     voterAddress: String!
     amount: String!
+}
+
+type ChainMeta {
+    mostRecentEpoch: String!
+    mostRecentBlockHeight: String!
+    mostRecentTPS: String!
 }`},
 )
 
@@ -385,6 +433,20 @@ func (ec *executionContext) field_Query_bookkeeping_args(ctx context.Context, ra
 		}
 	}
 	args["includeFoundationBonus"] = arg4
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_chainMeta_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["range"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["range"] = arg0
 	return args, nil
 }
 
@@ -501,6 +563,87 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ChainMeta_mostRecentEpoch(ctx context.Context, field graphql.CollectedField, obj *ChainMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ChainMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MostRecentEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ChainMeta_mostRecentBlockHeight(ctx context.Context, field graphql.CollectedField, obj *ChainMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ChainMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MostRecentBlockHeight, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ChainMeta_mostRecentTPS(ctx context.Context, field graphql.CollectedField, obj *ChainMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ChainMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MostRecentTps, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Productivity_production(ctx context.Context, field graphql.CollectedField, obj *Productivity) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
@@ -709,6 +852,37 @@ func (ec *executionContext) _Query_bookkeeping(ctx context.Context, field graphq
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalORewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_chainMeta(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_chainMeta_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ChainMeta(rctx, args["range"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ChainMeta)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOChainMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐChainMeta(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -1794,6 +1968,43 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** object.gotpl ****************************
 
+var chainMetaImplementors = []string{"ChainMeta"}
+
+func (ec *executionContext) _ChainMeta(ctx context.Context, sel ast.SelectionSet, obj *ChainMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, chainMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ChainMeta")
+		case "mostRecentEpoch":
+			out.Values[i] = ec._ChainMeta_mostRecentEpoch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "mostRecentBlockHeight":
+			out.Values[i] = ec._ChainMeta_mostRecentBlockHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "mostRecentTPS":
+			out.Values[i] = ec._ChainMeta_mostRecentTPS(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var productivityImplementors = []string{"Productivity"}
 
 func (ec *executionContext) _Productivity(ctx context.Context, sel ast.SelectionSet, obj *Productivity) graphql.Marshaler {
@@ -1894,6 +2105,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_bookkeeping(ctx, field)
+				return res
+			})
+		case "chainMeta":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_chainMeta(ctx, field)
 				return res
 			})
 		case "__type":
@@ -2516,6 +2738,17 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 		return graphql.Null
 	}
 	return ec.marshalOBoolean2bool(ctx, sel, *v)
+}
+
+func (ec *executionContext) marshalOChainMeta2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐChainMeta(ctx context.Context, sel ast.SelectionSet, v ChainMeta) graphql.Marshaler {
+	return ec._ChainMeta(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOChainMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐChainMeta(ctx context.Context, sel ast.SelectionSet, v *ChainMeta) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ChainMeta(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOProductivity2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐProductivity(ctx context.Context, sel ast.SelectionSet, v Productivity) graphql.Marshaler {
