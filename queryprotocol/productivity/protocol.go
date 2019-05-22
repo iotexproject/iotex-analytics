@@ -67,7 +67,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	return production, expectedProduction, nil
 }
 
-// AverageProductivity handles AverageProductivity request
+// GetAverageProductivity handles GetAverageProductivity request
 func (p *Protocol) GetAverageProductivity(startEpochNumber int, epochCount int) (averageProcucitvity float64, err error) {
 	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
 		err = errors.New("blocks protocol is unregistered")
