@@ -45,7 +45,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // CurrentEpochAndHeight get most recent epoch number and block height
-func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight int, err error) {
+func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight uint64, err error) {
 	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
 		err = errors.New("blocks protocol is unregistered")
@@ -66,7 +66,7 @@ func (p *Protocol) CurrentEpochAndHeight() (epoch, tipHeight int, err error) {
 }
 
 // MostRecentTPS get most tps
-func (p *Protocol) MostRecentTPS(ranges int) (tps int, err error) {
+func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
 		err = errors.New("blocks protocol is unregistered")
@@ -138,7 +138,7 @@ func (p *Protocol) GetChainMeta(ranges int) (chainMeta *ChainMeta, err error) {
 		err = errors.Wrap(err, "failed to get most recent block height")
 		return
 	}
-	tps, err := p.MostRecentTPS(ranges)
+	tps, err := p.MostRecentTPS(uint64(ranges))
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent TPS")
 		return
