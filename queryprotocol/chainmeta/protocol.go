@@ -132,8 +132,8 @@ func (p *Protocol) MostRecentTPS(ranges int) (tps int, err error) {
 }
 
 // GetChainMeta gets chain meta
-func (p *Protocol) GetChainMeta(ranges int) (votingInfos *ChainMeta, err error) {
-	mostEpoch, tip, err := p.CurrentEpochAndHeight()
+func (p *Protocol) GetChainMeta(ranges int) (chainMeta *ChainMeta, err error) {
+	currentEpoch, tipHeight, err := p.CurrentEpochAndHeight()
 	if err != nil {
 		err = errors.Wrap(err, "failed to get most recent block height")
 		return
@@ -143,9 +143,9 @@ func (p *Protocol) GetChainMeta(ranges int) (votingInfos *ChainMeta, err error) 
 		err = errors.Wrap(err, "failed to get most recent TPS")
 		return
 	}
-	votingInfos = &ChainMeta{
-		fmt.Sprintf("%d", mostEpoch),
-		fmt.Sprintf("%d", tip),
+	chainMeta = &ChainMeta{
+		fmt.Sprintf("%d", currentEpoch),
+		fmt.Sprintf("%d", tipHeight),
 		fmt.Sprintf("%d", tps),
 	}
 	return
