@@ -9,13 +9,12 @@ package chainmeta
 import (
 	"fmt"
 
-	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
-
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/chainmeta"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )

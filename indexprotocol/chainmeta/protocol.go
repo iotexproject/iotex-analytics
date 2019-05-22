@@ -10,9 +10,10 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/iotexproject/iotex-core/blockchain/block"
+
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
-	"github.com/iotexproject/iotex-core/blockchain/block"
 )
 
 const (
