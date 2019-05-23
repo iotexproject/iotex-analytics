@@ -153,11 +153,10 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 		return
 	}
 
-	var numberOfAction uint64
-	if err = stmt.QueryRow(startEpoch,endEpoch).Scan(&numberOfAction); err != nil {
+	if err = stmt.QueryRow(startEpoch,endEpoch).Scan(&numberOfActions); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
-	numberOfActions=fmt.Sprintf("%d",numberOfAction)
+	return
 	return
 }
