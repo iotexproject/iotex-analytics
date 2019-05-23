@@ -15,6 +15,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -68,36 +69,30 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 }
 
 // GetAverageProductivity handles GetAverageProductivity request
-func (p *Protocol) GetAverageProductivity(startEpochNumber int, epochCount int) (averageProcucitvity float64, err error) {
+func (p *Protocol) GetAverageProductivity(startEpoch uint64, epochCount uint64) (averageProcucitvity float64, err error) {
 	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
 		err = errors.New("blocks protocol is unregistered")
 		return
 	}
+
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get current epoch number")
+	}
+	if startEpoch > currentEpoch {
+		err = errors.New("epoch number is not exist")
+		return
+	}
+
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT MAX(epoch_number) FROM %s", blocks.ProductivityViewName)
+	getQuery := fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityViewName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
-	var currentEpoch int
-	if err = stmt.QueryRow().Scan(&currentEpoch); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	if startEpochNumber > currentEpoch {
-		err = errors.New("epoch number is not exist")
-		return
-	}
-
-	getQuery = fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityViewName)
-	stmt, err = db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	rows, err := stmt.Query(startEpochNumber, startEpochNumber+epochCount-1)
+	rows, err := stmt.Query(startEpoch, startEpoch+epochCount-1)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return

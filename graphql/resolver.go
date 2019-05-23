@@ -88,7 +88,7 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 		err = errors.New("percentage should be 0-100")
 		return
 	}
-	rets, err := r.RP.GetBookkeeping(startEpoch, epochCount, delegateName, percentage, includeFoundationBonus)
+	rets, err := r.RP.GetBookkeeping(uint64(startEpoch), uint64(epochCount), delegateName, percentage, includeFoundationBonus)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get bookkeeping information")
 		return
@@ -104,12 +104,12 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 }
 
 // AverageProductivity handles AverageProductivity request
-func (r *queryResolver) AverageProductivity(ctx context.Context, startEpochNumber int, epochCount int) (averageProcucitvity string, err error) {
-	if startEpochNumber <= 0 || epochCount <= 0 {
+func (r *queryResolver) AverageProductivity(ctx context.Context, startEpoch int, epochCount int) (averageProcucitvity string, err error) {
+	if startEpoch <= 0 || epochCount <= 0 {
 		err = errors.New("epoch num and count should be greater than 0")
 		return
 	}
-	ap, err := r.PP.GetAverageProductivity(startEpochNumber, epochCount)
+	ap, err := r.PP.GetAverageProductivity(uint64(startEpoch), uint64(epochCount))
 	if err != nil {
 		return
 	}

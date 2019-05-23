@@ -185,7 +185,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.AverageProductivity(childComplexity, args["startEpochNumber"].(int), args["epochCount"].(int)), true
+		return e.complexity.Query.AverageProductivity(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
 
 	case "Query.Bookkeeping":
 		if e.complexity.Query.Bookkeeping == nil {
@@ -209,7 +209,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.ChainMeta(childComplexity, args["range"].(int)), true
+		return e.complexity.Query.ChainMeta(childComplexity, args["tpsBlockWindow"].(int)), true
 
 	case "Query.NumberOfActions":
 		if e.complexity.Query.NumberOfActions == nil {
@@ -478,13 +478,13 @@ func (ec *executionContext) field_Query_averageProductivity_args(ctx context.Con
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["startEpochNumber"]; ok {
+	if tmp, ok := rawArgs["startEpoch"]; ok {
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["startEpochNumber"] = arg0
+	args["startEpoch"] = arg0
 	var arg1 int
 	if tmp, ok := rawArgs["epochCount"]; ok {
 		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
@@ -546,13 +546,13 @@ func (ec *executionContext) field_Query_chainMeta_args(ctx context.Context, rawA
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["range"]; ok {
+	if tmp, ok := rawArgs["tpsBlockWindow"]; ok {
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["range"] = arg0
+	args["tpsBlockWindow"] = arg0
 	return args, nil
 }
 
@@ -1084,7 +1084,7 @@ func (ec *executionContext) _Query_averageProductivity(ctx context.Context, fiel
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().AverageProductivity(rctx, args["startEpochNumber"].(int), args["epochCount"].(int))
+		return ec.resolvers.Query().AverageProductivity(rctx, args["startEpoch"].(int), args["epochCount"].(int))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1118,7 +1118,7 @@ func (ec *executionContext) _Query_chainMeta(ctx context.Context, field graphql.
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().ChainMeta(rctx, args["range"].(int))
+		return ec.resolvers.Query().ChainMeta(rctx, args["tpsBlockWindow"].(int))
 	})
 	if resTmp == nil {
 		return graphql.Null
