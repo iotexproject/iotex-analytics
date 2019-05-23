@@ -46,19 +46,27 @@ type ComplexityRoot struct {
 		MostRecentTps         func(childComplexity int) int
 	}
 
+	NumberOfCandidates struct {
+		ConsensusDelegates func(childComplexity int) int
+		TotalCandidates    func(childComplexity int) int
+	}
+
 	Productivity struct {
 		ExpectedProduction func(childComplexity int) int
 		Production         func(childComplexity int) int
 	}
 
 	Query struct {
-		ActiveAccount       func(childComplexity int, count int) int
-		AverageProductivity func(childComplexity int, startEpoch int, epochCount int) int
-		Bookkeeping         func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
-		ChainMeta           func(childComplexity int, tpsBlockWindow int) int
-		Productivity        func(childComplexity int, startEpoch int, epochCount int, producerName string) int
-		Rewards             func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
-		VotingInformation   func(childComplexity int, epochNum int, delegateName string) int
+		ActiveAccount         func(childComplexity int, count int) int
+		AverageProductivity   func(childComplexity int, startEpoch int, epochCount int) int
+		Bookkeeping           func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
+		ChainMeta             func(childComplexity int, tpsBlockWindow int) int
+		NumberOfActions       func(childComplexity int, startEpoch int, epochCount int) int
+		NumberOfCandidates    func(childComplexity int, epochNumber int) int
+		NumberOfWeightedVotes func(childComplexity int, epochNumber int) int
+		Productivity          func(childComplexity int, startEpoch int, epochCount int, producerName string) int
+		Rewards               func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
+		VotingInformation     func(childComplexity int, epochNum int, delegateName string) int
 	}
 
 	Reward struct {
@@ -86,6 +94,9 @@ type QueryResolver interface {
 	Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error)
 	AverageProductivity(ctx context.Context, startEpoch int, epochCount int) (string, error)
 	ChainMeta(ctx context.Context, tpsBlockWindow int) (*ChainMeta, error)
+	NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error)
+	NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error)
+	NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error)
 }
 
 type executableSchema struct {
@@ -123,6 +134,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ChainMeta.MostRecentTps(childComplexity), true
+
+	case "NumberOfCandidates.ConsensusDelegates":
+		if e.complexity.NumberOfCandidates.ConsensusDelegates == nil {
+			break
+		}
+
+		return e.complexity.NumberOfCandidates.ConsensusDelegates(childComplexity), true
+
+	case "NumberOfCandidates.TotalCandidates":
+		if e.complexity.NumberOfCandidates.TotalCandidates == nil {
+			break
+		}
+
+		return e.complexity.NumberOfCandidates.TotalCandidates(childComplexity), true
 
 	case "Productivity.ExpectedProduction":
 		if e.complexity.Productivity.ExpectedProduction == nil {
@@ -185,6 +210,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.ChainMeta(childComplexity, args["tpsBlockWindow"].(int)), true
+
+	case "Query.NumberOfActions":
+		if e.complexity.Query.NumberOfActions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_numberOfActions_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.NumberOfActions(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
+
+	case "Query.NumberOfCandidates":
+		if e.complexity.Query.NumberOfCandidates == nil {
+			break
+		}
+
+		args, err := ec.field_Query_numberOfCandidates_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.NumberOfCandidates(childComplexity, args["epochNumber"].(int)), true
+
+	case "Query.NumberOfWeightedVotes":
+		if e.complexity.Query.NumberOfWeightedVotes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_numberOfWeightedVotes_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.NumberOfWeightedVotes(childComplexity, args["epochNumber"].(int)), true
 
 	case "Query.Productivity":
 		if e.complexity.Query.Productivity == nil {
@@ -343,6 +404,9 @@ var parsedSchema = gqlparser.MustLoadSchema(
     bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
     averageProductivity(startEpoch: Int!, epochCount: Int!):String!
     chainMeta(tpsBlockWindow: Int!): ChainMeta
+    numberOfActions(startEpoch: Int!, epochCount: Int!):String!
+    numberOfWeightedVotes(epochNumber: Int!):String!
+    numberOfCandidates(epochNumber: Int!): NumberOfCandidates
 }
 
 type Reward {
@@ -370,6 +434,11 @@ type ChainMeta {
     mostRecentEpoch: String!
     mostRecentBlockHeight: String!
     mostRecentTPS: String!
+}
+
+type NumberOfCandidates{
+    totalCandidates: Int!
+    consensusDelegates: Int!
 }`},
 )
 
@@ -484,6 +553,56 @@ func (ec *executionContext) field_Query_chainMeta_args(ctx context.Context, rawA
 		}
 	}
 	args["tpsBlockWindow"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_numberOfActions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_numberOfCandidates_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["epochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochNumber"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_numberOfWeightedVotes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["epochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochNumber"] = arg0
 	return args, nil
 }
 
@@ -680,6 +799,60 @@ func (ec *executionContext) _ChainMeta_mostRecentTPS(ctx context.Context, field 
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _NumberOfCandidates_totalCandidates(ctx context.Context, field graphql.CollectedField, obj *NumberOfCandidates) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "NumberOfCandidates",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCandidates, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _NumberOfCandidates_consensusDelegates(ctx context.Context, field graphql.CollectedField, obj *NumberOfCandidates) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "NumberOfCandidates",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ConsensusDelegates, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Productivity_production(ctx context.Context, field graphql.CollectedField, obj *Productivity) graphql.Marshaler {
@@ -954,6 +1127,105 @@ func (ec *executionContext) _Query_chainMeta(ctx context.Context, field graphql.
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOChainMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐChainMeta(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_numberOfActions(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_numberOfActions_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().NumberOfActions(rctx, args["startEpoch"].(int), args["epochCount"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_numberOfWeightedVotes(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_numberOfWeightedVotes_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().NumberOfWeightedVotes(rctx, args["epochNumber"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_numberOfCandidates(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_numberOfCandidates_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().NumberOfCandidates(rctx, args["epochNumber"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*NumberOfCandidates)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalONumberOfCandidates2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfCandidates(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -2076,6 +2348,38 @@ func (ec *executionContext) _ChainMeta(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var numberOfCandidatesImplementors = []string{"NumberOfCandidates"}
+
+func (ec *executionContext) _NumberOfCandidates(ctx context.Context, sel ast.SelectionSet, obj *NumberOfCandidates) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, numberOfCandidatesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("NumberOfCandidates")
+		case "totalCandidates":
+			out.Values[i] = ec._NumberOfCandidates_totalCandidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "consensusDelegates":
+			out.Values[i] = ec._NumberOfCandidates_consensusDelegates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var productivityImplementors = []string{"Productivity"}
 
 func (ec *executionContext) _Productivity(ctx context.Context, sel ast.SelectionSet, obj *Productivity) graphql.Marshaler {
@@ -2201,6 +2505,45 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_chainMeta(ctx, field)
+				return res
+			})
+		case "numberOfActions":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_numberOfActions(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "numberOfWeightedVotes":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_numberOfWeightedVotes(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "numberOfCandidates":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_numberOfCandidates(ctx, field)
 				return res
 			})
 		case "__type":
@@ -2834,6 +3177,17 @@ func (ec *executionContext) marshalOChainMeta2ᚖgithubᚗcomᚋiotexprojectᚋi
 		return graphql.Null
 	}
 	return ec._ChainMeta(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalONumberOfCandidates2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfCandidates(ctx context.Context, sel ast.SelectionSet, v NumberOfCandidates) graphql.Marshaler {
+	return ec._NumberOfCandidates(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalONumberOfCandidates2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfCandidates(ctx context.Context, sel ast.SelectionSet, v *NumberOfCandidates) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._NumberOfCandidates(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOProductivity2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐProductivity(ctx context.Context, sel ast.SelectionSet, v Productivity) graphql.Marshaler {
