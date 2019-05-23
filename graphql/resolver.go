@@ -138,16 +138,16 @@ func (r *queryResolver) ChainMeta(ctx context.Context, tpsBlockWindow int) (rets
 }
 
 // NumberOfActions handles NumberOfActions request
-func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error){
-	return r.CP.GetNumberOfActions(uint64(startEpoch),uint64(epochCount))
+func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error) {
+	return r.CP.GetNumberOfActions(uint64(startEpoch), uint64(epochCount))
 }
 
 // NumberOfWeightedVotes handles NumberOfWeightedVotes request
-func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error){
-	return "17375654260384300000000001",nil
+func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error) {
+	return r.VP.GetNumberOfWeightedVotes(uint64(epochNumber))
 }
 
 // NumberOfCandidates handles NumberOfCandidates request
-func (r *queryResolver) NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error){
-	return &NumberOfCandidates{40,36},nil
+func (r *queryResolver) NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error) {
+	return &NumberOfCandidates{40, 36}, nil
 }
