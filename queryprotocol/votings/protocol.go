@@ -29,7 +29,7 @@ type VotingInfo struct {
 	WeightedVotes string
 }
 
-//  NumberOfCandidates defines number of candidates
+// NumberOfCandidates defines number of candidates
 type NumberOfCandidates struct {
 	TotalCandidates    int `json:"totalCandidates"`
 	ConsensusDelegates int `json:"consensusDelegates"`
@@ -80,7 +80,7 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 	return
 }
 
-// GetNumberOfCandidates gets voting infos
+// GetNumberOfCandidates gets NumberOfCandidates infos
 func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates *NumberOfCandidates, err error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		err = errors.New("votings protocol is unregistered")
