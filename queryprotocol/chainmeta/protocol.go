@@ -158,5 +158,4 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 		return
 	}
 	return
-	return
 }
