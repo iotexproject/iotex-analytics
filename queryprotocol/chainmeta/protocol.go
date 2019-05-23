@@ -13,6 +13,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -137,7 +138,7 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get most recent block height")
+		err = errors.Wrap(err, "failed to get current epoch")
 		return
 	}
 	if startEpoch > currentEpoch {
@@ -154,6 +155,34 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 	}
 
 	if err = stmt.QueryRow(startEpoch,endEpoch).Scan(&numberOfActions); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
+
+// GetNumberOfWeightedVotes gets number of weighted votes
+func (p *Protocol) GetNumberOfWeightedVotes(epochNumber uint64) (numberOfWeightedVotes string, err error){
+	db := p.indexer.Store.GetDB()
+
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get current epoch")
+		return
+	}
+	if epochNumber > currentEpoch {
+		err = errors.New("epoch number should not be greater than current epoch")
+		return
+	}
+
+	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes) FROM %s WHERE epoch_number=?", votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err=errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+
+	if err = stmt.QueryRow(epochNumber).Scan(&numberOfWeightedVotes); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}

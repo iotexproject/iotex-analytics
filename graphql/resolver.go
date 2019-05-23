@@ -144,7 +144,7 @@ func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epo
 
 // NumberOfWeightedVotes handles NumberOfWeightedVotes request
 func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error){
-	return "17375654260384300000000001",nil
+	return r.CP.GetNumberOfWeightedVotes(uint64(epochNumber))
 }
 
 // NumberOfCandidates handles NumberOfCandidates request
