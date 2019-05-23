@@ -138,7 +138,7 @@ func (r *queryResolver) ChainMeta(ctx context.Context, tpsBlockWindow int) (rets
 }
 
 func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error){
-	return "10000",nil
+	return r.CP.GetNumberOfActions(uint64(startEpoch),uint64(epochCount))
 }
 func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error){
 	return "17375654260384300000000001",nil
