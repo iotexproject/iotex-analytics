@@ -14,8 +14,8 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
-	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 // Protocol defines the protocol of querying tables
@@ -31,8 +31,8 @@ type VotingInfo struct {
 
 // NumberOfCandidates defines number of candidates
 type NumberOfCandidates struct {
-	TotalCandidates    int `json:"totalCandidates"`
-	ConsensusDelegates int `json:"consensusDelegates"`
+	TotalCandidates    int
+	ConsensusDelegates int
 }
 
 // NewProtocol creates a new protocol
@@ -96,10 +96,10 @@ func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates
 		err = errors.New("epoch number should not be greater than current epoch")
 		return
 	}
-	getQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s where epoch_number=?",votings.VotingResultTableName)
+	getQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s where epoch_number=?", votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		err=errors.Wrap(err, "failed to prepare get query")
+		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
 	var totalCandidates int
@@ -107,7 +107,7 @@ func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
-	numberOfCandidates=&NumberOfCandidates{
+	numberOfCandidates = &NumberOfCandidates{
 		totalCandidates,
 		int(p.indexer.Config.NumCandidateDelegates),
 	}
