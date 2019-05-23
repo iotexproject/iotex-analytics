@@ -137,7 +137,7 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get most recent block height")
+		err = errors.Wrap(err, "failed to get current epoch")
 		return
 	}
 	if startEpoch > currentEpoch {
