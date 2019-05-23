@@ -35,7 +35,7 @@ import (
 type Indexer struct {
 	Store      s.Store
 	Registry   *indexprotocol.Registry
-	config     Config
+	Config     Config
 	lastHeight uint64
 	terminate  chan bool
 }
@@ -54,7 +54,7 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 	return &Indexer{
 		Store:    store,
 		Registry: &indexprotocol.Registry{},
-		config:   cfg,
+		Config:   cfg,
 	}
 }
 
@@ -168,9 +168,9 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 // RegisterDefaultProtocols registers default protocols to hte indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
-	blocksProtocol := blocks.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
-	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
+	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
+	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
+	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
 	}
@@ -190,8 +190,8 @@ func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
 
 	startHeight := idx.lastHeight + 1
 	for startHeight <= tipHeight {
-		count := idx.config.RangeQueryLimit
-		if idx.config.RangeQueryLimit > tipHeight-startHeight+1 {
+		count := idx.Config.RangeQueryLimit
+		if idx.Config.RangeQueryLimit > tipHeight-startHeight+1 {
 			count = tipHeight - startHeight + 1
 		}
 		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{

@@ -29,6 +29,12 @@ type VotingInfo struct {
 	WeightedVotes string
 }
 
+// NumberOfCandidates defines number of candidates
+type NumberOfCandidates struct {
+	TotalCandidates    int
+	ConsensusDelegates int
+}
+
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
@@ -70,6 +76,40 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 	for _, parsedRow := range parsedRows {
 		voting := parsedRow.(*VotingInfo)
 		votingInfos = append(votingInfos, voting)
+	}
+	return
+}
+
+// GetNumberOfCandidates gets NumberOfCandidates infos
+func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates *NumberOfCandidates, err error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		err = errors.New("votings protocol is unregistered")
+		return
+	}
+	db := p.indexer.Store.GetDB()
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get current epoch")
+		return
+	}
+	if epochNumber > currentEpoch {
+		err = errors.New("epoch number should not be greater than current epoch")
+		return
+	}
+	getQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s where epoch_number=?", votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+	var totalCandidates int
+	if err = stmt.QueryRow(epochNumber).Scan(&totalCandidates); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	numberOfCandidates = &NumberOfCandidates{
+		totalCandidates,
+		int(p.indexer.Config.NumCandidateDelegates),
 	}
 	return
 }
