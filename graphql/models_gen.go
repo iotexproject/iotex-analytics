@@ -8,6 +8,11 @@ type ChainMeta struct {
 	MostRecentTps         string `json:"mostRecentTPS"`
 }
 
+type NumberOfCandidates struct {
+	TotalCandidates    int `json:"totalCandidates"`
+	ConsensusDelegates int `json:"consensusDelegates"`
+}
+
 type Productivity struct {
 	Production         string `json:"production"`
 	ExpectedProduction string `json:"expectedProduction"`

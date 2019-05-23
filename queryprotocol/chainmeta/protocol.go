@@ -130,3 +130,32 @@ func (p *Protocol) GetChainMeta(ranges int) (chainMeta *ChainMeta, err error) {
 	}
 	return
 }
+
+// GetNumberOfActions gets number of actions
+func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (numberOfActions string, err error){
+	db := p.indexer.Store.GetDB()
+
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get most recent block height")
+		return
+	}
+	if startEpoch > currentEpoch {
+		err = errors.New("start epoch should not be greater than current epoch")
+		return
+	}
+
+	endEpoch := startEpoch + epochCount - 1
+	getQuery := fmt.Sprintf("SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?", blocks.BlockHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err=errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+
+	if err = stmt.QueryRow(startEpoch,endEpoch).Scan(&numberOfActions); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
