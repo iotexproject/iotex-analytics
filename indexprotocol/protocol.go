@@ -11,7 +11,6 @@ import (
 	"database/sql"
 
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/state"
 	"github.com/pkg/errors"
 )
 
@@ -24,17 +23,10 @@ var (
 	ErrUnimplemented = errors.New("method is unimplemented")
 )
 
-// GenesisConfig defines the genesis configurations that should be recorded by the corresponding protocol before
-// indexing the first block
-type GenesisConfig struct {
-	InitCandidates state.CandidateList
-}
-
 // Protocol defines the protocol interfaces for block indexer
 type Protocol interface {
 	BlockHandler
 	CreateTables(context.Context) error
-	Initialize(context.Context, *sql.Tx, *GenesisConfig) error
 }
 
 // BlockHandler ishte interface of handling block
@@ -56,12 +48,4 @@ func GetEpochHeight(epochNum uint64, numDelegates uint64, numSubEpochs uint64) u
 		return 0
 	}
 	return (epochNum-1)*numDelegates*numSubEpochs + 1
-}
-
-// GetEpochLastBlockHeight gets the last height of an epoch
-func GetEpochLastBlockHeight(epochNum uint64, numDelegates uint64, numSubEpochs uint64) uint64 {
-	if epochNum == 0 {
-		return 0
-	}
-	return epochNum * numDelegates * numSubEpochs
 }

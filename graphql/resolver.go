@@ -149,9 +149,9 @@ func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber i
 
 // NumberOfCandidates handles NumberOfCandidates request
 func (r *queryResolver) NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error) {
-	numberOfCandidates,err:=r.VP.GetNumberOfCandidates(uint64(epochNumber))
-	if err!=nil{
-		return nil,err
+	numberOfCandidates, err := r.VP.GetNumberOfCandidates(uint64(epochNumber))
+	if err != nil {
+		return nil, err
 	}
-	return &NumberOfCandidates{numberOfCandidates.TotalCandidates,numberOfCandidates.ConsensusDelegates},nil
+	return &NumberOfCandidates{numberOfCandidates.TotalCandidates, numberOfCandidates.ConsensusDelegates}, nil
 }

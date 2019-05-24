@@ -1,6 +1,7 @@
 vendor/*
 .idea/*
 *.db
+*.db-journal
 # Binaries for programs and plugins
 bin/*
 *.exe

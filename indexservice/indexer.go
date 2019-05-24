@@ -12,11 +12,8 @@ import (
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
-	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -67,31 +64,12 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to start db")
 	}
 
+	if err := idx.CreateTablesIfNotExist(); err != nil {
+		return errors.Wrap(err, "failed to create tables")
+	}
 	_, lastHeight, err := chainmetautil.GetCurrentEpochAndHeight(idx.Registry, idx.Store)
-	if err != nil {
-		if err := idx.CreateTablesIfNotExist(); err != nil {
-			return errors.Wrap(err, "failed to create tables")
-		}
-
-		readStateRequest := &iotexapi.ReadStateRequest{
-			ProtocolID: []byte(poll.ProtocolID),
-			MethodName: []byte("DelegatesByEpoch"),
-			Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
-		}
-		res, err := chainClient.ReadState(ctx, readStateRequest)
-		if err != nil {
-			return errors.Wrap(err, "failed to read genesis delegates from blockchain")
-		}
-		var genesisDelegates state.CandidateList
-		if err := genesisDelegates.Deserialize(res.Data); err != nil {
-			return errors.Wrap(err, "failed to deserialize gensisDelegates")
-		}
-		gensisConfig := &indexprotocol.GenesisConfig{InitCandidates: genesisDelegates}
-
-		// Initialize indexer
-		if err := idx.Initialize(gensisConfig); err != nil {
-			return errors.Wrap(err, "failed to initialize the indexer")
-		}
+	if err != nil && err != indexprotocol.ErrNotExist {
+		return errors.Wrap(err, "failed to get current epoch and tip height")
 	}
 	idx.lastHeight = lastHeight
 
@@ -133,21 +111,6 @@ func (idx *Indexer) Start(ctx context.Context) error {
 func (idx *Indexer) Stop(ctx context.Context) error {
 	idx.terminate <- true
 	return idx.Store.Stop(ctx)
-}
-
-// Initialize initialize the registered protocols
-func (idx *Indexer) Initialize(genesisCfg *indexprotocol.GenesisConfig) error {
-	if err := idx.Store.Transact(func(tx *sql.Tx) error {
-		for _, p := range idx.Registry.All() {
-			if err := p.Initialize(context.Background(), tx, genesisCfg); err != nil {
-				return errors.Wrap(err, "failed to initialize the protocol")
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
 }
 
 // CreateTablesIfNotExist creates tables in local database

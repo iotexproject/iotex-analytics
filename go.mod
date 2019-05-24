@@ -6,15 +6,18 @@ require (
 	github.com/99designs/gqlgen v0.8.3
 	github.com/agnivade/levenshtein v1.0.2 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190502180301-283422fc1708 // indirect
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
+	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/mock v1.2.0
 	github.com/golang/protobuf v1.3.1
 	github.com/iotexproject/go-pkgs v0.1.1-0.20190513193226-f065b9342b78
 	github.com/iotexproject/iotex-address v0.2.0
-	github.com/iotexproject/iotex-core v0.6.0
-	github.com/iotexproject/iotex-election v0.1.8
-	github.com/iotexproject/iotex-proto v0.2.0
+	github.com/iotexproject/iotex-core v0.7.1-0.20190524224346-51069f1610eb
+	github.com/iotexproject/iotex-election v0.1.9
+	github.com/iotexproject/iotex-proto v0.2.1-0.20190520183050-e748b9589841
 	github.com/jbenet/goprocess v0.1.2 // indirect
+	github.com/karalabe/hid v0.0.0-20190507082517-9e0a1cda7275 // indirect
 	github.com/libp2p/go-libp2p v0.0.22 // indirect
 	github.com/libp2p/go-libp2p-circuit v0.0.6 // indirect
 	github.com/libp2p/go-libp2p-connmgr v0.0.4 // indirect
@@ -34,6 +37,8 @@ require (
 	golang.org/x/tools v0.0.0-20190508150211-cf84161cff3f // indirect
 	golang.org/x/xerrors v0.0.0-20190506180316-385005612d73 // indirect
 	google.golang.org/grpc v1.20.1
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
+	gopkg.in/urfave/cli.v1 v1.20.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 )
 

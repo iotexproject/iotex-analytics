@@ -103,11 +103,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	return nil
 }
 
-// Initialize initializes rewards protocol
-func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesisCfg *indexprotocol.GenesisConfig) error {
-	return nil
-}
-
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
