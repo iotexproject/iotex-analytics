@@ -74,7 +74,7 @@ func main() {
 		log.L().Fatal("Failed to register default protocols")
 	}
 
-	http.Handle("/", handler.Playground("GraphQL playground", "/query"))
+	http.Handle("/", graphqlHandler(handler.Playground("GraphQL playground", "/query")))
 	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
 		PP: productivity.NewProtocol(idx),
 		RP: rewards.NewProtocol(idx),
@@ -124,4 +124,11 @@ func main() {
 	}()
 
 	select {}
+}
+
+func graphqlHandler(playgroundHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		playgroundHandler.ServeHTTP(w, r)
+	})
 }
