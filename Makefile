@@ -45,11 +45,13 @@ clean:
 	@echo "Cleaning..."
 	$(ECHO_V)rm -rf ./bin/$(BUILD_TARGET_SERVER)
 	$(ECHO_V)rm -rf *analytics*.db
+	$(ECHO_V)rm -rf *analytics*.db-journal
 	$(ECHO_V)$(GOCLEAN) -i $(PKGS)
 
 .PHONY: reboot
 reboot:
 	$(ECHO_V)rm -rf *analytics*.db
+	$(ECHO_V)rm -rf *analytics*.db-journal
 	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
 	export CHAIN_ENDPOINT=130.211.201.187:80
 	export ELECTION_ENDPOINT=35.232.228.38:8089
@@ -57,6 +59,7 @@ reboot:
 
 .PHONY: run
 run:
+	$(ECHO_V)rm -rf *analytics*.db-journal
 	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
 	export CHAIN_ENDPOINT=130.211.201.187:80
 	export ELECTION_ENDPOINT=35.232.228.38:8089
