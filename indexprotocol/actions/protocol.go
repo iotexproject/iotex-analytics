@@ -80,12 +80,17 @@ func NewProtocol(store s.Store) *Protocol {
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([action_type] TEXT NOT NULL, [action_hash] VARCHAR(64) NOT NULL, [receipt_hash] VARCHAR(64) NOT NULL UNIQUE, [block_height] DECIMAL(65, 0), "+
+		"([action_type] TEXT NOT NULL, [action_hash] VARCHAR(64) NOT NULL PRIMARY KEY, [receipt_hash] VARCHAR(64) NOT NULL UNIQUE, [block_height] DECIMAL(65, 0), "+
 		"[from] VARCHAR(41) NOT NULL, [to] VARCHAR(41) NOT NULL, [gas_price] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [nonce] DECIMAL(65, 0) NOT NULL, "+
-		"[amount] DECIMAL(65, 0) NOT NULL, [receipt_status] TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
+		"[amount] DECIMAL(65, 0) NOT NULL, [receipt_status] TEXT NOT NULL, FOREIGN KEY (block_height) REFERENCES %s(block_height))",
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Initialize initializes actions protocol
+func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
 	return nil
 }
 

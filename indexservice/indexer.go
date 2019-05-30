@@ -9,6 +9,7 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -39,11 +40,12 @@ type Indexer struct {
 
 // Config contains indexer configs
 type Config struct {
-	DBPath                string `yaml:"dbPath"`
-	NumDelegates          uint64 `yaml:"numDelegates"`
-	NumCandidateDelegates uint64 `yaml:"numCandidateDelegates"`
-	NumSubEpochs          uint64 `yaml:"numSubEpochs"`
-	RangeQueryLimit       uint64 `yaml:"rangeQueryLimit"`
+	DBPath                string                `yaml:"dbPath"`
+	NumDelegates          uint64                `yaml:"numDelegates"`
+	NumCandidateDelegates uint64                `yaml:"numCandidateDelegates"`
+	NumSubEpochs          uint64                `yaml:"numSubEpochs"`
+	RangeQueryLimit       uint64                `yaml:"rangeQueryLimit"`
+	Genesis               indexprotocol.Genesis `yaml:"genesis"`
 }
 
 // NewIndexer creates a new indexer
@@ -66,6 +68,10 @@ func (idx *Indexer) Start(ctx context.Context) error {
 
 	if err := idx.CreateTablesIfNotExist(); err != nil {
 		return errors.Wrap(err, "failed to create tables")
+	}
+
+	if err := idx.Initialize(&idx.Config.Genesis); err != nil {
+		return errors.Wrap(err, "failed to initialize the index protocols")
 	}
 	_, lastHeight, err := chainmetautil.GetCurrentEpochAndHeight(idx.Registry, idx.Store)
 	if err != nil && err != indexprotocol.ErrNotExist {
@@ -123,6 +129,21 @@ func (idx *Indexer) CreateTablesIfNotExist() error {
 	return nil
 }
 
+// Initialize initialize the registered protocols
+func (idx *Indexer) Initialize(genesis *indexprotocol.Genesis) error {
+	if err := idx.Store.Transact(func(tx *sql.Tx) error {
+		for _, p := range idx.Registry.All() {
+			if err := p.Initialize(context.Background(), tx, genesis); err != nil {
+				return errors.Wrap(err, "failed to initialize the protocol")
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // RegisterProtocol registers a protocol to the indexer
 func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.Protocol) error {
 	return idx.Registry.Register(protocolID, protocol)
@@ -134,6 +155,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
+	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register actions protocol")
 	}
@@ -143,7 +165,10 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register rewards protocol")
 	}
-	return idx.RegisterProtocol(votings.ProtocolID, votingsProtocol)
+	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
+		return errors.Wrap(err, "failed to register accounts protocol")
+	}
+	return idx.RegisterProtocol(accounts.ProtocolID, accountsProtocol)
 }
 
 // IndexInBatch indexes blocks in batch

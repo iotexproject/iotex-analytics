@@ -53,7 +53,7 @@ type (
 		FoundationBonus string
 	}
 
-	// AccountReward defines the schema of "account reward" table
+	// AccountReward defines the schema of "account reward" view
 	AccountReward struct {
 		EpochNumber     uint64
 		CandidateName   string
@@ -100,6 +100,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+// Initialize initializes rewards protocol
+func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
 	return nil
 }
 

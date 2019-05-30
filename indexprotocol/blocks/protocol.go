@@ -57,7 +57,7 @@ type (
 		Timestamp               uint64
 	}
 
-	// ProductivityHistory defines the schema of "productivity history" table
+	// ProductivityHistory defines the schema of "productivity history" view
 	ProductivityHistory struct {
 		EpochNumber        uint64
 		ProducerName       string
@@ -88,9 +88,9 @@ func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint6
 
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
-	// create reward history table
+	// create block history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] DECIMAL(65, 0) NOT NULL, "+
-		"[block_height] DECIMAL(65, 0) NOT NULL, [block_hash] VARCHAR(64) NOT NULL, [transfer] DECIMAL(65, 0) NOT NULL, [execution] DECIMAL(65, 0) NOT NULL, "+
+		"[block_height] DECIMAL(65, 0) NOT NULL PRIMARY KEY, [block_hash] VARCHAR(64) NOT NULL, [transfer] DECIMAL(65, 0) NOT NULL, [execution] DECIMAL(65, 0) NOT NULL, "+
 		"[depositToRewardingFund] DECIMAL(65, 0) NOT NULL, [claimFromRewardingFund] DECIMAL(65, 0) NOT NULL, [grantReward] DECIMAL(65, 0) NOT NULL, "+
 		"[putPollResult] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [producer_address] VARCHAR(41) NOT NULL, "+
 		"[producer_name] TEXT NOT NULL, [expected_producer_address] VARCHAR(41) NOT NULL, "+
@@ -108,6 +108,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+// Initialize initializes blocks index protocol
+func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
 	return nil
 }
 

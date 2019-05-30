@@ -89,6 +89,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	return nil
 }
 
+// Initialize initializes votings protocol
+func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
+	return nil
+}
+
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
