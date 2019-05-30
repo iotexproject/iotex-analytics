@@ -9,7 +9,6 @@ package indexprotocol
 import (
 	"context"
 	"database/sql"
-
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 )
@@ -23,10 +22,24 @@ var (
 	ErrUnimplemented = errors.New("method is unimplemented")
 )
 
+// Genesis defines the genesis configurations that should be recorded by the corresponding protocol before
+// indexing the first block
+type (
+	Genesis struct {
+		Account `yaml:"account"`
+	}
+	// Account contains the configs for account protocol
+	Account struct {
+		// InitBalanceMap is the address and initial balance mapping before the first block.
+		InitBalanceMap map[string]string `yaml:"initBalances"`
+	}
+)
+
 // Protocol defines the protocol interfaces for block indexer
 type Protocol interface {
 	BlockHandler
 	CreateTables(context.Context) error
+	Initialize(context.Context, *sql.Tx, *Genesis) error
 }
 
 // BlockHandler ishte interface of handling block
