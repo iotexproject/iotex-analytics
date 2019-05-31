@@ -70,11 +70,11 @@ func TestProtocol(t *testing.T) {
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
-					Name:            "alfa",
+					Name:            "616c6661",
 					OperatorAddress: testutil.Addr1,
 				},
 				{
-					Name:            "bravo",
+					Name:            "627261766f",
 					OperatorAddress: testutil.Addr2,
 				},
 			},

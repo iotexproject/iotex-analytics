@@ -297,7 +297,11 @@ func (p *Protocol) updateCandidateRewardAddress(
 
 	p.RewardAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		p.RewardAddrToName[candidate.RewardAddress] = candidate.Name
+		candidateNameBytes, err := hex.DecodeString(candidate.Name)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode candidate name")
+		}
+		p.RewardAddrToName[candidate.RewardAddress] = string(candidateNameBytes)
 	}
 	return nil
 }

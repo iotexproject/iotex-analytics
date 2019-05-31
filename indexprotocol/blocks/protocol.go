@@ -294,7 +294,11 @@ func (p *Protocol) updateDelegates(
 
 	p.OperatorAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		p.OperatorAddrToName[candidate.OperatorAddress] = candidate.Name
+		candidateNameBytes, err := hex.DecodeString(candidate.Name)
+		if err != nil {
+			return errors.Wrap(err, "failed to get decode candidate name")
+		}
+		p.OperatorAddrToName[candidate.OperatorAddress] = string(candidateNameBytes)
 	}
 
 	readStateRequest = &iotexapi.ReadStateRequest{

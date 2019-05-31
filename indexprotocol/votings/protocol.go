@@ -9,6 +9,7 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"strconv"
@@ -125,7 +126,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get buckets by candidate in epoch %d", epochNumber)
 			}
 			buckets := getBucketsResponse.Buckets
-			if err := p.updateVotingHistory(tx, buckets, candidate.Name, epochNumber); err != nil {
+			candidateNameBytes, err := hex.DecodeString(candidate.Name)
+			if err != nil {
+				return errors.Wrap(err, "failed to decode candidate name")
+			}
+			if err := p.updateVotingHistory(tx, buckets, string(candidateNameBytes), epochNumber); err != nil {
 				return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
 			}
 			if err := p.updateVotingResult(tx, candidate, epochNumber); err != nil {
@@ -246,7 +251,11 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, buckets []*api.Bucket, candid
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidate *api.Candidate, epochNumber uint64) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
 		"total_weighted_votes) VALUES (?, ?, ?, ?, ?)", VotingResultTableName)
-	if _, err := tx.Exec(insertQuery, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes); err != nil {
+	candidateNameBytes, err := hex.DecodeString(candidate.Name)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode candidate name")
+	}
+	if _, err := tx.Exec(insertQuery, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes); err != nil {
 		return err
 	}
 	return nil

@@ -62,15 +62,15 @@ func TestProtocol(t *testing.T) {
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
-					Name:          "alfa",
+					Name:          "616c6661",
 					RewardAddress: testutil.RewardAddr1,
 				},
 				{
-					Name:          "bravo",
+					Name:          "627261766f",
 					RewardAddress: testutil.RewardAddr2,
 				},
 				{
-					Name:          "charlie",
+					Name:          "636861726c6965",
 					RewardAddress: testutil.RewardAddr3,
 				},
 			},
