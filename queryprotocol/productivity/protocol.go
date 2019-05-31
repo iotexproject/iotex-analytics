@@ -42,17 +42,17 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 
 	db := p.indexer.Store.GetDB()
 
+	endEpoch := startEpoch + epochCount - 1
+
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
-		blocks.ProductivityViewName), startEpoch, producerName)
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+		blocks.ProductivityViewName), startEpoch, endEpoch, producerName)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to check if the row exists")
 	}
 	if !exist {
 		return "", "", indexprotocol.ErrNotExist
 	}
-
-	endEpoch := startEpoch + epochCount - 1
 
 	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
 		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)

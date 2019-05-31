@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/iotexproject/go-pkgs/hash"
@@ -297,7 +298,7 @@ func (p *Protocol) updateCandidateRewardAddress(
 
 	p.RewardAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		candidateNameBytes, err := hex.DecodeString(candidate.Name)
+		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
 		if err != nil {
 			return errors.Wrap(err, "failed to decode candidate name")
 		}

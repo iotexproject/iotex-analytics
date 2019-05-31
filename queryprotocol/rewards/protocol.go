@@ -50,17 +50,17 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 
 	db := p.indexer.Store.GetDB()
 
+	endEpoch := startEpoch + epochCount - 1
+
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and candidate_name = ?",
-		rewards.AccountRewardViewName), startEpoch, candidateName)
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
+		rewards.AccountRewardViewName), startEpoch, endEpoch, candidateName)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
 	}
 	if !exist {
 		return "", "", "", indexprotocol.ErrNotExist
 	}
-
-	endEpoch := startEpoch + epochCount - 1
 
 	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
 		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardViewName, startEpoch, endEpoch)
@@ -82,18 +82,6 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 		err = errors.New("votings protocol is unregistered")
 		return
 	}
-	// Check existence
-	db := p.indexer.Store.GetDB()
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? and delegate_name = ?",
-		votings.VotingResultTableName), startEpoch, delegateName)
-	if err != nil {
-		err = errors.Wrap(err, "failed to check if the row exists")
-		return
-	}
-	if !exist {
-		err = indexprotocol.ErrNotExist
-		return
-	}
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
 		err = errors.New("failed to get most recent epoch")
@@ -103,6 +91,19 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 	if endEpoch > currentEpoch {
 		endEpoch = currentEpoch
 	}
+	// Check existence
+	db := p.indexer.Store.GetDB()
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+		votings.VotingResultTableName), startEpoch, endEpoch, delegateName)
+	if err != nil {
+		err = errors.Wrap(err, "failed to check if the row exists")
+		return
+	}
+	if !exist {
+		err = indexprotocol.ErrNotExist
+		return
+	}
+
 	votersSum := make(map[string]*big.Int, 0)
 	for i := startEpoch; i <= endEpoch; i++ {
 		rd, errs := p.getBookkeeping(i, delegateName, percentage, includeFoundationBonus)

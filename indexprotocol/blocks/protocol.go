@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -294,7 +295,7 @@ func (p *Protocol) updateDelegates(
 
 	p.OperatorAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		candidateNameBytes, err := hex.DecodeString(candidate.Name)
+		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
 		if err != nil {
 			return errors.Wrap(err, "failed to get decode candidate name")
 		}
