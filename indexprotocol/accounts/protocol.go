@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"math/big"
 
 	"github.com/iotexproject/go-pkgs/hash"
@@ -15,8 +14,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -70,14 +67,12 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"([epoch_number] DECIMAL(65, 0) NOT NULL, [block_height] DECIMAL(65, 0) NOT NULL, [action_hash] VARCHAR(64) NOT NULL, "+
-		"[address] VARCHAR(41) NOT NULL, [in] DECIMAL(65, 0) DEFAULT 0, [out] DECIMAL(65, 0) DEFAULT 0, FOREIGN KEY(block_height) "+
-		"REFERENCES %s(block_height), FOREIGN KEY(action_hash) REFERENCES %s(action_hash))", AccountHistoryTableName,
-		blocks.BlockHistoryTableName, actions.ActionHistoryTableName)); err != nil {
+		"(epoch_number DECIMAL(65, 0) NOT NULL, block_height DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, "+
+		"address VARCHAR(41) NOT NULL, `in` DECIMAL(65, 0) DEFAULT 0, `out` DECIMAL(65, 0) DEFAULT 0)", AccountHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE VIEW IF NOT EXISTS %s AS SELECT epoch_number, address, (SUM([in])-SUM(out)) AS balance_change "+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, address, (SUM(`in`)-SUM(`out`)) AS balance_change "+
 		"FROM %s GROUP BY epoch_number, address", AccountBalanceViewName, AccountHistoryTableName)); err != nil {
 		return err
 	}
@@ -86,18 +81,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 
 // Initialize initializes actions protocol
 func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexprotocol.Genesis) error {
-	db := p.Store.GetDB()
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE action_hash = ?",
-		AccountHistoryTableName), hex.EncodeToString(specialActionHash[:]))
-	if err != nil {
-		return errors.Wrap(err, "failed to check if the row exists")
-	}
-	if exist {
-		return nil
-	}
 	for addr, amount := range genesis.InitBalanceMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, [in]) VALUES (?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, block_height, action_hash, address, `in`) VALUES (?, ?, ?, ?, ?)",
 			AccountHistoryTableName)
 		if _, err := tx.Exec(insertQuery, uint64(0), uint64(0), hex.EncodeToString(specialActionHash[:]), addr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update account history for address %s", addr)
@@ -249,14 +234,14 @@ func (p *Protocol) updateAccountHistory(
 	amount string,
 ) error {
 	if inAddr != "" {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, [in]) VALUES (?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, `in`) VALUES (?, ?, ?, ?, ?)",
 			AccountHistoryTableName)
 		if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), inAddr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update account history for address %s", inAddr)
 		}
 	}
 	if outAddr != "" {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, out) VALUES (?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, `out`) VALUES (?, ?, ?, ?, ?)",
 			AccountHistoryTableName)
 		if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), outAddr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update account history for address %s", outAddr)

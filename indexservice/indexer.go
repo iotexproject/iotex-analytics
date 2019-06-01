@@ -9,7 +9,6 @@ package indexservice
 import (
 	"context"
 	"database/sql"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
@@ -31,47 +31,31 @@ import (
 
 // Indexer handles the index build for blocks
 type Indexer struct {
-	Store      s.Store
-	Registry   *indexprotocol.Registry
-<<<<<<< HEAD
-	Config     Config
-=======
+	Store          s.Store
+	Registry       *indexprotocol.Registry
 	IndexProtocols []indexprotocol.Protocol
-	config     Config
->>>>>>> Change SQLite3 to MySQL
-	lastHeight uint64
-	terminate  chan bool
+	Config         Config
+	lastHeight     uint64
+	terminate      chan bool
 }
 
 // Config contains indexer configs
 type Config struct {
-<<<<<<< HEAD
-	DBPath                string                `yaml:"dbPath"`
+	MySQL                 s.Config              `yaml:"mySQL"`
 	NumDelegates          uint64                `yaml:"numDelegates"`
 	NumCandidateDelegates uint64                `yaml:"numCandidateDelegates"`
 	NumSubEpochs          uint64                `yaml:"numSubEpochs"`
 	RangeQueryLimit       uint64                `yaml:"rangeQueryLimit"`
 	Genesis               indexprotocol.Genesis `yaml:"genesis"`
-=======
-	MySQL                 s.Config `yaml:"mySQL"`
-	NumDelegates          uint64 `yaml:"numDelegates"`
-	NumCandidateDelegates uint64 `yaml:"numCandidateDelegates"`
-	NumSubEpochs          uint64 `yaml:"numSubEpochs"`
-	RangeQueryLimit       uint64 `yaml:"rangeQueryLimit"`
->>>>>>> Change SQLite3 to MySQL
 }
 
 // NewIndexer creates a new indexer
 func NewIndexer(store s.Store, cfg Config) *Indexer {
 	return &Indexer{
-		Store:    store,
-		Registry: &indexprotocol.Registry{},
-<<<<<<< HEAD
-		Config:   cfg,
-=======
+		Store:          store,
+		Registry:       &indexprotocol.Registry{},
+		Config:         cfg,
 		IndexProtocols: make([]indexprotocol.Protocol, 0),
-		config:   cfg,
->>>>>>> Change SQLite3 to MySQL
 	}
 }
 
@@ -137,26 +121,11 @@ func (idx *Indexer) Stop(ctx context.Context) error {
 	return idx.Store.Stop(ctx)
 }
 
-// CreateTablesIfNotExist creates tables in local database
-func (idx *Indexer) CreateTablesIfNotExist() error {
-	for _, p := range idx.Registry.All() {
-		if err := p.CreateTables(context.Background()); err != nil {
-			return errors.Wrap(err, "failed to create a table")
-		}
-	}
-	return nil
-}
-
 // Initialize initialize the registered protocols
 func (idx *Indexer) Initialize(genesis *indexprotocol.Genesis) error {
 	if err := idx.Store.Transact(func(tx *sql.Tx) error {
-<<<<<<< HEAD
-		for _, p := range idx.Registry.All() {
-			if err := p.Initialize(context.Background(), tx, genesis); err != nil {
-=======
 		for _, p := range idx.IndexProtocols {
-			if err := p.Initialize(context.Background(), tx, genesisCfg); err != nil {
->>>>>>> Change SQLite3 to MySQL
+			if err := p.Initialize(context.Background(), tx, genesis); err != nil {
 				return errors.Wrap(err, "failed to initialize the protocol")
 			}
 		}
@@ -167,8 +136,6 @@ func (idx *Indexer) Initialize(genesis *indexprotocol.Genesis) error {
 	return nil
 }
 
-<<<<<<< HEAD
-=======
 // CreateTablesIfNotExist creates tables in local database
 func (idx *Indexer) CreateTablesIfNotExist() error {
 	for _, p := range idx.IndexProtocols {
@@ -179,7 +146,6 @@ func (idx *Indexer) CreateTablesIfNotExist() error {
 	return nil
 }
 
->>>>>>> Change SQLite3 to MySQL
 // RegisterProtocol registers a protocol to the indexer
 func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.Protocol) error {
 	if err := idx.Registry.Register(protocolID, protocol); err != nil {
@@ -193,20 +159,10 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 // RegisterDefaultProtocols registers default protocols to hte indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
-<<<<<<< HEAD
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
-	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register actions protocol")
-	}
-=======
-	blocksProtocol := blocks.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumCandidateDelegates, idx.config.NumSubEpochs)
-	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.config.NumDelegates, idx.config.NumSubEpochs)
-
->>>>>>> Change SQLite3 to MySQL
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")
 	}

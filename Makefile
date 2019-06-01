@@ -38,7 +38,7 @@ lint:
 
 .PHONY: test
 test: fmt
-	$(GOTEST) -short -race ./...
+	$(GOTEST) -short -p 1 ./...
 
 .PHONY: clean
 clean:

@@ -12,20 +12,26 @@ import (
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
 
+const (
+	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
+	dbName     = "heroku_7fed0b046078f80"
+)
+
 func TestProtocol(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	require := require.New(t)
 	ctx := context.Background()
-	testPath := "analytics.db"
-	testutil.CleanupPath(t, testPath)
 
-	store := s.NewSQLite3(testPath)
+	testutil.CleanupDatabase(t, connectStr, dbName)
+
+	store := s.NewMySQL(connectStr, dbName)
 	require.NoError(store.Start(ctx))
 	defer func() {
+		_, err := store.GetDB().Exec("DROP DATABASE " + dbName)
+		require.NoError(err)
 		require.NoError(store.Stop(ctx))
-		testutil.CleanupPath(t, testPath)
 	}()
 
 	p := NewProtocol(store, uint64(24), uint64(15))

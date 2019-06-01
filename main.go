@@ -71,7 +71,7 @@ func main() {
 
 	idx := indexservice.NewIndexer(store, cfg)
 	if err := idx.RegisterDefaultProtocols(); err != nil {
-		log.L().Fatal("Failed to register default protocols")
+		log.L().Fatal("Failed to register default protocols", zap.Error(err))
 	}
 
 	http.Handle("/", graphqlHandler(handler.Playground("GraphQL playground", "/query")))

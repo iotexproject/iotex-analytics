@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	connectStr = "root:rootuser@tcp(127.0.0.1:3306)/"
-	dbName     = "analytics"
+	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
+	dbName     = "heroku_7fed0b046078f80"
 )
 
 func TestProtocol(t *testing.T) {
