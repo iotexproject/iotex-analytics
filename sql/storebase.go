@@ -62,7 +62,10 @@ func (s *storeBase) Start(ctx context.Context) error {
 	if _, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + s.dbName); err != nil {
 		return err
 	}
-	if _, err = db.Exec("USE " + s.dbName); err != nil {
+	db.Close()
+
+	db, err = sql.Open(s.driverName, s.connectStr+s.dbName)
+	if err != nil {
 		return err
 	}
 	s.db = db

@@ -19,7 +19,8 @@ import (
 )
 
 type activeAccout struct {
-	From string
+	From        string
+	BlockHeight uint64
 }
 
 // Protocol defines the protocol of querying tables
@@ -50,7 +51,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	getQuery := fmt.Sprintf("SELECT DISTINCT `from` FROM %s ORDER BY block_height desc limit %d", actions.ActionHistoryTableName, count)
+	getQuery := fmt.Sprintf("SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d", actions.ActionHistoryTableName, count)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

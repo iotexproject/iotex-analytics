@@ -7,24 +7,29 @@
 package sql
 
 import (
+	"github.com/iotexproject/iotex-analytics/testutil"
 	"testing"
 )
 
 const (
-	connectStr = "root:rootuser@tcp(127.0.0.1:3306)/"
-	dbName     = "analytics"
+	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
+	dbName     = "heroku_7fed0b046078f80"
 )
 
 func TestMySQLStorePutGet(t *testing.T) {
+	testutil.CleanupDatabase(t, connectStr, dbName)
 	testRDSStorePutGet := TestStorePutGet
 	t.Run("MySQL Store", func(t *testing.T) {
 		testRDSStorePutGet(NewMySQL(connectStr, dbName), t)
 	})
+	testutil.CleanupDatabase(t, connectStr, dbName)
 }
 
 func TestMySQLStoreTransaction(t *testing.T) {
+	testutil.CleanupDatabase(t, connectStr, dbName)
 	testSQLite3StoreTransaction := TestStoreTransaction
 	t.Run("MySQL Store", func(t *testing.T) {
 		testSQLite3StoreTransaction(NewMySQL(connectStr, dbName), t)
 	})
+	testutil.CleanupDatabase(t, connectStr, dbName)
 }
