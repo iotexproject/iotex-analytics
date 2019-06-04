@@ -223,10 +223,7 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHas
 		blockReward := rewards.BlockReward.String()
 		epochReward := rewards.EpochReward.String()
 		foundationBonus := rewards.FoundationBonus.String()
-		candidateName, ok := p.RewardAddrToName[rewardAddress]
-		if !ok {
-			return errors.New("cannot find candidate name by reward address")
-		}
+		candidateName := p.RewardAddrToName[rewardAddress]
 		if _, err := tx.Exec(insertQuery, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus); err != nil {
 			return err
 		}
