@@ -36,6 +36,14 @@ const (
 	BlockHistoryTableName = "block_history"
 	// ProductivityViewName is the view name of block producers' productivity
 	ProductivityViewName = "productivity_history"
+	// EpochIndexName is the index of epoch number on block history table
+	EpochIndexName = "epoch_index"
+	// HeightIndexName is the index of block height on block history table
+	HeightIndexName = "height_index"
+	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
+	EpochProducerIndexName = "epoch_producer_index"
+	// EpochExpectedProducerIndexName is the index name of epoch number and expected producer's name on block history table
+	EpochExpectedProducerIndexName = "epoch_expected_producer_index"
 )
 
 type (
@@ -96,6 +104,22 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"[putPollResult] DECIMAL(65, 0) NOT NULL, [gas_consumed] DECIMAL(65, 0) NOT NULL, [producer_address] VARCHAR(41) NOT NULL, "+
 		"[producer_name] TEXT NOT NULL, [expected_producer_address] VARCHAR(41) NOT NULL, "+
 		"[expected_producer_name] TEXT NOT NULL, [timestamp] INTEGER(8, 0) NOT NULL)", BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number)", EpochIndexName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (block_height)", HeightIndexName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, producer_name)", EpochProducerIndexName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, expected_producer_name)", EpochExpectedProducerIndexName, BlockHistoryTableName)); err != nil {
 		return err
 	}
 
