@@ -40,6 +40,8 @@ const (
 	RewardHistoryTableName = "reward_history"
 	// AccountRewardViewName is the view name of account rewards
 	AccountRewardViewName = "account_reward"
+	// EpochCandidateIndexName is the index name of epoch number and candidate name on account reward view
+	EpochCandidateIndexName = "epoch_candidate_index"
 )
 
 type (
@@ -92,6 +94,10 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name TEXT NOT NULL, "+
 		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, RewardHistoryTableName)); err != nil {
 		return err
 	}
 

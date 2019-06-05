@@ -24,6 +24,8 @@ const (
 	AccountHistoryTableName = "account_history"
 	// AccountBalanceViewName is the view name of account balance
 	AccountBalanceViewName = "account_balance"
+	// EpochAddressIndexName is the index name of epoch number and address on account history table
+	EpochAddressIndexName = "epoch_address_index"
 )
 
 var specialActionHash = hash.ZeroHash256
@@ -72,10 +74,15 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, address)", EpochAddressIndexName, AccountHistoryTableName)); err != nil {
+		return err
+	}
+
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, address, (SUM(`in`)-SUM(`out`)) AS balance_change "+
 		"FROM %s GROUP BY epoch_number, address", AccountBalanceViewName, AccountHistoryTableName)); err != nil {
 		return err
 	}
+
 	return nil
 }
 

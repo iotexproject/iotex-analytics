@@ -34,6 +34,8 @@ const (
 	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
+	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting history/result table
+	EpochCandidateIndexName = "epoch_candidate_index"
 )
 
 type (
@@ -79,11 +81,19 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, VotingHistoryTableName)); err != nil {
+		return err
+	}
+
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name TEXT NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
 		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL)",
 		VotingResultTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
 		return err
 	}
 
