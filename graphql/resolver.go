@@ -34,7 +34,7 @@ type Resolver struct {
 }
 
 var (
-	DBtimeFactory    *prometheustimer.TimerFactory
+	//DBtimeFactory    *prometheustimer.TimerFactory
 	totaltimeFactory *prometheustimer.TimerFactory
 	flag             int
 )
@@ -46,22 +46,22 @@ func init() {
 		http.ListenAndServe(":9001", server)
 	}()
 
-	timerFactoryDB, err := prometheustimer.New(
-		"DB_query_time_perf",
-		"",
-		[]string{"topic"},
-		[]string{"default"},
-	)
-	if err != nil {
-		log.L().Panic("Failed to generate prometheus timer factory.", zap.Error(err))
-	}
+	// timerFactoryDB, err := prometheustimer.New(
+	// 	"DB_query_time_perf",
+	// 	"",
+	// 	[]string{"topic"},
+	// 	[]string{"default"},
+	// )
+	// if err != nil {
+	// 	log.L().Panic("Failed to generate prometheus timer factory.", zap.Error(err))
+	// }
 	timerFactorytotal, err := prometheustimer.New(
 		"total_query_time_perf",
 		"",
 		[]string{"topic"},
 		[]string{"default"},
 	)
-	DBtimeFactory = timerFactoryDB
+	//DBtimeFactory = timerFactoryDB
 	totaltimeFactory = timerFactorytotal
 	if err != nil {
 		log.L().Panic("Failed to generate prometheus timer factory.", zap.Error(err))
