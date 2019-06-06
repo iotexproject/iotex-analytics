@@ -91,7 +91,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ([epoch_number] DECIMAL(65, 0) NOT NULL, "+
-		"[action_hash] VARCHAR(64) NOT NULL, [reward_address] VARCHAR(41) NOT NULL, [candidate_name] TEXT NOT NULL, "+
+		"[action_hash] VARCHAR(64) NOT NULL, [reward_address] VARCHAR(41) NOT NULL, [candidate_name] VARCHAR(255) NOT NULL, "+
 		"[block_reward] DECIMAL(65, 0) NOT NULL, [epoch_reward] DECIMAL(65, 0) NOT NULL, [foundation_bonus] DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
 		return err

@@ -58,6 +58,16 @@ func main() {
 		electionEndpoint = "127.0.0.1:8090"
 	}
 
+	connectionStr := os.Getenv("CONNECTION_STRING")
+	if connectionStr == "" {
+		connectionStr = "root:rootuser@tcp(127.0.0.1:3306)/"
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "analytics"
+	}
+
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		log.L().Fatal("Failed to load config file", zap.Error(err))
