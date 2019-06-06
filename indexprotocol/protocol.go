@@ -9,6 +9,7 @@ package indexprotocol
 import (
 	"context"
 	"database/sql"
+
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 )

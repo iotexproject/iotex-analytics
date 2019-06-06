@@ -74,8 +74,15 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, address)", EpochAddressIndexName, AccountHistoryTableName)); err != nil {
+	var exist uint64
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", AccountHistoryTableName, EpochAddressIndexName)).Scan(&exist); err != nil {
 		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, address)", EpochAddressIndexName, AccountHistoryTableName)); err != nil {
+			return err
+		}
 	}
 
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, address, (SUM(`in`)-SUM(`out`)) AS balance_change "+

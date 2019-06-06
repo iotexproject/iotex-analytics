@@ -81,8 +81,15 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, VotingHistoryTableName)); err != nil {
+	var exist uint64
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, VotingHistoryTableName)); err != nil {
+			return err
+		}
 	}
 
 	// create voting result table
@@ -93,8 +100,14 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingResultTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
+			return err
+		}
 	}
 
 	return nil
