@@ -1,6 +1,3 @@
-mySQL:
-  dbName: analytics
-  connectStr: root:rootuser@tcp(127.0.0.1:3306)/
 numDelegates: 24
 numCandidateDelegates: 36
 numSubEpochs: 15

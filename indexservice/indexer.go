@@ -41,7 +41,6 @@ type Indexer struct {
 
 // Config contains indexer configs
 type Config struct {
-	MySQL                 s.Config              `yaml:"mySQL"`
 	NumDelegates          uint64                `yaml:"numDelegates"`
 	NumCandidateDelegates uint64                `yaml:"numCandidateDelegates"`
 	NumSubEpochs          uint64                `yaml:"numSubEpochs"`

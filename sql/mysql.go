@@ -11,12 +11,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Config is the configuration for mysql db
-type Config struct {
-	DBName     string `yaml:"dbName"`
-	ConnectStr string `yaml:"connectStr"`
-}
-
 // NewMySQL instantiates a mysql
 func NewMySQL(connectStr string, dbName string) Store {
 	return newStoreBase("mysql", connectStr, dbName)

@@ -58,6 +58,16 @@ func main() {
 		electionEndpoint = "127.0.0.1:8090"
 	}
 
+	connectionStr := os.Getenv("CONNECTION_STRING")
+	if connectionStr == "" {
+		connectionStr = "root:rootuser@tcp(127.0.0.1:3306)/"
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "analytics"
+	}
+
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		log.L().Fatal("Failed to load config file", zap.Error(err))
@@ -67,7 +77,7 @@ func main() {
 		log.L().Fatal("failed to unmarshal config", zap.Error(err))
 	}
 
-	store := sql.NewMySQL(cfg.MySQL.ConnectStr, cfg.MySQL.DBName)
+	store := sql.NewMySQL(connectionStr, dbName)
 
 	idx := indexservice.NewIndexer(store, cfg)
 	if err := idx.RegisterDefaultProtocols(); err != nil {

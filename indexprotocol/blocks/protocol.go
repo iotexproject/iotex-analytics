@@ -40,14 +40,8 @@ const (
 	ExpectedProducerViewName = "expected_producer_view"
 	// ProducerViewName is a view required by productivity view
 	ProducerViewName = "producer_view"
-	// EpochIndexName is the index of epoch number on block history table
-	EpochIndexName = "epoch_index"
-	// HeightIndexName is the index of block height on block history table
-	HeightIndexName = "height_index"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
-	// EpochExpectedProducerIndexName is the index name of epoch number and expected producer's name on block history table
-	EpochExpectedProducerIndexName = "epoch_expected_producer_index"
 )
 
 type (
@@ -106,24 +100,12 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, "+
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, "+
 		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, "+
-		"producer_name TEXT NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
-		"expected_producer_name TEXT NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
+		"producer_name VARCHAR(255) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
+		"expected_producer_name VARCHAR(255) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number)", EpochIndexName, BlockHistoryTableName)); err != nil {
-		return err
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (block_height)", HeightIndexName, BlockHistoryTableName)); err != nil {
-		return err
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, producer_name)", EpochProducerIndexName, BlockHistoryTableName)); err != nil {
-		return err
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, expected_producer_name)", EpochExpectedProducerIndexName, BlockHistoryTableName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (epoch_number, producer_name, expected_producer_name)", EpochProducerIndexName, BlockHistoryTableName)); err != nil {
 		return err
 	}
 
