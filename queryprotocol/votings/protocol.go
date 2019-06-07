@@ -54,6 +54,7 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNum, delegateName)
 	if err != nil {
@@ -102,6 +103,8 @@ func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
+
 	var totalCandidates int
 	if err = stmt.QueryRow(epochNumber).Scan(&totalCandidates); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
@@ -134,6 +137,7 @@ func (p *Protocol) GetNumberOfWeightedVotes(epochNumber uint64) (numberOfWeighte
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
 
 	if err = stmt.QueryRow(epochNumber).Scan(&numberOfWeightedVotes); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")

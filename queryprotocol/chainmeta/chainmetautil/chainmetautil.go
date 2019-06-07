@@ -40,6 +40,8 @@ func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
 
 	}
+	defer stmt.Close()
+
 	var epoch, tipHeight uint64
 	if err = stmt.QueryRow().Scan(&epoch, &tipHeight); err != nil {
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to execute get query")

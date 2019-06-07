@@ -190,6 +190,7 @@ func (p *Protocol) getAccountHistory(address string) ([]*AccountHistory, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(address)
 	if err != nil {
@@ -223,6 +224,7 @@ func (p *Protocol) getAccountBalanceChange(epochNumber uint64, address string) (
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNumber, address)
 	if err != nil {

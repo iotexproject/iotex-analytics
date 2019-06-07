@@ -161,6 +161,7 @@ func (p *Protocol) getVotingHistory(epochNumber uint64, candidateName string) ([
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNumber, candidateName)
 	if err != nil {
@@ -195,6 +196,7 @@ func (p *Protocol) getVotingResult(epochNumber uint64, delegateName string) (*Vo
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNumber, delegateName)
 	if err != nil {

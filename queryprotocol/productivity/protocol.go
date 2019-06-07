@@ -60,6 +60,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	var production, expectedProduction string
 	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
@@ -92,6 +93,8 @@ func (p *Protocol) GetAverageProductivity(startEpoch uint64, epochCount uint64) 
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query(startEpoch, startEpoch+epochCount-1)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")

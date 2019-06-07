@@ -175,6 +175,7 @@ func (p *Protocol) getActionHistory(actionHash string) (*ActionHistory, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(actionHash)
 	if err != nil {
