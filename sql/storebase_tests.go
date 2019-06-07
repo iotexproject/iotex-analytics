@@ -49,6 +49,7 @@ func TestStorePutGet(sqlStore Store, t *testing.T) {
 	// insert
 	stmt, err := dbinstance.Prepare("INSERT INTO action_history (node_address,user_address,action_hash) VALUES (?, ?, ?)")
 	require.Nil(err)
+	defer stmt.Close()
 
 	res, err := stmt.Exec(nodeAddress, userAddress, actionHash[:])
 	require.Nil(err)
@@ -60,6 +61,7 @@ func TestStorePutGet(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 
 	rows, err := stmt.Query(nodeAddress)
 	require.Nil(err)
@@ -75,6 +77,7 @@ func TestStorePutGet(sqlStore Store, t *testing.T) {
 	// delete
 	stmt, err = dbinstance.Prepare("DELETE FROM action_history WHERE node_address=? AND user_address=? AND action_hash=?")
 	require.Nil(err)
+	defer stmt.Close()
 
 	res, err = stmt.Exec(nodeAddress, userAddress, actionHash[:])
 	require.Nil(err)
@@ -86,6 +89,7 @@ func TestStorePutGet(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 
 	rows, err = stmt.Query(nodeAddress)
 	require.Nil(err)
@@ -122,6 +126,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err := dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err := stmt.Query(nodeAddress, userAddress1)
 	require.Nil(err)
 	var actionHistory ActionHistory
@@ -131,6 +136,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress2)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -154,6 +160,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress1)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -162,6 +169,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress2)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -184,6 +192,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress1)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -195,6 +204,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress2)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -220,6 +230,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 	// get
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress1)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)
@@ -228,6 +239,7 @@ func TestStoreTransaction(sqlStore Store, t *testing.T) {
 
 	stmt, err = dbinstance.Prepare("SELECT * FROM action_history WHERE node_address=? AND user_address=?")
 	require.Nil(err)
+	defer stmt.Close()
 	rows, err = stmt.Query(nodeAddress, userAddress2)
 	require.Nil(err)
 	parsedRows, err = ParseSQLRows(rows, &actionHistory)

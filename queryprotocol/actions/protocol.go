@@ -56,6 +56,8 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")

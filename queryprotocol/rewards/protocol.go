@@ -68,6 +68,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	var blockReward, epochReward, foundationBonus string
 	if err = stmt.QueryRow(candidateName).Scan(&blockReward, &epochReward, &foundationBonus); err != nil {
@@ -166,6 +167,8 @@ func (p *Protocol) totalWeightedVotes(epoch uint64, delegateName string) (sumVot
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query(epoch, delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
@@ -231,6 +234,8 @@ func (p *Protocol) voterVotes(epoch uint64, delegateName string) (votingSums map
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query(epoch, delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")

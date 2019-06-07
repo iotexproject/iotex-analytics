@@ -171,6 +171,7 @@ func (p *Protocol) getRewardHistory(actionHash string) ([]*RewardHistory, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(actionHash)
 	if err != nil {
@@ -205,6 +206,7 @@ func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNumber, candidateName)
 	if err != nil {

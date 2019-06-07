@@ -21,6 +21,8 @@ func RowExists(db *sql.DB, query string, args ...interface{}) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to prepare query")
 	}
+	defer stmt.Close()
+
 	err = stmt.QueryRow(args...).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
 		return false, errors.Wrap(err, "failed to query the row")

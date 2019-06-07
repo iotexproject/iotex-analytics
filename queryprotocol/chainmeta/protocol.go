@@ -75,6 +75,8 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
+
 	rows, err := stmt.Query(start, end)
 	if err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
@@ -152,6 +154,7 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
+	defer stmt.Close()
 
 	if err = stmt.QueryRow(startEpoch, endEpoch).Scan(&numberOfActions); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")

@@ -202,6 +202,7 @@ func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(blockHeight)
 	if err != nil {
@@ -235,6 +236,7 @@ func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName strin
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
+	defer stmt.Close()
 
 	rows, err := stmt.Query(epochNumber, producerName)
 	if err != nil {
