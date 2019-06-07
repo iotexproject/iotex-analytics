@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
@@ -206,20 +207,25 @@ func (p *Protocol) updateActionHistory(
 	hashToReceiptInfo map[hash.Hash256]*ReceiptInfo,
 	block *block.Block,
 ) error {
+	valStrs := make([]string, 0, len(block.Actions))
+	valArgs := make([]interface{}, 0, len(block.Actions)*11)
 	for _, selp := range block.Actions {
 		actionInfo := hashToActionInfo[selp.Hash()]
 		if actionInfo.ReceiptHash == hash.ZeroHash256 {
 			return errors.New("action receipt is missing")
 		}
 		receiptInfo := hashToReceiptInfo[actionInfo.ReceiptHash]
-		insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
-			"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			ActionHistoryTableName)
-		if _, err := tx.Exec(insertQuery, actionInfo.ActionType, actionInfo.ActionHash, receiptInfo.ReceiptHash, block.Height(),
+
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, actionInfo.ActionType, actionInfo.ActionHash, receiptInfo.ReceiptHash, block.Height(),
 			actionInfo.From, actionInfo.To, actionInfo.GasPrice, receiptInfo.GasConsumed, actionInfo.Nonce,
-			actionInfo.Amount, receiptInfo.ReceiptStatus); err != nil {
-			return err
-		}
+			actionInfo.Amount, receiptInfo.ReceiptStatus)
+	}
+	insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
+		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s", ActionHistoryTableName, strings.Join(valStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+		return err
 	}
 	return nil
 }

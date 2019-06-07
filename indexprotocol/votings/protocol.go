@@ -82,7 +82,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 
 	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingResultTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
@@ -133,6 +133,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to get candidates from election service in epoch %d", epochNumber)
 		}
 
+		candidateToBuckets := make(map[string][]*api.Bucket)
 		for _, candidate := range candidates {
 			getBucketsRequest := &api.GetBucketsByCandidateRequest{
 				Name:   candidate.Name,
@@ -153,12 +154,13 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err != nil {
 				return errors.Wrap(err, "failed to decode candidate name")
 			}
-			if err := p.updateVotingHistory(tx, buckets, string(candidateNameBytes), epochNumber); err != nil {
-				return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
-			}
-			if err := p.updateVotingResult(tx, candidate, epochNumber); err != nil {
-				return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
-			}
+			candidateToBuckets[string(candidateNameBytes)] = buckets
+		}
+		if err := p.updateVotingHistory(tx, candidateToBuckets, epochNumber); err != nil {
+			return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
+		}
+		if err := p.updateVotingResult(tx, candidates, epochNumber); err != nil {
+			return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
 		}
 	}
 	return nil
@@ -260,25 +262,40 @@ func (p *Protocol) getCandidates(
 	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
 }
 
-func (p *Protocol) updateVotingHistory(tx *sql.Tx, buckets []*api.Bucket, candidateName string, epochNumber uint64) error {
-	for _, bucket := range buckets {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,candidate_name,voter_address,votes,weighted_votes,"+
-			"remaining_duration) VALUES (?, ?, ?, ?, ?, ?)", VotingHistoryTableName)
-		if _, err := tx.Exec(insertQuery, epochNumber, candidateName, bucket.Voter, bucket.Votes, bucket.WeightedVotes, bucket.RemainingDuration); err != nil {
-			return err
+func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string][]*api.Bucket, epochNumber uint64) error {
+	valStrs := make([]string, 0)
+	valArgs := make([]interface{}, 0)
+	for candidateName, buckets := range candidateToBuckets {
+		for _, bucket := range buckets {
+			valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
+			valArgs = append(valArgs, epochNumber, candidateName, bucket.Voter, bucket.Votes, bucket.WeightedVotes, bucket.RemainingDuration)
 		}
+	}
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,candidate_name,voter_address,votes,weighted_votes,"+
+		"remaining_duration) VALUES %s", VotingHistoryTableName, strings.Join(valStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, candidate *api.Candidate, epochNumber uint64) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes) VALUES (?, ?, ?, ?, ?)", VotingResultTableName)
-	candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
-	if err != nil {
-		return errors.Wrap(err, "failed to decode candidate name")
+func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64) error {
+	valStrs := make([]string, 0, len(candidates))
+	valArgs := make([]interface{}, 0, len(candidates)*5)
+	for _, candidate := range candidates {
+		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
+		if err != nil {
+			return errors.Wrap(err, "failed to decode candidate name")
+		}
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes)
 	}
-	if _, err := tx.Exec(insertQuery, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes); err != nil {
+
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
+		"total_weighted_votes) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
 	}
 	return nil

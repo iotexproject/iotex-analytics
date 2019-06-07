@@ -75,7 +75,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 
 	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", AccountHistoryTableName, EpochAddressIndexName)).Scan(&exist); err != nil {
 		return err
 	}

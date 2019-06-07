@@ -98,7 +98,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 
 	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", RewardHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
@@ -230,16 +230,22 @@ func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*
 
 // updateRewardHistory stores reward information into reward history table
 func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHash string, rewardInfoMap map[string]*RewardInfo) error {
+	valStrs := make([]string, 0, len(rewardInfoMap))
+	valArgs := make([]interface{}, 0, len(rewardInfoMap)*7)
 	for rewardAddress, rewards := range rewardInfoMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
-			"foundation_bonus) VALUES (?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))", RewardHistoryTableName)
 		blockReward := rewards.BlockReward.String()
 		epochReward := rewards.EpochReward.String()
 		foundationBonus := rewards.FoundationBonus.String()
 		candidateName := p.RewardAddrToName[rewardAddress]
-		if _, err := tx.Exec(insertQuery, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus); err != nil {
-			return err
-		}
+
+		valStrs = append(valStrs, "(?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
+		valArgs = append(valArgs, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus)
+	}
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
+		"foundation_bonus) VALUES %s", RewardHistoryTableName, strings.Join(valStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+		return err
 	}
 	return nil
 }
