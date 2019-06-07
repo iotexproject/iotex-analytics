@@ -25,6 +25,7 @@ type Protocol struct {
 
 // VotingInfo defines voting infos
 type VotingInfo struct {
+	EpochNumber uint64
 	VoterAddress  string
 	WeightedVotes string
 }
@@ -47,7 +48,7 @@ func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (voti
 		return
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT voter_address,weighted_votes FROM %s WHERE epoch_number = ? and candidate_name = ?",
+	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, weighted_votes FROM %s WHERE epoch_number = ? and candidate_name = ?",
 		votings.VotingHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
