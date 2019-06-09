@@ -33,11 +33,13 @@ type RewardDistribution struct {
 	Amount       string
 }
 
+// TotalWeight defines a delegate's total weighted votes
 type TotalWeight struct {
 	EpochNumber uint64
 	TotalWeight string
 }
 
+// EpochFoundationReward defines a delegate's epoch reward and foundation bonus
 type EpochFoundationReward struct {
 	EpochNumber uint64
 	EpochReward string
