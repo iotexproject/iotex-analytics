@@ -19,6 +19,9 @@ import (
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 
+// HexPrefix is the prefix of ERC20 address in hex string
+const HexPrefix = "0x"
+
 // Resolver is the resolver that handles graphql request
 type Resolver struct {
 	PP *productivity.Protocol
@@ -75,7 +78,7 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 	for _, votingHistory := range votingHistorys {
 		v := &VotingInfo{
 			WeightedVotes: votingHistory.WeightedVotes,
-			VoterAddress:  votingHistory.VoterAddress,
+			VoterAddress:  HexPrefix + votingHistory.VoterAddress,
 		}
 		votingInfos = append(votingInfos, v)
 	}
@@ -95,7 +98,7 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 	}
 	for _, ret := range rets {
 		v := &RewardDistribution{
-			VoterAddress: ret.VoterAddress,
+			VoterAddress: HexPrefix + ret.VoterAddress,
 			Amount:       ret.Amount,
 		}
 		rds = append(rds, v)
