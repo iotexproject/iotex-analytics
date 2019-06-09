@@ -7,8 +7,13 @@ type Query {
     averageProductivity(startEpoch: Int!, epochCount: Int!):String!
     chainMeta(tpsBlockWindow: Int!): ChainMeta
     numberOfActions(startEpoch: Int!, epochCount: Int!):String!
-    numberOfWeightedVotes(epochNumber: Int!):String!
+    numberOfWeightedVotes(startEpoch: Int!,epochCount: Int!):[String!]
     numberOfCandidates(epochNumber: Int!): NumberOfCandidates
+    totalTokens(startEpoch: Int!,epochCount: Int!):[String!]
+    stakeDuration(epochNumber: Int!):[String!]
+    numberOfUniqueAccounts(epochNumber: Int!,delegateName: String!): String!
+    averageTokenHolding(epochNumber: Int!):String!
+    selfStakeAndTotalStake(epochNumber: Int!,delegateName: String!):[String!]
 }
 
 type Reward {

@@ -57,16 +57,21 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveAccount         func(childComplexity int, count int) int
-		AverageProductivity   func(childComplexity int, startEpoch int, epochCount int) int
-		Bookkeeping           func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
-		ChainMeta             func(childComplexity int, tpsBlockWindow int) int
-		NumberOfActions       func(childComplexity int, startEpoch int, epochCount int) int
-		NumberOfCandidates    func(childComplexity int, epochNumber int) int
-		NumberOfWeightedVotes func(childComplexity int, epochNumber int) int
-		Productivity          func(childComplexity int, startEpoch int, epochCount int, producerName string) int
-		Rewards               func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
-		VotingInformation     func(childComplexity int, epochNum int, delegateName string) int
+		ActiveAccount          func(childComplexity int, count int) int
+		AverageProductivity    func(childComplexity int, startEpoch int, epochCount int) int
+		AverageTokenHolding    func(childComplexity int, epochNumber int) int
+		Bookkeeping            func(childComplexity int, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) int
+		ChainMeta              func(childComplexity int, tpsBlockWindow int) int
+		NumberOfActions        func(childComplexity int, startEpoch int, epochCount int) int
+		NumberOfCandidates     func(childComplexity int, epochNumber int) int
+		NumberOfUniqueAccounts func(childComplexity int, epochNumber int, delegateName string) int
+		NumberOfWeightedVotes  func(childComplexity int, startEpoch int, epochCount int) int
+		Productivity           func(childComplexity int, startEpoch int, epochCount int, producerName string) int
+		Rewards                func(childComplexity int, startEpoch int, epochCount int, candidateName string) int
+		SelfStakeAndTotalStake func(childComplexity int, epochNumber int, delegateName string) int
+		StakeDuration          func(childComplexity int, epochNumber int) int
+		TotalTokens            func(childComplexity int, startEpoch int, epochCount int) int
+		VotingInformation      func(childComplexity int, epochNum int, delegateName string) int
 	}
 
 	Reward struct {
@@ -95,8 +100,13 @@ type QueryResolver interface {
 	AverageProductivity(ctx context.Context, startEpoch int, epochCount int) (string, error)
 	ChainMeta(ctx context.Context, tpsBlockWindow int) (*ChainMeta, error)
 	NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error)
-	NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error)
+	NumberOfWeightedVotes(ctx context.Context, startEpoch int, epochCount int) ([]string, error)
 	NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error)
+	TotalTokens(ctx context.Context, startEpoch int, epochCount int) ([]string, error)
+	StakeDuration(ctx context.Context, epochNumber int) ([]string, error)
+	NumberOfUniqueAccounts(ctx context.Context, epochNumber int, delegateName string) (string, error)
+	AverageTokenHolding(ctx context.Context, epochNumber int) (string, error)
+	SelfStakeAndTotalStake(ctx context.Context, epochNumber int, delegateName string) ([]string, error)
 }
 
 type executableSchema struct {
@@ -187,6 +197,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.AverageProductivity(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
 
+	case "Query.AverageTokenHolding":
+		if e.complexity.Query.AverageTokenHolding == nil {
+			break
+		}
+
+		args, err := ec.field_Query_averageTokenHolding_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.AverageTokenHolding(childComplexity, args["epochNumber"].(int)), true
+
 	case "Query.Bookkeeping":
 		if e.complexity.Query.Bookkeeping == nil {
 			break
@@ -235,6 +257,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.NumberOfCandidates(childComplexity, args["epochNumber"].(int)), true
 
+	case "Query.NumberOfUniqueAccounts":
+		if e.complexity.Query.NumberOfUniqueAccounts == nil {
+			break
+		}
+
+		args, err := ec.field_Query_numberOfUniqueAccounts_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.NumberOfUniqueAccounts(childComplexity, args["epochNumber"].(int), args["delegateName"].(string)), true
+
 	case "Query.NumberOfWeightedVotes":
 		if e.complexity.Query.NumberOfWeightedVotes == nil {
 			break
@@ -245,7 +279,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.NumberOfWeightedVotes(childComplexity, args["epochNumber"].(int)), true
+		return e.complexity.Query.NumberOfWeightedVotes(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
 
 	case "Query.Productivity":
 		if e.complexity.Query.Productivity == nil {
@@ -270,6 +304,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Rewards(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["candidateName"].(string)), true
+
+	case "Query.SelfStakeAndTotalStake":
+		if e.complexity.Query.SelfStakeAndTotalStake == nil {
+			break
+		}
+
+		args, err := ec.field_Query_selfStakeAndTotalStake_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SelfStakeAndTotalStake(childComplexity, args["epochNumber"].(int), args["delegateName"].(string)), true
+
+	case "Query.StakeDuration":
+		if e.complexity.Query.StakeDuration == nil {
+			break
+		}
+
+		args, err := ec.field_Query_stakeDuration_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.StakeDuration(childComplexity, args["epochNumber"].(int)), true
+
+	case "Query.TotalTokens":
+		if e.complexity.Query.TotalTokens == nil {
+			break
+		}
+
+		args, err := ec.field_Query_totalTokens_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.TotalTokens(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
 
 	case "Query.VotingInformation":
 		if e.complexity.Query.VotingInformation == nil {
@@ -405,8 +475,13 @@ var parsedSchema = gqlparser.MustLoadSchema(
     averageProductivity(startEpoch: Int!, epochCount: Int!):String!
     chainMeta(tpsBlockWindow: Int!): ChainMeta
     numberOfActions(startEpoch: Int!, epochCount: Int!):String!
-    numberOfWeightedVotes(epochNumber: Int!):String!
+    numberOfWeightedVotes(startEpoch: Int!,epochCount: Int!):[String!]
     numberOfCandidates(epochNumber: Int!): NumberOfCandidates
+    totalTokens(startEpoch: Int!,epochCount: Int!):[String!]
+    stakeDuration(epochNumber: Int!):[String!]
+    numberOfUniqueAccounts(epochNumber: Int!,delegateName: String!): String!
+    averageTokenHolding(epochNumber: Int!):String!
+    selfStakeAndTotalStake(epochNumber: Int!,delegateName: String!):[String!]
 }
 
 type Reward {
@@ -493,6 +568,20 @@ func (ec *executionContext) field_Query_averageProductivity_args(ctx context.Con
 		}
 	}
 	args["epochCount"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_averageTokenHolding_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["epochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochNumber"] = arg0
 	return args, nil
 }
 
@@ -592,7 +681,7 @@ func (ec *executionContext) field_Query_numberOfCandidates_args(ctx context.Cont
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_numberOfWeightedVotes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_numberOfUniqueAccounts_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
@@ -603,6 +692,36 @@ func (ec *executionContext) field_Query_numberOfWeightedVotes_args(ctx context.C
 		}
 	}
 	args["epochNumber"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["delegateName"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["delegateName"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_numberOfWeightedVotes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
 	return args, nil
 }
 
@@ -663,6 +782,64 @@ func (ec *executionContext) field_Query_rewards_args(ctx context.Context, rawArg
 		}
 	}
 	args["candidateName"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_selfStakeAndTotalStake_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["epochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochNumber"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["delegateName"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["delegateName"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_stakeDuration_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["epochNumber"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochNumber"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_totalTokens_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
 	return args, nil
 }
 
@@ -1183,18 +1360,15 @@ func (ec *executionContext) _Query_numberOfWeightedVotes(ctx context.Context, fi
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().NumberOfWeightedVotes(rctx, args["epochNumber"].(int))
+		return ec.resolvers.Query().NumberOfWeightedVotes(rctx, args["startEpoch"].(int), args["epochCount"].(int))
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.([]string)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalOString2ᚕstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_numberOfCandidates(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -1226,6 +1400,167 @@ func (ec *executionContext) _Query_numberOfCandidates(ctx context.Context, field
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalONumberOfCandidates2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfCandidates(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_totalTokens(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_totalTokens_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().TotalTokens(rctx, args["startEpoch"].(int), args["epochCount"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOString2ᚕstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_stakeDuration(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_stakeDuration_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().StakeDuration(rctx, args["epochNumber"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOString2ᚕstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_numberOfUniqueAccounts(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_numberOfUniqueAccounts_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().NumberOfUniqueAccounts(rctx, args["epochNumber"].(int), args["delegateName"].(string))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_averageTokenHolding(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_averageTokenHolding_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().AverageTokenHolding(rctx, args["epochNumber"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_selfStakeAndTotalStake(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_selfStakeAndTotalStake_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SelfStakeAndTotalStake(rctx, args["epochNumber"].(int), args["delegateName"].(string))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOString2ᚕstring(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -2530,9 +2865,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_numberOfWeightedVotes(ctx, field)
-				if res == graphql.Null {
-					invalid = true
-				}
 				return res
 			})
 		case "numberOfCandidates":
@@ -2544,6 +2876,67 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_numberOfCandidates(ctx, field)
+				return res
+			})
+		case "totalTokens":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_totalTokens(ctx, field)
+				return res
+			})
+		case "stakeDuration":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_stakeDuration(ctx, field)
+				return res
+			})
+		case "numberOfUniqueAccounts":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_numberOfUniqueAccounts(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "averageTokenHolding":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_averageTokenHolding(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "selfStakeAndTotalStake":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_selfStakeAndTotalStake(ctx, field)
 				return res
 			})
 		case "__type":

@@ -54,6 +54,7 @@ type (
 		OperatorAddress    string
 		RewardAddress      string
 		TotalWeightedVotes string
+		SelfTotalStaked    string
 	}
 )
 
@@ -82,7 +83,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"([epoch_number] DECIMAL(65, 0) NOT NULL, [delegate_name] TEXT NOT NULL, [operator_address] VARCHAR(41) NOT NULL, "+
-		"[reward_address] VARCHAR(41) NOT NULL, [total_weighted_votes] DECIMAL(65, 0) NOT NULL)",
+		"[reward_address] VARCHAR(41) NOT NULL, [total_weighted_votes] DECIMAL(65, 0) NOT NULL, [self_total_votes] DECIMAL(65, 0) NOT NULL)",
 		VotingResultTableName)); err != nil {
 		return err
 	}
@@ -250,12 +251,12 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, buckets []*api.Bucket, candid
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidate *api.Candidate, epochNumber uint64) error {
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes) VALUES (?, ?, ?, ?, ?)", VotingResultTableName)
+		"total_weighted_votes,self_total_votes) VALUES (?, ?, ?, ?, ?, ?)", VotingResultTableName)
 	candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
 	if err != nil {
 		return errors.Wrap(err, "failed to decode candidate name")
 	}
-	if _, err := tx.Exec(insertQuery, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes); err != nil {
+	if _, err := tx.Exec(insertQuery, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes, candidate.SelfStakingTokens); err != nil {
 		return err
 	}
 	return nil

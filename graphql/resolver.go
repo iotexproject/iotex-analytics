@@ -194,6 +194,28 @@ func (r *queryResolver) ChainMeta(ctx context.Context, tpsBlockWindow int) (rets
 	return
 }
 
+// TotalTokens handles TotalTokens request
+func (r *queryResolver) TotalTokens(ctx context.Context, startEpoch int, epochCount int) ([]string, error) {
+	return r.VP.GetTotalTokenStaked(uint64(startEpoch), uint64(epochCount))
+}
+
+func (r *queryResolver) AverageTokenHolding(ctx context.Context, epochNumber int) (string, error) {
+	return r.VP.GetAverageTokenHolding(uint64(epochNumber))
+}
+
+func (r *queryResolver) StakeDuration(ctx context.Context, epochNumber int) ([]string, error) {
+	return r.VP.GetStakeDuration(uint64(epochNumber))
+}
+
+func (r *queryResolver) NumberOfUniqueAccounts(ctx context.Context, epochNumber int, delegateName string) (string, error) {
+	return r.VP.GetNumberOfUniqueAccounts(uint64(epochNumber), delegateName)
+}
+
+func (r *queryResolver) SelfStakeAndTotalStake(ctx context.Context, epochNumber int, delegateName string) ([]string, error) {
+	return r.VP.GetSelfStakeAndTotalStake(uint64(epochNumber), delegateName)
+
+}
+
 // NumberOfActions handles NumberOfActions request
 func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error) {
 	timerNA := totaltimeFactory.NewTimer("GetNumberofActions")
@@ -202,10 +224,10 @@ func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epo
 }
 
 // NumberOfWeightedVotes handles NumberOfWeightedVotes request
-func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error) {
+func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, startEpoch int, epochCount int) ([]string, error) {
 	timerNW := totaltimeFactory.NewTimer("GetNumberOfWeightedVotes")
 	defer timerNW.End()
-	return r.VP.GetNumberOfWeightedVotes(uint64(epochNumber))
+	return r.VP.GetNumberOfWeightedVotes(uint64(startEpoch), uint64(epochCount))
 }
 
 // NumberOfCandidates handles NumberOfCandidates request
