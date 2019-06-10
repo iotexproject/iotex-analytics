@@ -25,11 +25,12 @@ type Reward struct {
 }
 
 type RewardDistribution struct {
-	VoterAddress string `json:"voterAddress"`
-	Amount       string `json:"amount"`
+	VoterEthAddress   string `json:"voterEthAddress"`
+	VoterIotexAddress string `json:"voterIotexAddress"`
+	Amount            string `json:"amount"`
 }
 
 type VotingInfo struct {
-	VoterAddress  string `json:"voterAddress"`
-	WeightedVotes string `json:"weightedVotes"`
+	VoterEthAddress string `json:"voterEthAddress"`
+	WeightedVotes   string `json:"weightedVotes"`
 }

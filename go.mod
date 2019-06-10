@@ -7,6 +7,7 @@ require (
 	github.com/agnivade/levenshtein v1.0.2 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190502180301-283422fc1708 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
+	github.com/ethereum/go-ethereum v1.8.27
 	github.com/fjl/memsize v0.0.0-20180929194037-2a09253e352a // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/mock v1.2.0
