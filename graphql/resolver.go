@@ -78,7 +78,7 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 	for _, votingHistory := range votingHistorys {
 		v := &VotingInfo{
 			WeightedVotes: votingHistory.WeightedVotes,
-			VoterAddress:  HexPrefix + votingHistory.VoterAddress,
+			VoterEthAddress:  HexPrefix + votingHistory.VoterAddress,
 		}
 		votingInfos = append(votingInfos, v)
 	}
@@ -98,7 +98,8 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 	}
 	for _, ret := range rets {
 		v := &RewardDistribution{
-			VoterAddress: HexPrefix + ret.VoterAddress,
+			VoterEthAddress: HexPrefix + ret.VoterEthAddress,
+			VoterIotexAddress: ret.VoterIotexAddress,
 			Amount:       ret.Amount,
 		}
 		rds = append(rds, v)
