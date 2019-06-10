@@ -127,7 +127,7 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 	for epoch := startEpoch; epoch <= endEpoch; epoch++ {
 		distrReward, ok := distrRewardMap[epoch]
 		if !ok {
-			return nil, errors.Errorf("Missing delegate reward information on epoch %d", epoch)
+			continue
 		}
 		totalWeightedVotes, ok := delegateTotalVotesMap[epoch]
 		if !ok {
