@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -100,8 +99,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, "+
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, "+
 		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, "+
-		"producer_name VARCHAR(255) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
-		"expected_producer_name VARCHAR(255) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
+		"producer_name VARCHAR(24) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
+		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
 		return err
 	}
 
@@ -322,11 +321,7 @@ func (p *Protocol) updateDelegates(
 
 	p.OperatorAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
-		if err != nil {
-			return errors.Wrap(err, "failed to get decode candidate name")
-		}
-		p.OperatorAddrToName[candidate.OperatorAddress] = string(candidateNameBytes)
+		p.OperatorAddrToName[candidate.OperatorAddress] = candidate.Name
 	}
 
 	readStateRequest = &iotexapi.ReadStateRequest{

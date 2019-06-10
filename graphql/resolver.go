@@ -8,7 +8,9 @@ package graphql
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -21,6 +23,27 @@ import (
 
 // HexPrefix is the prefix of ERC20 address in hex string
 const HexPrefix = "0x"
+
+// InterpretDelegateName converts a delegate name input to an internal format
+func InterpretDelegateName(name string) (string, error) {
+	l := len(name)
+	switch {
+	case l == 24:
+		return name, nil
+	case l <= 12:
+		prefixZeros := []byte{}
+		for i := 0; i < 12-len(name); i++ {
+			prefixZeros = append(prefixZeros, byte(0))
+		}
+		suffixZeros := []byte{}
+		for strings.HasSuffix(name, "#") {
+			name = strings.TrimSuffix(name, "#")
+			suffixZeros = append(suffixZeros, byte(0))
+		}
+		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
+	}
+	return "", errors.Errorf("invalid length %d", l)
+}
 
 // Resolver is the resolver that handles graphql request
 type Resolver struct {
@@ -40,6 +63,10 @@ type queryResolver struct{ *Resolver }
 
 // Rewards handles GetAccountReward request
 func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, candidateName string) (*Reward, error) {
+	candidateName, err := InterpretDelegateName(candidateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format candidate name")
+	}
 	blockReward, epochReward, foundationBonus, err := r.RP.GetAccountReward(uint64(startEpoch), uint64(epochCount), candidateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get reward information")
@@ -53,6 +80,10 @@ func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount 
 
 // Productivity handles GetProductivityHistory request
 func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error) {
+	producerName, err := InterpretDelegateName(producerName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format producer name")
+	}
 	production, expectedProduction, err := r.PP.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), producerName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get productivity information")
@@ -70,6 +101,10 @@ func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string,
 
 // VotingInformation handles GetVotingInformation request
 func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
+	delegateName, err = InterpretDelegateName(delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format delegate name")
+	}
 	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
 	if err != nil {
 		err = errors.Wrap(err, "failed to get voting information")
@@ -77,8 +112,8 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 	}
 	for _, votingHistory := range votingHistorys {
 		v := &VotingInfo{
-			WeightedVotes: votingHistory.WeightedVotes,
-			VoterEthAddress:  HexPrefix + votingHistory.VoterAddress,
+			WeightedVotes:   votingHistory.WeightedVotes,
+			VoterEthAddress: HexPrefix + votingHistory.VoterAddress,
 		}
 		votingInfos = append(votingInfos, v)
 	}
@@ -87,6 +122,10 @@ func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, del
 
 // Bookkeeping handles GetBookkeeping request
 func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
+	delegateName, err = InterpretDelegateName(delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format delegate name")
+	}
 	if percentage < 0 || percentage > 100 {
 		err = errors.New("percentage should be 0-100")
 		return
@@ -98,9 +137,9 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 	}
 	for _, ret := range rets {
 		v := &RewardDistribution{
-			VoterEthAddress: HexPrefix + ret.VoterEthAddress,
+			VoterEthAddress:   HexPrefix + ret.VoterEthAddress,
 			VoterIotexAddress: ret.VoterIotexAddress,
-			Amount:       ret.Amount,
+			Amount:            ret.Amount,
 		}
 		rds = append(rds, v)
 	}

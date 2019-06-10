@@ -71,13 +71,13 @@ func TestProtocol(t *testing.T) {
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
-					Name:               "616c6661",
+					Name:               "616c6661616c6661616c6661",
 					OperatorAddress:    testutil.Addr1,
 					RewardAddress:      testutil.RewardAddr1,
 					TotalWeightedVotes: big.NewInt(1000).String(),
 				},
 				{
-					Name:               "627261766f",
+					Name:               "627261766f627261766f6272",
 					OperatorAddress:    testutil.Addr2,
 					RewardAddress:      testutil.RewardAddr2,
 					TotalWeightedVotes: big.NewInt(500).String(),
@@ -87,7 +87,7 @@ func TestProtocol(t *testing.T) {
 	)
 
 	request1 := &api.GetBucketsByCandidateRequest{
-		Name:   "616c6661",
+		Name:   "616c6661616c6661616c6661",
 		Height: strconv.Itoa(1000),
 		Offset: uint32(0),
 		Limit:  math.MaxUint32,
@@ -112,7 +112,7 @@ func TestProtocol(t *testing.T) {
 	)
 
 	request2 := &api.GetBucketsByCandidateRequest{
-		Name:   "627261766f",
+		Name:   "627261766f627261766f6272",
 		Height: strconv.Itoa(1000),
 		Offset: uint32(0),
 		Limit:  math.MaxUint32,
