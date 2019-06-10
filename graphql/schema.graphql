@@ -23,12 +23,13 @@ type Productivity {
 }
 
 type VotingInfo {
-    voterAddress: String!
+    voterEthAddress: String!
     weightedVotes: String!
 }
 
 type RewardDistribution {
-    voterAddress: String!
+    voterEthAddress: String!
+    voterIotexAddress: String!
     amount: String!
 }
 

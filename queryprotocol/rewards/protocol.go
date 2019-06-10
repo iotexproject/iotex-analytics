@@ -8,8 +8,10 @@ package rewards
 
 import (
 	"fmt"
+	"github.com/iotexproject/iotex-address/address"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
@@ -29,7 +31,8 @@ type Protocol struct {
 
 // RewardDistribution defines reward distribute info
 type RewardDistribution struct {
-	VoterAddress string
+	VoterEthAddress string
+	VoterIotexAddress string
 	Amount       string
 }
 
@@ -149,8 +152,14 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 
 	rewardDistribution := make([]*RewardDistribution, 0)
 	for voterAddr, rewardAmount := range voterAddrToReward {
+		ethAddress := common.HexToAddress(voterAddr)
+		ioAddress, err := address.FromBytes(ethAddress.Bytes())
+		if err != nil {
+			return nil, errors.New("failed to form IoTeX address from ETH address")
+		}
 		rewardDistribution = append(rewardDistribution, &RewardDistribution{
-			VoterAddress: voterAddr,
+			VoterEthAddress: voterAddr,
+			VoterIotexAddress: ioAddress.String(),
 			Amount: rewardAmount.String(),
 		})
 	}
