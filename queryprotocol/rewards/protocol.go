@@ -214,16 +214,6 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 
 	db := p.indexer.Store.GetDB()
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name = ?",
-		rewards.AccountRewardTableName), startEpoch, endEpoch, delegateName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return nil, indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT epoch_number, epoch_reward, foundation_bonus FROM %s "+
 		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? ", rewards.AccountRewardTableName)
 	stmt, err := db.Prepare(getQuery)
