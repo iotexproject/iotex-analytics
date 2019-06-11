@@ -38,8 +38,8 @@ const (
 	ProtocolID = "rewards"
 	// RewardHistoryTableName is the table name of reward history
 	RewardHistoryTableName = "reward_history"
-	// AccountRewardViewName is the view name of account rewards
-	AccountRewardViewName = "account_reward"
+	// AccountRewardTableName is the table name of account rewards
+	AccountRewardTableName = "account_reward"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on account reward view
 	EpochCandidateIndexName = "epoch_candidate_index"
 )
@@ -96,24 +96,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		RewardHistoryTableName)); err != nil {
 		return err
 	}
-
-	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", RewardHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
-		return err
-	}
-	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, RewardHistoryTableName)); err != nil {
-			return err
-		}
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, candidate_name, "+
-		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s GROUP BY epoch_number, candidate_name",
-		AccountRewardViewName, RewardHistoryTableName)); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -133,6 +115,9 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
 		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
+		}
+		if err := p.rebuildAccountRewardTable(tx); err != nil {
+			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
 	}
 
@@ -201,7 +186,7 @@ func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
-		AccountRewardViewName)
+		AccountRewardTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -321,6 +306,20 @@ func (p *Protocol) updateCandidateRewardAddress(
 			return errors.Wrap(err, "failed to decode candidate name")
 		}
 		p.RewardAddrToName[candidate.RewardAddress] = string(candidateNameBytes)
+	}
+	return nil
+}
+
+func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx) error {
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"candidate_name VARCHAR(255) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
+		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))", AccountRewardTableName, EpochCandidateIndexName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
+		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s "+
+		"GROUP BY epoch_number, candidate_name", AccountRewardTableName, RewardHistoryTableName)); err != nil {
+		return err
 	}
 	return nil
 }

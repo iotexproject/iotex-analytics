@@ -25,7 +25,7 @@ type Protocol struct {
 
 // VotingInfo defines voting infos
 type VotingInfo struct {
-	EpochNumber uint64
+	EpochNumber   uint64
 	VoterAddress  string
 	WeightedVotes string
 }

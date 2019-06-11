@@ -46,7 +46,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 
 	// Check existence
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
-		blocks.ProductivityViewName), startEpoch, endEpoch, producerName)
+		blocks.ProductivityTableName), startEpoch, endEpoch, producerName)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to check if the row exists")
 	}
@@ -55,7 +55,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	}
 
 	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
-		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityViewName, startEpoch, endEpoch)
+		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to prepare get query")
@@ -87,7 +87,7 @@ func (p *Protocol) GetAverageProductivity(startEpoch uint64, epochCount uint64) 
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityViewName)
+	getQuery := fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
