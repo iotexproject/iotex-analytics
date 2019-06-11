@@ -50,11 +50,11 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(24), uint64(36), uint64(15))
+	p := NewProtocol(store, uint64(1), uint64(1), uint64(1))
 
 	require.NoError(p.CreateTables(ctx))
 
-	blk1, err := testutil.BuildCompleteBlock(uint64(1), uint64(361))
+	blk1, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
 
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
@@ -72,7 +72,7 @@ func TestProtocol(t *testing.T) {
 	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
@@ -111,6 +111,31 @@ func TestProtocol(t *testing.T) {
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk1)
+	}))
+
+	blk2, err := testutil.BuildEmptyBlock(2)
+	require.NoError(err)
+
+	readStateRequest = &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("GetGravityChainStartHeight"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(blk2.Height())},
+	}
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: byteutil.Uint64ToBytes(uint64(1100)),
+	}, nil)
+
+	readStateRequest = &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("ActiveBlockProducersByEpoch"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(2))},
+	}
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: data,
+	}, nil)
+
+	require.NoError(store.Transact(func(tx *sql.Tx) error {
+		return p.HandleBlock(ctx, tx, blk2)
 	}))
 
 	blockHistory, err := p.getBlockHistory(uint64(1))
