@@ -31,9 +31,9 @@ type Protocol struct {
 
 // RewardDistribution defines reward distribute info
 type RewardDistribution struct {
-	VoterEthAddress string
+	VoterEthAddress   string
 	VoterIotexAddress string
-	Amount       string
+	Amount            string
 }
 
 // TotalWeight defines a delegate's total weighted votes
@@ -44,8 +44,8 @@ type TotalWeight struct {
 
 // EpochFoundationReward defines a delegate's epoch reward and foundation bonus
 type EpochFoundationReward struct {
-	EpochNumber uint64
-	EpochReward string
+	EpochNumber     uint64
+	EpochReward     string
 	FoundationBonus string
 }
 
@@ -66,7 +66,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 
 	// Check existence
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
-		rewards.AccountRewardViewName), startEpoch, endEpoch, candidateName)
+		rewards.AccountRewardTableName), startEpoch, endEpoch, candidateName)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
 	}
@@ -75,7 +75,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 	}
 
 	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
-		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardViewName, startEpoch, endEpoch)
+		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to prepare get query")
@@ -92,7 +92,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 // GetBookkeeping get reward distribution info
 func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
-		return nil,  errors.New("votings protocol is unregistered")
+		return nil, errors.New("votings protocol is unregistered")
 	}
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
@@ -158,9 +158,9 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 			return nil, errors.New("failed to form IoTeX address from ETH address")
 		}
 		rewardDistribution = append(rewardDistribution, &RewardDistribution{
-			VoterEthAddress: voterAddr,
+			VoterEthAddress:   voterAddr,
 			VoterIotexAddress: ioAddress.String(),
-			Amount: rewardAmount.String(),
+			Amount:            rewardAmount.String(),
 		})
 	}
 	return rewardDistribution, nil
@@ -216,7 +216,7 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 
 	// Check existence
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name = ?",
-		rewards.AccountRewardViewName), startEpoch, endEpoch, delegateName)
+		rewards.AccountRewardTableName), startEpoch, endEpoch, delegateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to check if the row exists")
 	}
@@ -225,7 +225,7 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 	}
 
 	getQuery := fmt.Sprintf("SELECT epoch_number, epoch_reward, foundation_bonus FROM %s "+
-		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? ", rewards.AccountRewardViewName)
+		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? ", rewards.AccountRewardTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

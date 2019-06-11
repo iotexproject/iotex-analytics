@@ -34,12 +34,12 @@ const (
 	ProtocolID = "blocks"
 	// BlockHistoryTableName is the table name of block history
 	BlockHistoryTableName = "block_history"
-	// ProductivityViewName is the view name of block producers' productivity
-	ProductivityViewName = "productivity_history"
-	// ExpectedProducerViewName is a view required by productivity view
-	ExpectedProducerViewName = "expected_producer_view"
-	// ProducerViewName is a view required by productivity view
-	ProducerViewName = "producer_view"
+	// ProductivityTableName is the table name of block producers' productivity
+	ProductivityTableName = "productivity_history"
+	// ExpectedProducerTableName is a table required by productivity table
+	ExpectedProducerTableName = "expected_producer_history"
+	// ProducerTableName is a table required by productivity table
+	ProducerTableName = "producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
 )
@@ -115,25 +115,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, "+
-		"expected_producer_name, COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, "+
-		"expected_producer_name", ExpectedProducerViewName, BlockHistoryTableName)); err != nil {
-		return nil
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT epoch_number, producer_name, "+
-		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name", ProducerViewName, BlockHistoryTableName)); err != nil {
-		return nil
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s AS SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
-		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityViewName,
-		ExpectedProducerViewName, ProducerViewName)); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -153,6 +134,9 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.OperatorAddrToName == nil {
 		if err := p.updateDelegates(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
+		}
+		if err := p.rebuildProductivityTable(tx); err != nil {
+			return errors.Wrap(err, "failed to rebuild productivity table")
 		}
 	}
 	// log action index
@@ -231,7 +215,7 @@ func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?", ProductivityViewName)
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?", ProductivityTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -346,6 +330,45 @@ func (p *Protocol) updateDelegates(
 	p.ActiveBlockProducers = []string{}
 	for _, activeBlockProducer := range activeBlockProducers {
 		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
+	}
+
+	return nil
+}
+
+func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"expected_producer_name VARCHAR(255) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))",
+		ExpectedProducerTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, "+
+		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name",
+		ExpectedProducerTableName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"producer_name VARCHAR(255) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
+		ProducerTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, producer_name, "+
+		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name",
+		ProducerTableName, BlockHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"delegate_name VARCHAR(255) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) "+
+		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))",
+		ProductivityTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
+		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityTableName,
+		ExpectedProducerTableName, ProducerTableName)); err != nil {
+		return err
 	}
 
 	return nil

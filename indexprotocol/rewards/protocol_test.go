@@ -47,11 +47,11 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(24), uint64(15))
+	p := NewProtocol(store, uint64(1), uint64(1))
 
 	require.NoError(p.CreateTables(ctx))
 
-	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(361))
+	blk1, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
 
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
@@ -61,10 +61,10 @@ func TestProtocol(t *testing.T) {
 		ElectionClient: electionClient,
 	})
 
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(2).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
@@ -84,10 +84,16 @@ func TestProtocol(t *testing.T) {
 	)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
-		return p.HandleBlock(ctx, tx, blk)
+		return p.HandleBlock(ctx, tx, blk1)
 	}))
 
-	actionHash1 := blk.Actions[4].Hash()
+	blk2, err := testutil.BuildEmptyBlock(2)
+	require.NoError(err)
+	require.NoError(store.Transact(func(tx *sql.Tx) error {
+		return p.HandleBlock(ctx, tx, blk2)
+	}))
+
+	actionHash1 := blk1.Actions[4].Hash()
 	rewardHistoryList, err := p.getRewardHistory(hex.EncodeToString(actionHash1[:]))
 	require.NoError(err)
 	require.Equal(1, len(rewardHistoryList))
@@ -98,7 +104,7 @@ func TestProtocol(t *testing.T) {
 	require.Equal("0", rewardHistoryList[0].EpochReward)
 	require.Equal("0", rewardHistoryList[0].FoundationBonus)
 
-	actionHash2 := blk.Actions[5].Hash()
+	actionHash2 := blk1.Actions[5].Hash()
 	rewardHistoryList, err = p.getRewardHistory(hex.EncodeToString(actionHash2[:]))
 	require.NoError(err)
 	require.Equal(3, len(rewardHistoryList))
