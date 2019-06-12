@@ -36,7 +36,7 @@ const (
 	VotingResultTableName = "voting_result"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
 	EpochVoterIndexName = "epoch_voter_index"
-	// candidateVoterIndexName is the index name of candidate name and voter address on voting history table
+	// CandidateVoterIndexName is the index name of candidate name and voter address on voting history table
 	CandidateVoterIndexName = "candidate_voter_index"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting history/result table
 	EpochCandidateIndexName = "epoch_candidate_index"
