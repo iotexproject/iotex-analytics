@@ -34,12 +34,16 @@ const (
 	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
+	// AggregateVotingTable is the table name of voters' aggregate voting
+	AggregateVotingTable = "aggregate_voting"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
 	EpochVoterIndexName = "epoch_voter_index"
 	// CandidateVoterIndexName is the index name of candidate name and voter address on voting history table
 	CandidateVoterIndexName = "candidate_voter_index"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting history/result table
 	EpochCandidateIndexName = "epoch_candidate_index"
+	// EpochCandidateVoterIndexName is the index name of epoch number, candidate name, and voter address on aggregate voting table
+	EpochCandidateVoterIndexName = "epoch_candidate_voter_index"
 )
 
 type (
@@ -146,6 +150,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
+		if err := p.rebuildAggregateVotingTable(tx); err != nil {
+			return errors.Wrap(err, "failed to rebuild aggregate voting table")
+		}
+
 		indexCtx := indexcontext.MustGetIndexCtx(ctx)
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
@@ -322,5 +330,20 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0), "+
+		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
+		"voter_address, SUM(weighted_votes) FROM %s GROUP BY epoch_number, candidate_name, voter_address",
+		AggregateVotingTable, VotingHistoryTableName)); err != nil {
+		return err
+	}
+
 	return nil
 }
