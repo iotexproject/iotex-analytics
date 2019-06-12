@@ -258,8 +258,8 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 // voterVotes gets voters' address and weighted votes for the given delegate from start epoch to end epoch
 func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName string) (map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, SUM(weighted_votes) FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=? GROUP BY epoch_number, voter_address",
-		votings.VotingHistoryTableName)
+	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?",
+		votings.AggregateVotingTable)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
