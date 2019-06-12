@@ -34,9 +34,11 @@ const (
 	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
-	// EpochCandidateVoterIndexName is the index name of epoch number, voter address, and candidate name on voting history table
-	EpochCandidateVoterIndexName = "epoch_candidate_voter_index"
-	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting result table
+	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
+	EpochVoterIndexName = "epoch_voter_index"
+	// candidateVoterIndexName is the index name of candidate name and voter address on voting history table
+	CandidateVoterIndexName = "candidate_voter_index"
+	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting history/result table
 	EpochCandidateIndexName = "epoch_candidate_index"
 )
 
@@ -85,11 +87,29 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 
 	var exist uint64
 	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochCandidateVoterIndexName)).Scan(&exist); err != nil {
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
 	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, candidate_name, voter_address)", EpochCandidateVoterIndexName, VotingHistoryTableName)); err != nil {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, VotingHistoryTableName)); err != nil {
+			return err
+		}
+	}
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochVoterIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, voter_address)", EpochVoterIndexName, VotingHistoryTableName)); err != nil {
+			return err
+		}
+	}
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, CandidateVoterIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (candidate_name, voter_address)", CandidateVoterIndexName, VotingHistoryTableName)); err != nil {
 			return err
 		}
 	}
