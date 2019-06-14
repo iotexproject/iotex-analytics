@@ -14,6 +14,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
+	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -23,17 +24,18 @@ type Protocol struct {
 	indexer *indexservice.Indexer
 }
 
-// VotingInfo defines voting infos
+// VotingInfo defines voting info
 type VotingInfo struct {
 	EpochNumber   uint64
 	VoterAddress  string
 	WeightedVotes string
 }
 
-// NumberOfCandidates defines number of candidates
-type NumberOfCandidates struct {
-	TotalCandidates    int
-	ConsensusDelegates int
+// CandidateMeta defines candidate mata data
+type CandidateMeta struct {
+	EpochNumber        uint64
+	NumberOfCandidates uint64
+	TotalWeightedVotes string
 }
 
 // NewProtocol creates a new protocol
@@ -41,108 +43,110 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
 }
 
-// GetVotingInformation gets voting infos
-func (p *Protocol) GetVotingInformation(epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
+// GetBucketInformation gets voting infos
+func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, delegateName string) (map[uint64][]*VotingInfo, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
-		err = errors.New("votings protocol is unregistered")
-		return
+		return nil, errors.New("votings protocol is unregistered")
 	}
+
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		return nil, errors.New("failed to get most recent epoch")
+	}
+	endEpoch := startEpoch + epochCount - 1
+	if endEpoch > currentEpoch {
+		endEpoch = currentEpoch
+	}
+
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, weighted_votes FROM %s WHERE epoch_number = ? and candidate_name = ?",
+
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
+		votings.VotingHistoryTableName), startEpoch, endEpoch, delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return nil, indexprotocol.ErrNotExist
+	}
+
+	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name = ?",
 		votings.VotingHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
+		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(epochNum, delegateName)
+	rows, err := stmt.Query(startEpoch, endEpoch, delegateName)
 	if err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var votingHistory VotingInfo
 	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
 	if err != nil {
-		err = errors.Wrap(err, "failed to parse results")
-		return
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 
 	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return
+		return nil, indexprotocol.ErrNotExist
 	}
 
+	bucketInfoMap := make(map[uint64][]*VotingInfo)
 	for _, parsedRow := range parsedRows {
 		voting := parsedRow.(*VotingInfo)
-		votingInfos = append(votingInfos, voting)
+		if _, ok := bucketInfoMap[voting.EpochNumber]; !ok {
+			bucketInfoMap[voting.EpochNumber] = make([]*VotingInfo, 0)
+		}
+		bucketInfoMap[voting.EpochNumber] = append(bucketInfoMap[voting.EpochNumber], voting)
 	}
-	return
+	return bucketInfoMap, nil
 }
 
-// GetNumberOfCandidates gets NumberOfCandidates infos
-func (p *Protocol) GetNumberOfCandidates(epochNumber uint64) (numberOfCandidates *NumberOfCandidates, err error) {
+// GetCandidateMeta gets candidate metadata
+func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*CandidateMeta, uint64, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
-		err = errors.New("votings protocol is unregistered")
-		return
+		return nil, 0, errors.New("votings protocol is unregistered")
+
 	}
 	db := p.indexer.Store.GetDB()
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get current epoch")
-		return
+		return nil, 0, errors.Wrap(err, "failed to get current epoch")
 	}
-	if epochNumber > currentEpoch {
-		err = errors.New("epoch number should not be greater than current epoch")
-		return
+	if startEpoch > currentEpoch {
+		return nil, 0, indexprotocol.ErrNotExist
 	}
-	getQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s where epoch_number=?", votings.VotingResultTableName)
+
+	endEpoch := startEpoch + epochCount - 1
+
+	getQuery := fmt.Sprintf("SELECT epoch_number, COUNT(delegate_name), SUM(total_weighted_votes) FROM %s where epoch_number >= ? AND epoch_number <= ? GROUP BY epoch_number", votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
+		return nil, 0, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
-	var totalCandidates int
-	if err = stmt.QueryRow(epochNumber).Scan(&totalCandidates); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	numberOfCandidates = &NumberOfCandidates{
-		totalCandidates,
-		int(p.indexer.Config.NumCandidateDelegates),
-	}
-	return
-}
-
-// GetNumberOfWeightedVotes gets number of weighted votes
-func (p *Protocol) GetNumberOfWeightedVotes(epochNumber uint64) (numberOfWeightedVotes string, err error) {
-	db := p.indexer.Store.GetDB()
-
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	rows, err := stmt.Query(startEpoch, endEpoch)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get current epoch")
-		return
-	}
-	if epochNumber > currentEpoch {
-		err = errors.New("epoch number should not be greater than current epoch")
-		return
+		return nil, 0, errors.Wrap(err, "failed to execute get query")
 	}
 
-	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes) FROM %s WHERE epoch_number=?", votings.VotingResultTableName)
-	stmt, err := db.Prepare(getQuery)
+	var candidateMeta CandidateMeta
+	parsedRows, err := s.ParseSQLRows(rows, &candidateMeta)
 	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
+		return nil, 0, errors.Wrap(err, "failed to parse results")
 	}
-	defer stmt.Close()
 
-	if err = stmt.QueryRow(epochNumber).Scan(&numberOfWeightedVotes); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
+	if len(parsedRows) == 0 {
+		return nil, 0, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
 	}
-	return
+
+	candidateMetaList := make([]*CandidateMeta, 0)
+	for _, parsedRow := range parsedRows {
+		candidateMeta := parsedRow.(*CandidateMeta)
+		candidateMetaList = append(candidateMetaList, candidateMeta)
+	}
+	return candidateMetaList, p.indexer.Config.NumCandidateDelegates, nil
 }

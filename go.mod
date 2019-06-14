@@ -34,9 +34,11 @@ require (
 	github.com/vektah/gqlparser v1.1.2
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190506204251-e1dfcc566284 // indirect
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190508100423-12bbe5a7a520 // indirect
 	golang.org/x/tools v0.0.0-20190508150211-cf84161cff3f // indirect
 	golang.org/x/xerrors v0.0.0-20190506180316-385005612d73 // indirect
+	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
 	google.golang.org/grpc v1.20.1
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0 // indirect

@@ -9,9 +9,15 @@ package graphql
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/pkg/errors"
+	"github.com/vektah/gqlparser/ast"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
@@ -22,7 +28,10 @@ import (
 // HexPrefix is the prefix of ERC20 address in hex string
 const HexPrefix = "0x"
 
-// Resolver is the resolver that handles graphql request
+// ErrPaginationNotFound is the error indicating that pagination is not specified
+var ErrPaginationNotFound = errors.New("Pagination information is not found")
+
+// Resolver is hte resolver that handles GraphQL request
 type Resolver struct {
 	PP *productivity.Protocol
 	RP *rewards.Protocol
@@ -38,64 +47,216 @@ func (r *Resolver) Query() QueryResolver {
 
 type queryResolver struct{ *Resolver }
 
-// Rewards handles GetAccountReward request
-func (r *queryResolver) Rewards(ctx context.Context, startEpoch int, epochCount int, candidateName string) (*Reward, error) {
-	blockReward, epochReward, foundationBonus, err := r.RP.GetAccountReward(uint64(startEpoch), uint64(epochCount), candidateName)
-	if err != nil {
+// Account handles account requests
+func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	accountResponse := &Account{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "activeAccounts") {
+		g.Go(func() error { return r.getActiveAccounts(ctx, accountResponse) })
+	}
+
+	return accountResponse, g.Wait()
+}
+
+// Chain handles chain requests
+func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	chainResponse := &Chain{}
+
+	if err := r.getLastEpochAndHeight(chainResponse); err != nil {
+		return nil, err
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "mostRecentTPS") {
+		g.Go(func() error { return r.getTPS(ctx, chainResponse) })
+	}
+	if containField(requestedFields, "numberOfActions") {
+		g.Go(func() error { return r.getNumberOfActions(ctx, chainResponse) })
+	}
+
+	return chainResponse, g.Wait()
+}
+
+// Voting handles voting requests
+func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount int) (*Voting, error) {
+	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(uint64(startEpoch), uint64(epochCount))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return &Voting{Exist: false}, nil
+	case err != nil:
 		return nil, errors.Wrap(err, "failed to get reward information")
 	}
-	return &Reward{
+	candidateMetaList := make([]*CandidateMeta, 0)
+	for _, candidateMeta := range cl {
+		candidateMetaList = append(candidateMetaList, &CandidateMeta{
+			EpochNumber:        int(candidateMeta.EpochNumber),
+			TotalCandidates:    int(candidateMeta.NumberOfCandidates),
+			ConsensusDelegates: int(numConsensusDelegates),
+			TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
+		})
+	}
+	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil
+}
+
+// Delegate handles delegate requests
+func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	delegateResponse := &Delegate{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "reward") {
+		g.Go(func() error { return r.getRewards(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "productivity") {
+		g.Go(func() error { return r.getProductivity(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "bookkeeping") {
+		g.Go(func() error { return r.getBookkeeping(ctx, delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "bucketInfo") {
+		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	return delegateResponse, g.Wait()
+}
+
+func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *Account) error {
+	argsMap := parseFieldArguments(ctx, "activeAccounts")
+	count, err := getIntArg(argsMap, "count")
+	if err != nil {
+		return errors.Wrap(err, "failed to get count for active accounts")
+	}
+	if count < 1 {
+		return errors.New("invalid count number")
+	}
+	accounts, err := r.AP.GetActiveAccount(count)
+	if err != nil {
+		return errors.Wrap(err, "failed to get active accounts information")
+	}
+	accountResponse.ActiveAccounts = accounts
+	return nil
+}
+
+func (r *queryResolver) getLastEpochAndHeight(chainResponse *Chain) error {
+	epoch, tipHeight, err := r.CP.GetLastEpochAndHeight()
+	if err != nil {
+		return errors.Wrap(err, "failed to get last epoch number and tip block height")
+	}
+	chainResponse.MostRecentEpoch = int(epoch)
+	chainResponse.MostRecentBlockHeight = int(tipHeight)
+	return nil
+}
+
+func (r *queryResolver) getTPS(ctx context.Context, chainResponse *Chain) error {
+	argsMap := parseFieldArguments(ctx, "mostRecentTPS")
+	blockWindow, err := getIntArg(argsMap, "blockWindow")
+	if err != nil {
+		return errors.Wrap(err, "failed to get blockWindow for TPS")
+	}
+	if blockWindow <= 0 {
+		return errors.New("invalid block window")
+	}
+	tps, err := r.CP.MostRecentTPS(uint64(blockWindow))
+	if err != nil {
+		return errors.Wrap(err, "failed to get most recent TPS")
+	}
+	chainResponse.MostRecentTps = tps
+	return nil
+}
+
+func (r *queryResolver) getNumberOfActions(ctx context.Context, chainResponse *Chain) error {
+	argsMap := parseFieldArguments(ctx, "numberOfActions")
+	paginationMap, err := getPaginationArgs(argsMap)
+	var numberOfActions uint64
+	switch {
+	case err == ErrPaginationNotFound:
+		numberOfActions, err = r.CP.GetNumberOfActions(uint64(1), uint64(chainResponse.MostRecentEpoch))
+		if err != nil {
+			return errors.Wrapf(err, "failed to get number of actions")
+		}
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for bookkeeping")
+	default:
+		startEpoch := paginationMap["startEpoch"]
+		epochCount := paginationMap["epochCount"]
+		if startEpoch < 1 || epochCount < 0 {
+			return errors.New("invalid start epoch number or epoch count for getting number of actions")
+		}
+		numberOfActions, err = r.CP.GetNumberOfActions(uint64(startEpoch), uint64(epochCount))
+		switch {
+		case errors.Cause(err) == indexprotocol.ErrNotExist:
+			chainResponse.NumberOfActions = &NumberOfActions{Exist: false}
+			return nil
+		case err != nil:
+			return errors.Wrap(err, "failed to get number of actions")
+		}
+	}
+	chainResponse.NumberOfActions = &NumberOfActions{Exist: true, Count: int(numberOfActions)}
+	return nil
+}
+
+func (r *queryResolver) getRewards(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	blockReward, epochReward, foundationBonus, err := r.RP.GetAccountReward(uint64(startEpoch), uint64(epochCount), delegateName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.Reward = &Reward{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward information")
+	}
+	delegateResponse.Reward = &Reward{
+		Exist:           true,
 		BlockReward:     blockReward,
 		EpochReward:     epochReward,
 		FoundationBonus: foundationBonus,
-	}, nil
+	}
+	return nil
 }
 
-// Productivity handles GetProductivityHistory request
-func (r *queryResolver) Productivity(ctx context.Context, startEpoch int, epochCount int, producerName string) (*Productivity, error) {
-	production, expectedProduction, err := r.PP.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), producerName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get productivity information")
+func (r *queryResolver) getProductivity(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	production, expectedProduction, err := r.PP.GetProductivityHistory(uint64(startEpoch), uint64(epochCount), delegateName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.Productivity = &Productivity{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get productivity information")
 	}
-	return &Productivity{
+	delegateResponse.Productivity = &Productivity{
+		Exist:              true,
 		Production:         production,
 		ExpectedProduction: expectedProduction,
-	}, nil
+	}
+	return nil
 }
 
-// ActiveAccount handles GetActiveAccount request
-func (r *queryResolver) ActiveAccount(ctx context.Context, count int) ([]string, error) {
-	return r.AP.GetActiveAccount(count)
-}
-
-// VotingInformation handles GetVotingInformation request
-func (r *queryResolver) VotingInformation(ctx context.Context, epochNum int, delegateName string) (votingInfos []*VotingInfo, err error) {
-	votingHistorys, err := r.VP.GetVotingInformation(epochNum, delegateName)
+func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	argsMap := parseFieldArguments(ctx, "bookkeeping")
+	percentage, err := getIntArg(argsMap, "percentage")
 	if err != nil {
-		err = errors.Wrap(err, "failed to get voting information")
-		return
+		return errors.Wrap(err, "failed to get percentage for bookkeeping")
 	}
-	for _, votingHistory := range votingHistorys {
-		v := &VotingInfo{
-			WeightedVotes:   votingHistory.WeightedVotes,
-			VoterEthAddress: HexPrefix + votingHistory.VoterAddress,
-		}
-		votingInfos = append(votingInfos, v)
+	includeFoundationBonus, err := getBoolArg(argsMap, "includeFoundationBonus")
+	if err != nil {
+		return errors.Wrap(err, "failed to get includeFoundationBonus for bookkeeping")
 	}
-	return
-}
 
-// Bookkeeping handles GetBookkeeping request
-func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCount int, delegateName string, percentage int, includeFoundationBonus bool) (rds []*RewardDistribution, err error) {
 	if percentage < 0 || percentage > 100 {
-		err = errors.New("percentage should be 0-100")
-		return
+		return errors.New("percentage should be 0-100")
 	}
+
 	rets, err := r.RP.GetBookkeeping(uint64(startEpoch), uint64(epochCount), delegateName, percentage, includeFoundationBonus)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get bookkeeping information")
-		return
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.Bookkeeping = &Bookkeeping{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get bookkeeping information")
 	}
+
+	rds := make([]*RewardDistribution, 0)
 	for _, ret := range rets {
 		v := &RewardDistribution{
 			VoterEthAddress:   HexPrefix + ret.VoterEthAddress,
@@ -104,58 +265,125 @@ func (r *queryResolver) Bookkeeping(ctx context.Context, startEpoch int, epochCo
 		}
 		rds = append(rds, v)
 	}
-	return
+
+	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
+
+	bookkeepingOutput := &Bookkeeping{Exist: true, Count: len(rds)}
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	case err == ErrPaginationNotFound:
+		bookkeepingOutput.RewardDistribution = rds
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for bookkeeping")
+	default:
+		skip := paginationMap["skip"]
+		first := paginationMap["first"]
+		if skip < 0 || skip >= len(rds) {
+			return errors.New("invalid pagination skip number for bookkeeping")
+		}
+		if len(rds)-skip < first {
+			first = len(rds) - skip
+		}
+		bookkeepingOutput.RewardDistribution = rds[skip : skip+first]
+	}
+	delegateResponse.Bookkeeping = bookkeepingOutput
+	return nil
 }
 
-// AverageProductivity handles AverageProductivity request
-func (r *queryResolver) AverageProductivity(ctx context.Context, startEpoch int, epochCount int) (averageProcucitvity string, err error) {
-	if startEpoch <= 0 || epochCount <= 0 {
-		err = errors.New("epoch num and count should be greater than 0")
-		return
+func (r *queryResolver) getBucketInfo(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	bucketMap, err := r.VP.GetBucketInformation(uint64(startEpoch), uint64(epochCount), delegateName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.BucketInfo = &BucketInfoOutput{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get voting bucket information")
 	}
-	ap, err := r.PP.GetAverageProductivity(uint64(startEpoch), uint64(epochCount))
+
+	bucketInfoLists := make([]*BucketInfoList, 0)
+	for epoch, bucketList := range bucketMap {
+		bucketInfoList := &BucketInfoList{EpochNumber: int(epoch), Count: len(bucketList)}
+		bucketInfo := make([]*BucketInfo, 0)
+		for _, bucket := range bucketList {
+			bucketInfo = append(bucketInfo, &BucketInfo{
+				VoterEthAddress: bucket.VoterAddress,
+				WeightedVotes:   bucket.WeightedVotes,
+			})
+		}
+		bucketInfoList.BucketInfo = bucketInfo
+		bucketInfoLists = append(bucketInfoLists, bucketInfoList)
+	}
+	sort.Slice(bucketInfoLists, func(i, j int) bool { return bucketInfoLists[i].EpochNumber < bucketInfoLists[j].EpochNumber })
+	delegateResponse.BucketInfo = &BucketInfoOutput{Exist: true, BucketInfoList: bucketInfoLists}
+	return nil
+}
+
+func (r *queryResolver) getNumberOfCandidates(delegateResponse *Delegate, startEpoch int, epochCount int) error {
+	return nil
+}
+
+func containField(requestedFields []string, field string) bool {
+	for _, f := range requestedFields {
+		if f == field {
+			return true
+		}
+	}
+	return false
+}
+
+func parseFieldArguments(ctx context.Context, fieldName string) map[string]*ast.Value {
+	fields := graphql.CollectFieldsCtx(ctx, nil)
+	var field graphql.CollectedField
+	for _, f := range fields {
+		if f.Name == fieldName {
+			field = f
+		}
+	}
+	arguments := field.Arguments
+	argsMap := make(map[string]*ast.Value)
+	for _, arg := range arguments {
+		argsMap[arg.Name] = arg.Value
+	}
+	return argsMap
+}
+
+func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
+	val, ok := argsMap[argName]
+	if !ok {
+		return 0, fmt.Errorf("%s is required", argName)
+	}
+	intVal, err := strconv.Atoi(val.Raw)
 	if err != nil {
-		return
+		return 0, fmt.Errorf("%s must be an integer", argName)
 	}
-	ap *= 100
-	averageProcucitvity = fmt.Sprintf("%.2f", ap)
-	return
+	return intVal, nil
 }
 
-// ChainMeta handles ChainMeta request
-func (r *queryResolver) ChainMeta(ctx context.Context, tpsBlockWindow int) (rets *ChainMeta, err error) {
-	if tpsBlockWindow <= 0 {
-		err = errors.New("TPS block window should be greater than 0")
-		return
+func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
+	val, ok := argsMap[argName]
+	if !ok {
+		return false, fmt.Errorf("%s is required", argName)
 	}
-	ret, err := r.CP.GetChainMeta(tpsBlockWindow)
+	boolVal, err := strconv.ParseBool(val.Raw)
 	if err != nil {
-		err = errors.Wrap(err, "failed to get chain meta")
-		return
+		return false, fmt.Errorf("%s must be a boolean value", argName)
 	}
-	rets = &ChainMeta{
-		ret.MostRecentEpoch,
-		ret.MostRecentBlockHeight,
-		ret.MostRecentTps,
-	}
-	return
+	return boolVal, nil
 }
 
-// NumberOfActions handles NumberOfActions request
-func (r *queryResolver) NumberOfActions(ctx context.Context, startEpoch int, epochCount int) (string, error) {
-	return r.CP.GetNumberOfActions(uint64(startEpoch), uint64(epochCount))
-}
-
-// NumberOfWeightedVotes handles NumberOfWeightedVotes request
-func (r *queryResolver) NumberOfWeightedVotes(ctx context.Context, epochNumber int) (string, error) {
-	return r.VP.GetNumberOfWeightedVotes(uint64(epochNumber))
-}
-
-// NumberOfCandidates handles NumberOfCandidates request
-func (r *queryResolver) NumberOfCandidates(ctx context.Context, epochNumber int) (*NumberOfCandidates, error) {
-	numberOfCandidates, err := r.VP.GetNumberOfCandidates(uint64(epochNumber))
-	if err != nil {
-		return nil, err
+func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
+	pagination, ok := argsMap["pagination"]
+	if !ok {
+		return nil, ErrPaginationNotFound
 	}
-	return &NumberOfCandidates{numberOfCandidates.TotalCandidates, numberOfCandidates.ConsensusDelegates}, nil
+	childValueList := pagination.Children
+	paginationMap := make(map[string]int)
+	for _, childValue := range childValueList {
+		intVal, err := strconv.Atoi(childValue.Value.Raw)
+		if err != nil {
+			return nil, errors.Wrap(err, "pagination value must be an integer")
+		}
+		paginationMap[childValue.Name] = intVal
+	}
+	return paginationMap, nil
 }

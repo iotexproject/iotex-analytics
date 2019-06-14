@@ -113,28 +113,13 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 	return
 }
 
-// GetChainMeta gets chain meta
-func (p *Protocol) GetChainMeta(ranges int) (chainMeta *ChainMeta, err error) {
-	currentEpoch, tipHeight, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get most recent block height")
-		return
-	}
-	tps, err := p.MostRecentTPS(uint64(ranges))
-	if err != nil {
-		err = errors.Wrap(err, "failed to get most recent TPS")
-		return
-	}
-	chainMeta = &ChainMeta{
-		fmt.Sprintf("%d", currentEpoch),
-		fmt.Sprintf("%d", tipHeight),
-		fmt.Sprintf("%d", tps),
-	}
-	return
+// GetLastEpochAndHeight gets last epoch number and block height
+func (p *Protocol) GetLastEpochAndHeight() (uint64, uint64, error) {
+	return chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
 }
 
 // GetNumberOfActions gets number of actions
-func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (numberOfActions string, err error) {
+func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (numberOfActions uint64, err error) {
 	db := p.indexer.Store.GetDB()
 
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
@@ -143,7 +128,7 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 		return
 	}
 	if startEpoch > currentEpoch {
-		err = errors.New("start epoch should not be greater than current epoch")
+		err = indexprotocol.ErrNotExist
 		return
 	}
 
