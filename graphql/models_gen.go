@@ -2,23 +2,76 @@
 
 package graphql
 
-type ChainMeta struct {
-	MostRecentEpoch       string `json:"mostRecentEpoch"`
-	MostRecentBlockHeight string `json:"mostRecentBlockHeight"`
-	MostRecentTps         string `json:"mostRecentTPS"`
+type Account struct {
+	ActiveAccounts []string `json:"activeAccounts"`
 }
 
-type NumberOfCandidates struct {
-	TotalCandidates    int `json:"totalCandidates"`
-	ConsensusDelegates int `json:"consensusDelegates"`
+type Bookkeeping struct {
+	Exist              bool                  `json:"exist"`
+	RewardDistribution []*RewardDistribution `json:"rewardDistribution"`
+	Count              int                   `json:"count"`
+}
+
+type BucketInfo struct {
+	VoterEthAddress string `json:"voterEthAddress"`
+	WeightedVotes   string `json:"weightedVotes"`
+}
+
+type BucketInfoList struct {
+	EpochNumber int           `json:"epochNumber"`
+	BucketInfo  []*BucketInfo `json:"bucketInfo"`
+	Count       int           `json:"count"`
+}
+
+type BucketInfoOutput struct {
+	Exist          bool              `json:"exist"`
+	BucketInfoList []*BucketInfoList `json:"bucketInfoList"`
+}
+
+type CandidateMeta struct {
+	EpochNumber        int    `json:"epochNumber"`
+	TotalCandidates    int    `json:"totalCandidates"`
+	ConsensusDelegates int    `json:"consensusDelegates"`
+	TotalWeightedVotes string `json:"totalWeightedVotes"`
+}
+
+type Chain struct {
+	MostRecentEpoch       int              `json:"mostRecentEpoch"`
+	MostRecentBlockHeight int              `json:"mostRecentBlockHeight"`
+	MostRecentTps         int              `json:"mostRecentTPS"`
+	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
+}
+
+type Delegate struct {
+	Reward       *Reward           `json:"reward"`
+	Productivity *Productivity     `json:"productivity"`
+	Bookkeeping  *Bookkeeping      `json:"bookkeeping"`
+	BucketInfo   *BucketInfoOutput `json:"bucketInfo"`
+}
+
+type EpochRange struct {
+	StartEpoch int `json:"startEpoch"`
+	EpochCount int `json:"epochCount"`
+}
+
+type NumberOfActions struct {
+	Exist bool `json:"exist"`
+	Count int  `json:"count"`
+}
+
+type Pagination struct {
+	Skip  int `json:"skip"`
+	First int `json:"first"`
 }
 
 type Productivity struct {
+	Exist              bool   `json:"exist"`
 	Production         string `json:"production"`
 	ExpectedProduction string `json:"expectedProduction"`
 }
 
 type Reward struct {
+	Exist           bool   `json:"exist"`
 	BlockReward     string `json:"blockReward"`
 	EpochReward     string `json:"epochReward"`
 	FoundationBonus string `json:"foundationBonus"`
@@ -30,7 +83,7 @@ type RewardDistribution struct {
 	Amount            string `json:"amount"`
 }
 
-type VotingInfo struct {
-	VoterEthAddress string `json:"voterEthAddress"`
-	WeightedVotes   string `json:"weightedVotes"`
+type Voting struct {
+	Exist         bool             `json:"exist"`
+	CandidateMeta []*CandidateMeta `json:"candidateMeta"`
 }

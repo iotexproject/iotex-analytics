@@ -1,30 +1,59 @@
 type Query {
-    rewards(startEpoch: Int!, epochCount: Int!, candidateName: String!): Reward
-    productivity(startEpoch: Int!, epochCount: Int!, producerName: String!): Productivity
-    activeAccount(count: Int!):[String!]
-    votingInformation(epochNum: Int!, delegateName: String!):[VotingInfo]
-    bookkeeping(startEpoch: Int!, epochCount: Int!, delegateName: String!, percentage: Int!, includeFoundationBonus:Boolean!):[RewardDistribution]
-    averageProductivity(startEpoch: Int!, epochCount: Int!):String!
-    chainMeta(tpsBlockWindow: Int!): ChainMeta
-    numberOfActions(startEpoch: Int!, epochCount: Int!):String!
-    numberOfWeightedVotes(epochNumber: Int!):String!
-    numberOfCandidates(epochNumber: Int!): NumberOfCandidates
+    account: Account
+    chain: Chain
+    delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
+    voting(startEpoch: Int!, epochCount: Int!): Voting
+}
+
+type Account {
+    activeAccounts(count: Int!): [String!]
+}
+
+type Delegate {
+    reward: Reward
+    productivity: Productivity
+    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!, pagination: Pagination): Bookkeeping
+    bucketInfo: BucketInfoOutput
+}
+
+type Voting {
+    exist: Boolean!
+    candidateMeta: [CandidateMeta]!
 }
 
 type Reward {
+    exist: Boolean!
     blockReward: String!
     epochReward: String!
     foundationBonus: String!
 }
 
 type Productivity {
+    exist: Boolean!
     production: String!
     expectedProduction: String!
 }
 
-type VotingInfo {
+type BucketInfo {
     voterEthAddress: String!
     weightedVotes: String!
+}
+
+type Bookkeeping {
+    exist: Boolean!
+    rewardDistribution: [RewardDistribution]!
+    count: Int!
+}
+
+type BucketInfoOutput {
+    exist: Boolean!
+    bucketInfoList: [BucketInfoList]!
+}
+
+type BucketInfoList {
+    epochNumber: Int!
+    bucketInfo: [BucketInfo]!
+    count: Int!
 }
 
 type RewardDistribution {
@@ -33,13 +62,31 @@ type RewardDistribution {
     amount: String!
 }
 
-type ChainMeta {
-    mostRecentEpoch: String!
-    mostRecentBlockHeight: String!
-    mostRecentTPS: String!
+type Chain {
+    mostRecentEpoch: Int!
+    mostRecentBlockHeight: Int!
+    mostRecentTPS(blockWindow: Int!): Int!
+    numberOfActions(pagination: EpochRange): NumberOfActions
 }
 
-type NumberOfCandidates{
+type NumberOfActions{
+    exist: Boolean!
+    count: Int!
+}
+
+type CandidateMeta{
+    epochNumber: Int!
     totalCandidates: Int!
     consensusDelegates: Int!
+    totalWeightedVotes: String!
+}
+
+input Pagination{
+    skip: Int!
+    first: Int!
+}
+
+input EpochRange{
+    startEpoch: Int!
+    epochCount: Int!
 }
