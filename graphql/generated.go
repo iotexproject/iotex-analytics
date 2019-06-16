@@ -47,7 +47,7 @@ type ComplexityRoot struct {
 	Bookkeeping struct {
 		Count              func(childComplexity int) int
 		Exist              func(childComplexity int) int
-		RewardDistribution func(childComplexity int) int
+		RewardDistribution func(childComplexity int, pagination *Pagination) int
 	}
 
 	BucketInfo struct {
@@ -81,7 +81,7 @@ type ComplexityRoot struct {
 	}
 
 	Delegate struct {
-		Bookkeeping  func(childComplexity int, percentage int, includeFoundationBonus bool, pagination *Pagination) int
+		Bookkeeping  func(childComplexity int, percentage int, includeFoundationBonus bool) int
 		BucketInfo   func(childComplexity int) int
 		Productivity func(childComplexity int) int
 		Reward       func(childComplexity int) int
@@ -177,7 +177,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Bookkeeping.RewardDistribution(childComplexity), true
+		args, err := ec.field_Bookkeeping_rewardDistribution_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Bookkeeping.RewardDistribution(childComplexity, args["pagination"].(*Pagination)), true
 
 	case "BucketInfo.VoterEthAddress":
 		if e.complexity.BucketInfo.VoterEthAddress == nil {
@@ -304,7 +309,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Delegate.Bookkeeping(childComplexity, args["percentage"].(int), args["includeFoundationBonus"].(bool), args["pagination"].(*Pagination)), true
+		return e.complexity.Delegate.Bookkeeping(childComplexity, args["percentage"].(int), args["includeFoundationBonus"].(bool)), true
 
 	case "Delegate.BucketInfo":
 		if e.complexity.Delegate.BucketInfo == nil {
@@ -541,7 +546,7 @@ type Account {
 type Delegate {
     reward: Reward
     productivity: Productivity
-    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!, pagination: Pagination): Bookkeeping
+    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
 }
 
@@ -570,7 +575,7 @@ type BucketInfo {
 
 type Bookkeeping {
     exist: Boolean!
-    rewardDistribution: [RewardDistribution]!
+    rewardDistribution(pagination: Pagination): [RewardDistribution]!
     count: Int!
 }
 
@@ -639,6 +644,20 @@ func (ec *executionContext) field_Account_activeAccounts_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Bookkeeping_rewardDistribution_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Chain_mostRecentTPS_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -686,14 +705,6 @@ func (ec *executionContext) field_Delegate_bookkeeping_args(ctx context.Context,
 		}
 	}
 	args["includeFoundationBonus"] = arg1
-	var arg2 *Pagination
-	if tmp, ok := rawArgs["pagination"]; ok {
-		arg2, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pagination"] = arg2
 	return args, nil
 }
 
@@ -863,6 +874,13 @@ func (ec *executionContext) _Bookkeeping_rewardDistribution(ctx context.Context,
 		IsMethod: false,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Bookkeeping_rewardDistribution_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children

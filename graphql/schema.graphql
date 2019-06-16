@@ -12,7 +12,7 @@ type Account {
 type Delegate {
     reward: Reward
     productivity: Productivity
-    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!, pagination: Pagination): Bookkeeping
+    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
 }
 
@@ -41,7 +41,7 @@ type BucketInfo {
 
 type Bookkeeping {
     exist: Boolean!
-    rewardDistribution: [RewardDistribution]!
+    rewardDistribution(pagination: Pagination): [RewardDistribution]!
     count: Int!
 }
 

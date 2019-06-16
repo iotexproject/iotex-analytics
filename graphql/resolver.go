@@ -123,7 +123,7 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 }
 
 func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *Account) error {
-	argsMap := parseFieldArguments(ctx, "activeAccounts")
+	argsMap := parseFieldArguments(ctx, "activeAccounts", "")
 	count, err := getIntArg(argsMap, "count")
 	if err != nil {
 		return errors.Wrap(err, "failed to get count for active accounts")
@@ -150,7 +150,7 @@ func (r *queryResolver) getLastEpochAndHeight(chainResponse *Chain) error {
 }
 
 func (r *queryResolver) getTPS(ctx context.Context, chainResponse *Chain) error {
-	argsMap := parseFieldArguments(ctx, "mostRecentTPS")
+	argsMap := parseFieldArguments(ctx, "mostRecentTPS", "")
 	blockWindow, err := getIntArg(argsMap, "blockWindow")
 	if err != nil {
 		return errors.Wrap(err, "failed to get blockWindow for TPS")
@@ -167,7 +167,7 @@ func (r *queryResolver) getTPS(ctx context.Context, chainResponse *Chain) error 
 }
 
 func (r *queryResolver) getNumberOfActions(ctx context.Context, chainResponse *Chain) error {
-	argsMap := parseFieldArguments(ctx, "numberOfActions")
+	argsMap := parseFieldArguments(ctx, "numberOfActions", "")
 	paginationMap, err := getPaginationArgs(argsMap)
 	var numberOfActions uint64
 	switch {
@@ -233,7 +233,7 @@ func (r *queryResolver) getProductivity(delegateResponse *Delegate, startEpoch i
 }
 
 func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
-	argsMap := parseFieldArguments(ctx, "bookkeeping")
+	argsMap := parseFieldArguments(ctx, "bookkeeping", "rewardDistribution")
 	percentage, err := getIntArg(argsMap, "percentage")
 	if err != nil {
 		return errors.Wrap(err, "failed to get percentage for bookkeeping")
@@ -274,12 +274,12 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	case err == ErrPaginationNotFound:
 		bookkeepingOutput.RewardDistribution = rds
 	case err != nil:
-		return errors.Wrap(err, "failed to get pagination arguments for bookkeeping")
+		return errors.Wrap(err, "failed to get pagination arguments for reward distributions")
 	default:
 		skip := paginationMap["skip"]
 		first := paginationMap["first"]
 		if skip < 0 || skip >= len(rds) {
-			return errors.New("invalid pagination skip number for bookkeeping")
+			return errors.New("invalid pagination skip number for reward distributions")
 		}
 		if len(rds)-skip < first {
 			first = len(rds) - skip
@@ -331,7 +331,7 @@ func containField(requestedFields []string, field string) bool {
 	return false
 }
 
-func parseFieldArguments(ctx context.Context, fieldName string) map[string]*ast.Value {
+func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldName string) map[string]*ast.Value {
 	fields := graphql.CollectFieldsCtx(ctx, nil)
 	var field graphql.CollectedField
 	for _, f := range fields {
@@ -340,6 +340,15 @@ func parseFieldArguments(ctx context.Context, fieldName string) map[string]*ast.
 		}
 	}
 	arguments := field.Arguments
+	if selectedFieldName != "" {
+		fields = graphql.CollectFields(ctx, field.Selections, nil)
+		for _, f := range fields {
+			if f.Name == selectedFieldName {
+				field = f
+			}
+		}
+		arguments = append(arguments, field.Arguments...)
+	}
 	argsMap := make(map[string]*ast.Value)
 	for _, arg := range arguments {
 		argsMap[arg.Name] = arg.Value
