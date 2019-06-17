@@ -44,20 +44,10 @@ test: fmt
 clean:
 	@echo "Cleaning..."
 	$(ECHO_V)rm -rf ./bin/$(BUILD_TARGET_SERVER)
-	$(ECHO_V)rm -rf *analytics*.db
-	$(ECHO_V)rm -rf *analytics*.db-journal
 	$(ECHO_V)$(GOCLEAN) -i $(PKGS)
-
-.PHONY: reboot
-reboot:
-	$(ECHO_V)rm -rf *analytics*.db
-	$(ECHO_V)rm -rf *analytics*.db-journal
-	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
-	./bin/$(BUILD_TARGET_SERVER)
 
 .PHONY: run
 run:
-	$(ECHO_V)rm -rf *analytics*.db-journal
 	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
 	./bin/$(BUILD_TARGET_SERVER)
 
