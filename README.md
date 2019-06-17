@@ -2,7 +2,7 @@
 The independent service that analyzes data from IoTeX blockchain
 
 ## Run as a service
-1. If you put the project code under your `$GOPATH\src`, you will need to set up an environment variable
+1. If you put the project code under your `$GOPATH/src`, you will need to set up an environment variable
 ```
 export GO111MODULE=on
 ```
