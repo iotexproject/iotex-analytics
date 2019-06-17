@@ -131,14 +131,18 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.OperatorAddrToName == nil {
+	epochHeight := indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs)
+	if height == epochHeight || p.OperatorAddrToName == nil {
 		if err := p.updateDelegates(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
 		}
+	}
+	if height == epochHeight {
 		if err := p.rebuildProductivityTable(tx); err != nil {
 			return errors.Wrap(err, "failed to rebuild productivity table")
 		}
 	}
+
 	// log action index
 	var transferCount uint64
 	var executionCount uint64

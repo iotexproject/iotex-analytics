@@ -112,10 +112,13 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) || p.RewardAddrToName == nil {
+	epochHeight := indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs)
+	if height == epochHeight || p.RewardAddrToName == nil {
 		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
+	}
+	if height == epochHeight {
 		if err := p.rebuildAccountRewardTable(tx); err != nil {
 			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
