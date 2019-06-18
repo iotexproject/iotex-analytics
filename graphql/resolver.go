@@ -96,6 +96,7 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 			TotalCandidates:    int(candidateMeta.NumberOfCandidates),
 			ConsensusDelegates: int(numConsensusDelegates),
 			TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
+			VotedTokens:        candidateMeta.VotedTokens,
 		})
 	}
 	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil

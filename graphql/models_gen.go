@@ -33,6 +33,7 @@ type CandidateMeta struct {
 	TotalCandidates    int    `json:"totalCandidates"`
 	ConsensusDelegates int    `json:"consensusDelegates"`
 	TotalWeightedVotes string `json:"totalWeightedVotes"`
+	VotedTokens        string `json:"votedTokens"`
 }
 
 type Chain struct {

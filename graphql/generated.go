@@ -71,6 +71,7 @@ type ComplexityRoot struct {
 		EpochNumber        func(childComplexity int) int
 		TotalCandidates    func(childComplexity int) int
 		TotalWeightedVotes func(childComplexity int) int
+		VotedTokens        func(childComplexity int) int
 	}
 
 	Chain struct {
@@ -260,6 +261,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.CandidateMeta.TotalWeightedVotes(childComplexity), true
+
+	case "CandidateMeta.VotedTokens":
+		if e.complexity.CandidateMeta.VotedTokens == nil {
+			break
+		}
+
+		return e.complexity.CandidateMeta.VotedTokens(childComplexity), true
 
 	case "Chain.MostRecentBlockHeight":
 		if e.complexity.Chain.MostRecentBlockHeight == nil {
@@ -613,6 +621,7 @@ type CandidateMeta{
     totalCandidates: Int!
     consensusDelegates: Int!
     totalWeightedVotes: String!
+    votedTokens: String!
 }
 
 input Pagination{
@@ -1209,6 +1218,33 @@ func (ec *executionContext) _CandidateMeta_totalWeightedVotes(ctx context.Contex
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalWeightedVotes, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateMeta_votedTokens(ctx context.Context, field graphql.CollectedField, obj *CandidateMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VotedTokens, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -3064,6 +3100,11 @@ func (ec *executionContext) _CandidateMeta(ctx context.Context, sel ast.Selectio
 			}
 		case "totalWeightedVotes":
 			out.Values[i] = ec._CandidateMeta_totalWeightedVotes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "votedTokens":
+			out.Values[i] = ec._CandidateMeta_votedTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

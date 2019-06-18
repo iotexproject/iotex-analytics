@@ -79,6 +79,7 @@ type CandidateMeta{
     totalCandidates: Int!
     consensusDelegates: Int!
     totalWeightedVotes: String!
+    votedTokens: String!
 }
 
 input Pagination{
