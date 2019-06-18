@@ -70,8 +70,8 @@ type ComplexityRoot struct {
 		ConsensusDelegates func(childComplexity int) int
 		EpochNumber        func(childComplexity int) int
 		TotalCandidates    func(childComplexity int) int
-		TotalTokens        func(childComplexity int) int
 		TotalWeightedVotes func(childComplexity int) int
+		VotedTokens        func(childComplexity int) int
 	}
 
 	Chain struct {
@@ -86,7 +86,6 @@ type ComplexityRoot struct {
 		BucketInfo   func(childComplexity int) int
 		Productivity func(childComplexity int) int
 		Reward       func(childComplexity int) int
-		Staking      func(childComplexity int) int
 	}
 
 	NumberOfActions struct {
@@ -118,11 +117,6 @@ type ComplexityRoot struct {
 		Amount            func(childComplexity int) int
 		VoterEthAddress   func(childComplexity int) int
 		VoterIotexAddress func(childComplexity int) int
-	}
-
-	StakingInformation struct {
-		SelfStaking  func(childComplexity int) int
-		TotalStaking func(childComplexity int) int
 	}
 
 	Voting struct {
@@ -261,19 +255,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.CandidateMeta.TotalCandidates(childComplexity), true
 
-	case "CandidateMeta.TotalTokens":
-		if e.complexity.CandidateMeta.TotalTokens == nil {
-			break
-		}
-
-		return e.complexity.CandidateMeta.TotalTokens(childComplexity), true
-
 	case "CandidateMeta.TotalWeightedVotes":
 		if e.complexity.CandidateMeta.TotalWeightedVotes == nil {
 			break
 		}
 
 		return e.complexity.CandidateMeta.TotalWeightedVotes(childComplexity), true
+
+	case "CandidateMeta.VotedTokens":
+		if e.complexity.CandidateMeta.VotedTokens == nil {
+			break
+		}
+
+		return e.complexity.CandidateMeta.VotedTokens(childComplexity), true
 
 	case "Chain.MostRecentBlockHeight":
 		if e.complexity.Chain.MostRecentBlockHeight == nil {
@@ -345,13 +339,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Delegate.Reward(childComplexity), true
-
-	case "Delegate.Staking":
-		if e.complexity.Delegate.Staking == nil {
-			break
-		}
-
-		return e.complexity.Delegate.Staking(childComplexity), true
 
 	case "NumberOfActions.Count":
 		if e.complexity.NumberOfActions.Count == nil {
@@ -475,20 +462,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.RewardDistribution.VoterIotexAddress(childComplexity), true
 
-	case "StakingInformation.SelfStaking":
-		if e.complexity.StakingInformation.SelfStaking == nil {
-			break
-		}
-
-		return e.complexity.StakingInformation.SelfStaking(childComplexity), true
-
-	case "StakingInformation.TotalStaking":
-		if e.complexity.StakingInformation.TotalStaking == nil {
-			break
-		}
-
-		return e.complexity.StakingInformation.TotalStaking(childComplexity), true
-
 	case "Voting.CandidateMeta":
 		if e.complexity.Voting.CandidateMeta == nil {
 			break
@@ -583,12 +556,6 @@ type Delegate {
     productivity: Productivity
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
-    staking:[StakingInformation]!
-}
-
-type StakingInformation{
-    totalStaking:String!
-    selfStaking:String!
 }
 
 type Voting {
@@ -654,7 +621,7 @@ type CandidateMeta{
     totalCandidates: Int!
     consensusDelegates: Int!
     totalWeightedVotes: String!
-    totalTokens: String!
+    votedTokens: String!
 }
 
 input Pagination{
@@ -1264,7 +1231,7 @@ func (ec *executionContext) _CandidateMeta_totalWeightedVotes(ctx context.Contex
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _CandidateMeta_totalTokens(ctx context.Context, field graphql.CollectedField, obj *CandidateMeta) graphql.Marshaler {
+func (ec *executionContext) _CandidateMeta_votedTokens(ctx context.Context, field graphql.CollectedField, obj *CandidateMeta) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -1277,7 +1244,7 @@ func (ec *executionContext) _CandidateMeta_totalTokens(ctx context.Context, fiel
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.TotalTokens, nil
+		return obj.VotedTokens, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1511,33 +1478,6 @@ func (ec *executionContext) _Delegate_bucketInfo(ctx context.Context, field grap
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOBucketInfoOutput2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfoOutput(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Delegate_staking(ctx context.Context, field graphql.CollectedField, obj *Delegate) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Delegate",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Staking, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*StakingInformation)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNStakingInformation2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _NumberOfActions_exist(ctx context.Context, field graphql.CollectedField, obj *NumberOfActions) graphql.Marshaler {
@@ -2016,60 +1956,6 @@ func (ec *executionContext) _RewardDistribution_amount(ctx context.Context, fiel
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Amount, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _StakingInformation_totalStaking(ctx context.Context, field graphql.CollectedField, obj *StakingInformation) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "StakingInformation",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.TotalStaking, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _StakingInformation_selfStaking(ctx context.Context, field graphql.CollectedField, obj *StakingInformation) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "StakingInformation",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.SelfStaking, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -3217,8 +3103,8 @@ func (ec *executionContext) _CandidateMeta(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "totalTokens":
-			out.Values[i] = ec._CandidateMeta_totalTokens(ctx, field, obj)
+		case "votedTokens":
+			out.Values[i] = ec._CandidateMeta_votedTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -3291,11 +3177,6 @@ func (ec *executionContext) _Delegate(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._Delegate_bookkeeping(ctx, field, obj)
 		case "bucketInfo":
 			out.Values[i] = ec._Delegate_bucketInfo(ctx, field, obj)
-		case "staking":
-			out.Values[i] = ec._Delegate_staking(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3515,38 +3396,6 @@ func (ec *executionContext) _RewardDistribution(ctx context.Context, sel ast.Sel
 			}
 		case "amount":
 			out.Values[i] = ec._RewardDistribution_amount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
-var stakingInformationImplementors = []string{"StakingInformation"}
-
-func (ec *executionContext) _StakingInformation(ctx context.Context, sel ast.SelectionSet, obj *StakingInformation) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, stakingInformationImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("StakingInformation")
-		case "totalStaking":
-			out.Values[i] = ec._StakingInformation_totalStaking(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "selfStaking":
-			out.Values[i] = ec._StakingInformation_selfStaking(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -4002,43 +3851,6 @@ func (ec *executionContext) marshalNRewardDistribution2ᚕᚖgithubᚗcomᚋiote
 	return ret
 }
 
-func (ec *executionContext) marshalNStakingInformation2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx context.Context, sel ast.SelectionSet, v []*StakingInformation) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		rctx := &graphql.ResolverContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithResolverContext(ctx, rctx)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalOStakingInformation2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
-}
-
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -4438,17 +4250,6 @@ func (ec *executionContext) marshalORewardDistribution2ᚖgithubᚗcomᚋiotexpr
 		return graphql.Null
 	}
 	return ec._RewardDistribution(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOStakingInformation2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx context.Context, sel ast.SelectionSet, v StakingInformation) graphql.Marshaler {
-	return ec._StakingInformation(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOStakingInformation2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx context.Context, sel ast.SelectionSet, v *StakingInformation) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._StakingInformation(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
