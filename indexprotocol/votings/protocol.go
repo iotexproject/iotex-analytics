@@ -34,6 +34,10 @@ const (
 	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
+	//VotingHistoryViewName is the view name of voting history
+	VotingHistoryViewName = "voting_history_view"
+	//VotingResultViewName is the view name of voting result
+	VotingResultViewName = "voting_result_view"
 	// AggregateVotingTable is the table name of voters' aggregate voting
 	AggregateVotingTable = "aggregate_voting"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
@@ -134,6 +138,19 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
 			return err
 		}
+	}
+
+	//create views
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
+		"AS SELECT epoch_number,SUM(votes) AS total_tokens FROM %s GROUP BY epoch_number",
+		VotingHistoryViewName, VotingHistoryTableName)); err != nil {
+		return err
+	}
+
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
+		"AS SELECT epoch_number, COUNT(delegate_name) AS delegate_count, SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number",
+		VotingResultViewName, VotingResultTableName)); err != nil {
+		return err
 	}
 
 	return nil
