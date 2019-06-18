@@ -33,6 +33,7 @@ type CandidateMeta struct {
 	TotalCandidates    int    `json:"totalCandidates"`
 	ConsensusDelegates int    `json:"consensusDelegates"`
 	TotalWeightedVotes string `json:"totalWeightedVotes"`
+	TotalTokens        string `json:"totalTokens"`
 }
 
 type Chain struct {
@@ -43,10 +44,11 @@ type Chain struct {
 }
 
 type Delegate struct {
-	Reward       *Reward           `json:"reward"`
-	Productivity *Productivity     `json:"productivity"`
-	Bookkeeping  *Bookkeeping      `json:"bookkeeping"`
-	BucketInfo   *BucketInfoOutput `json:"bucketInfo"`
+	Reward       *Reward               `json:"reward"`
+	Productivity *Productivity         `json:"productivity"`
+	Bookkeeping  *Bookkeeping          `json:"bookkeeping"`
+	BucketInfo   *BucketInfoOutput     `json:"bucketInfo"`
+	Staking      []*StakingInformation `json:"staking"`
 }
 
 type EpochRange struct {
@@ -81,6 +83,11 @@ type RewardDistribution struct {
 	VoterEthAddress   string `json:"voterEthAddress"`
 	VoterIotexAddress string `json:"voterIotexAddress"`
 	Amount            string `json:"amount"`
+}
+
+type StakingInformation struct {
+	TotalStaking string `json:"totalStaking"`
+	SelfStaking  string `json:"selfStaking"`
 }
 
 type Voting struct {
