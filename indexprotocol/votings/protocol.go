@@ -36,12 +36,10 @@ const (
 	VotingResultTableName = "voting_result"
 	//VotingMetaTableName is the voting meta table
 	VotingMetaTableName = "voting_meta"
-	//VotingHistoryViewName is the view name of voting history
-	VotingHistoryViewName = "voting_history_view"
-	//VotingResultViewName is the view name of voting result
-	VotingResultViewName = "voting_result_view"
 	// AggregateVotingTable is the table name of voters' aggregate voting
 	AggregateVotingTable = "aggregate_voting"
+	// EpochIndexName is the index name of epoch number on voting meta table
+	EpochIndexName = "epoch_index"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
 	EpochVoterIndexName = "epoch_voter_index"
 	// CandidateVoterIndexName is the index name of candidate name and voter address on voting history table
@@ -140,19 +138,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
 			return err
 		}
-	}
-
-	//create views
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
-		"AS SELECT epoch_number,SUM(votes) AS total_tokens FROM %s GROUP BY epoch_number",
-		VotingHistoryViewName, VotingHistoryTableName)); err != nil {
-		return err
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
-		"AS SELECT epoch_number, COUNT(delegate_name) AS delegate_count, SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number",
-		VotingResultViewName, VotingResultTableName)); err != nil {
-		return err
 	}
 
 	return nil
@@ -354,7 +339,7 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 
 func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0), "+
+		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
 		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
 		return err
 	}
@@ -364,7 +349,8 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 		return err
 	}
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL)", VotingMetaTableName)); err != nil {
+		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
+		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT history_t.epoch_number, voted_token, "+
