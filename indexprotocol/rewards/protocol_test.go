@@ -98,7 +98,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.Equal(1, len(rewardHistoryList))
 	require.Equal(uint64(1), rewardHistoryList[0].EpochNumber)
-	require.Equal("alfa", rewardHistoryList[0].CandidateName)
+	require.Equal("616c6661", rewardHistoryList[0].CandidateName)
 	require.Equal(testutil.RewardAddr1, rewardHistoryList[0].RewardAddress)
 	require.Equal("16", rewardHistoryList[0].BlockReward)
 	require.Equal("0", rewardHistoryList[0].EpochReward)
@@ -109,7 +109,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.Equal(3, len(rewardHistoryList))
 
-	accountReward, err := p.getAccountReward(uint64(1), "alfa")
+	accountReward, err := p.getAccountReward(uint64(1), "616c6661")
 	require.NoError(err)
 	require.Equal("16", accountReward.BlockReward)
 	require.Equal("10", accountReward.EpochReward)

@@ -91,7 +91,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name VARCHAR(255) NOT NULL, "+
+		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name VARCHAR(24) NOT NULL, "+
 		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
 		return err
@@ -304,18 +304,14 @@ func (p *Protocol) updateCandidateRewardAddress(
 
 	p.RewardAddrToName = make(map[string]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
-		if err != nil {
-			return errors.Wrap(err, "failed to decode candidate name")
-		}
-		p.RewardAddrToName[candidate.RewardAddress] = string(candidateNameBytes)
+		p.RewardAddrToName[candidate.RewardAddress] = candidate.Name
 	}
 	return nil
 }
 
 func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx) error {
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(255) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
+		"candidate_name VARCHAR(24) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
 		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))", AccountRewardTableName, EpochCandidateIndexName)); err != nil {
 		return err
 	}
