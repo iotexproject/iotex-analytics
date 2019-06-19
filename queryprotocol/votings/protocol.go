@@ -122,7 +122,7 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 
 	endEpoch := startEpoch + epochCount - 1
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?", votings.EpochStatisticTableName)
+	getQuery := fmt.Sprintf("SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?", votings.VotingMetaTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to prepare get query")

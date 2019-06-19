@@ -34,8 +34,8 @@ const (
 	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
-	//EpochStatisticTableName is the epoch table
-	EpochStatisticTableName = "epoch_table"
+	//VotingMetaTableName is the voting meta table
+	VotingMetaTableName = "voting_meta"
 	//VotingHistoryViewName is the view name of voting history
 	VotingHistoryViewName = "voting_history_view"
 	//VotingResultViewName is the view name of voting result
@@ -364,12 +364,12 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 		return err
 	}
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL)", EpochStatisticTableName)); err != nil {
+		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL)", VotingMetaTableName)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT history_t.epoch_number, voted_token, "+
 		"delegate_count, total_weighted FROM (SELECT epoch_number,SUM(votes) AS voted_token FROM %s GROUP BY epoch_number) AS history_t INNER JOIN (SELECT epoch_number,COUNT(delegate_name) AS delegate_count,SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number) AS result_t ON history_t.epoch_number=result_t.epoch_number ",
-		EpochStatisticTableName, VotingHistoryTableName, VotingResultTableName)); err != nil {
+		VotingMetaTableName, VotingHistoryTableName, VotingResultTableName)); err != nil {
 		return err
 	}
 	return nil
