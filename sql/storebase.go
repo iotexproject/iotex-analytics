@@ -64,7 +64,7 @@ func (s *storeBase) Start(ctx context.Context) error {
 	}
 	db.Close()
 
-	db, err = sql.Open(s.driverName, s.connectStr+s.dbName)
+	db, err = sql.Open(s.driverName, s.connectStr+s.dbName+"?autocommit=false")
 	if err != nil {
 		return err
 	}
