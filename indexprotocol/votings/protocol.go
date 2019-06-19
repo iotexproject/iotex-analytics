@@ -38,6 +38,8 @@ const (
 	VotingHistoryViewName = "voting_history_view"
 	//VotingResultViewName is the view name of voting result
 	VotingResultViewName = "voting_result_view"
+	//EpochStatisticTableName is the table name of statistic result
+	EpochStatisticTableName = "epoch_table"
 	// AggregateVotingTable is the table name of voters' aggregate voting
 	AggregateVotingTable = "aggregate_voting"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
@@ -138,19 +140,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
 			return err
 		}
-	}
-
-	//create views
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
-		"AS SELECT epoch_number,SUM(votes) AS total_tokens FROM %s GROUP BY epoch_number",
-		VotingHistoryViewName, VotingHistoryTableName)); err != nil {
-		return err
-	}
-
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE OR REPLACE VIEW %s "+
-		"AS SELECT epoch_number, COUNT(delegate_name) AS delegate_count, SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number",
-		VotingResultViewName, VotingResultTableName)); err != nil {
-		return err
 	}
 
 	return nil
@@ -359,6 +348,18 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
 		"voter_address, SUM(weighted_votes) FROM %s GROUP BY epoch_number, candidate_name, voter_address",
 		AggregateVotingTable, VotingHistoryTableName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL)",
+		EpochStatisticTableName)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT t1.epoch_number,voted_token , "+
+		"delegate_count, total_weighted FROM (SELECT epoch_number,SUM(votes) AS voted_token FROM %s GROUP BY epoch_number)"+
+		"AS t1 INNER JOIN (SELECT epoch_number,COUNT(delegate_name) AS delegate_count, SUM(total_weighted_votes) AS total_weighted "+
+		"FROM %s GROUP BY epoch_number) AS t2 ON t1.epoch_number=t2.epoch_number",
+		EpochStatisticTableName, VotingHistoryTableName, VotingResultTableName)); err != nil {
 		return err
 	}
 
