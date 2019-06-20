@@ -67,6 +67,7 @@ type (
 		OperatorAddress    string
 		RewardAddress      string
 		TotalWeightedVotes string
+		SelfStaking        string
 	}
 )
 
@@ -123,8 +124,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(24) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
-		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL)",
+		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
+		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL)",
 		VotingResultTableName)); err != nil {
 		return err
 	}
@@ -315,12 +316,12 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 	valStrs := make([]string, 0, len(candidates))
 	valArgs := make([]interface{}, 0, len(candidates)*5)
 	for _, candidate := range candidates {
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes)
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes, candidate.SelfStakingTokens)
 	}
 
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
+		"total_weighted_votes, self_staking) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err

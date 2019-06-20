@@ -39,6 +39,12 @@ type CandidateMeta struct {
 	TotalWeightedVotes string
 }
 
+//StakingInfo defines staked information
+type StakingInfo struct {
+	TotalStaking string
+	SelfStaking  string
+}
+
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
@@ -103,6 +109,52 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 		bucketInfoMap[voting.EpochNumber] = append(bucketInfoMap[voting.EpochNumber], voting)
 	}
 	return bucketInfoMap, nil
+}
+
+//GetStaking get staked information
+func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName string) ([]*StakingInfo, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("votings protocol is unregistered")
+
+	}
+	db := p.indexer.Store.GetDB()
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get current epoch")
+	}
+	if startEpoch > currentEpoch {
+		return nil, indexprotocol.ErrNotExist
+	}
+
+	endEpoch := startEpoch + epochCount - 1
+
+	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes),SUM(self_staking) FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ? GROUP BY epoch_number", votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(startEpoch, endEpoch, delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var stakingInfo StakingInfo
+	parsedRows, err := s.ParseSQLRows(rows, &stakingInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
+	}
+	stakingInfoList := make([]*StakingInfo, 0)
+	for _, parsedRow := range parsedRows {
+		stakingInfo := parsedRow.(*StakingInfo)
+		stakingInfoList = append(stakingInfoList, stakingInfo)
+	}
+	return stakingInfoList, nil
 }
 
 // GetCandidateMeta gets candidate metadata
