@@ -158,7 +158,7 @@ func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, e
 	rl, err := r.VP.GetStaking(uint64(startEpoch), uint64(epochCount), delegateName)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		delegateResponse.Staking = &StakingStruct{Exist: false}
+		delegateResponse.Staking = &StakingOutput{Exist: false}
 		return nil
 	case err != nil:
 		return errors.Wrap(err, "failed to get reward information")
@@ -170,7 +170,7 @@ func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, e
 			SelfStaking:  stakingInfo.SelfStaking,
 		})
 	}
-	delegateResponse.Staking = &StakingStruct{
+	delegateResponse.Staking = &StakingOutput{
 		Exist:       true,
 		StakingInfo: stakingInfoList,
 	}

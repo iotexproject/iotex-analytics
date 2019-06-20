@@ -60,7 +60,7 @@ func main() {
 
 	connectionStr := os.Getenv("CONNECTION_STRING")
 	if connectionStr == "" {
-		connectionStr = "root:Hanyuqing99@tcp(127.0.0.1:3306)/"
+		connectionStr = "root:rootuser@tcp(127.0.0.1:3306)/"
 	}
 
 	dbName := os.Getenv("DB_NAME")

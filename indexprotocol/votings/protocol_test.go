@@ -148,7 +148,7 @@ func TestProtocol(t *testing.T) {
 	require.Equal("500", votingHistoryList[0].WeightedVotes)
 	require.Equal("1day", votingHistoryList[0].RemainingDuration)
 
-	votingResult, err := p.getVotingResult(uint64(1), "bravo")
+	votingResult, err := p.getVotingResult(uint64(1), "627261766f")
 	require.NoError(err)
 	require.Equal(testutil.Addr2, votingResult.OperatorAddress)
 	require.Equal(testutil.RewardAddr2, votingResult.RewardAddress)

@@ -48,7 +48,7 @@ type Delegate struct {
 	Productivity *Productivity     `json:"productivity"`
 	Bookkeeping  *Bookkeeping      `json:"bookkeeping"`
 	BucketInfo   *BucketInfoOutput `json:"bucketInfo"`
-	Staking      *StakingStruct    `json:"staking"`
+	Staking      *StakingOutput    `json:"staking"`
 }
 
 type EpochRange struct {
@@ -90,7 +90,7 @@ type StakingInformation struct {
 	SelfStaking  string `json:"selfStaking"`
 }
 
-type StakingStruct struct {
+type StakingOutput struct {
 	Exist       bool                  `json:"exist"`
 	StakingInfo []*StakingInformation `json:"stakingInfo"`
 }
