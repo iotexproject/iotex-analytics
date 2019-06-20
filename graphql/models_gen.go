@@ -86,6 +86,7 @@ type RewardDistribution struct {
 }
 
 type StakingInformation struct {
+	EpochNumber  int    `json:"epochNumber"`
 	TotalStaking string `json:"totalStaking"`
 	SelfStaking  string `json:"selfStaking"`
 }

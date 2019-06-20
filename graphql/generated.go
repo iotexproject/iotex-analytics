@@ -121,6 +121,7 @@ type ComplexityRoot struct {
 	}
 
 	StakingInformation struct {
+		EpochNumber  func(childComplexity int) int
 		SelfStaking  func(childComplexity int) int
 		TotalStaking func(childComplexity int) int
 	}
@@ -480,6 +481,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.RewardDistribution.VoterIotexAddress(childComplexity), true
 
+	case "StakingInformation.EpochNumber":
+		if e.complexity.StakingInformation.EpochNumber == nil {
+			break
+		}
+
+		return e.complexity.StakingInformation.EpochNumber(childComplexity), true
+
 	case "StakingInformation.SelfStaking":
 		if e.complexity.StakingInformation.SelfStaking == nil {
 			break
@@ -602,17 +610,18 @@ type Delegate {
     productivity: Productivity
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
-    staking:StakingOutput
+    staking: StakingOutput
 }
 
 type StakingOutput{
-    exist:Boolean!
-    stakingInfo:[StakingInformation]!
+    exist: Boolean!
+    stakingInfo: [StakingInformation]!
 }
 
 type StakingInformation{
-    totalStaking:String!
-    selfStaking:String!
+    epochNumber: Int!
+    totalStaking: String!
+    selfStaking: String!
 }
 
 type Voting {
@@ -2048,6 +2057,33 @@ func (ec *executionContext) _RewardDistribution_amount(ctx context.Context, fiel
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _StakingInformation_epochNumber(ctx context.Context, field graphql.CollectedField, obj *StakingInformation) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "StakingInformation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EpochNumber, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _StakingInformation_totalStaking(ctx context.Context, field graphql.CollectedField, obj *StakingInformation) graphql.Marshaler {
@@ -3612,6 +3648,11 @@ func (ec *executionContext) _StakingInformation(ctx context.Context, sel ast.Sel
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("StakingInformation")
+		case "epochNumber":
+			out.Values[i] = ec._StakingInformation_epochNumber(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "totalStaking":
 			out.Values[i] = ec._StakingInformation_totalStaking(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

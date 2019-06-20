@@ -14,17 +14,18 @@ type Delegate {
     productivity: Productivity
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
-    staking:StakingOutput
+    staking: StakingOutput
 }
 
 type StakingOutput{
-    exist:Boolean!
-    stakingInfo:[StakingInformation]!
+    exist: Boolean!
+    stakingInfo: [StakingInformation]!
 }
 
 type StakingInformation{
-    totalStaking:String!
-    selfStaking:String!
+    epochNumber: Int!
+    totalStaking: String!
+    selfStaking: String!
 }
 
 type Voting {

@@ -166,6 +166,7 @@ func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, e
 	stakingInfoList := make([]*StakingInformation, 0)
 	for _, stakingInfo := range rl {
 		stakingInfoList = append(stakingInfoList, &StakingInformation{
+			EpochNumber:  int(stakingInfo.EpochNumber),
 			TotalStaking: stakingInfo.TotalStaking,
 			SelfStaking:  stakingInfo.SelfStaking,
 		})

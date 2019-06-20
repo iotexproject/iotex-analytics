@@ -41,6 +41,7 @@ type CandidateMeta struct {
 
 //StakingInfo defines staked information
 type StakingInfo struct {
+	EpochNumber  uint64
 	TotalStaking string
 	SelfStaking  string
 }
@@ -118,17 +119,20 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 
 	}
 	db := p.indexer.Store.GetDB()
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get current epoch")
-	}
-	if startEpoch > currentEpoch {
-		return nil, indexprotocol.ErrNotExist
-	}
 
 	endEpoch := startEpoch + epochCount - 1
 
-	getQuery := fmt.Sprintf("SELECT SUM(total_weighted_votes),SUM(self_staking) FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ? GROUP BY epoch_number", votings.VotingResultTableName)
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+		votings.VotingResultTableName), startEpoch, endEpoch, delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return nil, indexprotocol.ErrNotExist
+	}
+
+	getQuery := fmt.Sprintf("SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?", votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
