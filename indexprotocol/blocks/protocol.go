@@ -32,13 +32,13 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "blocks"
 	// BlockHistoryTableName is the table name of block history
-	BlockHistoryTableName = "block_history"
+	BlockHistoryTableName = "temp_block_history"
 	// ProductivityTableName is the table name of block producers' productivity
-	ProductivityTableName = "productivity_history"
+	ProductivityTableName = "temp_productivity_history"
 	// ExpectedProducerTableName is a table required by productivity table
-	ExpectedProducerTableName = "expected_producer_history"
+	ExpectedProducerTableName = "temp_expected_producer_history"
 	// ProducerTableName is a table required by productivity table
-	ProducerTableName = "producer_history"
+	ProducerTableName = "temp_producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
 )

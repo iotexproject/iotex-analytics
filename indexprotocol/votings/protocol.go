@@ -30,13 +30,13 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "voting"
 	// VotingHistoryTableName is the table name of voting history
-	VotingHistoryTableName = "voting_history"
+	VotingHistoryTableName = "temp_voting_history"
 	// VotingResultTableName is the table name of voting result
-	VotingResultTableName = "voting_result"
+	VotingResultTableName = "temp_voting_result"
 	//VotingMetaTableName is the voting meta table
-	VotingMetaTableName = "voting_meta"
+	VotingMetaTableName = "temp_voting_meta"
 	// AggregateVotingTable is the table name of voters' aggregate voting
-	AggregateVotingTable = "aggregate_voting"
+	AggregateVotingTable = "temp_aggregate_voting"
 	// EpochIndexName is the index name of epoch number on voting meta table
 	EpochIndexName = "epoch_index"
 	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table

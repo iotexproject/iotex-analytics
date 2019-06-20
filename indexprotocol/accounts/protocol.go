@@ -21,9 +21,9 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "accounts"
 	// AccountHistoryTableName is the table name of account history
-	AccountHistoryTableName = "account_history"
+	AccountHistoryTableName = "temp_account_history"
 	// AccountBalanceViewName is the view name of account balance
-	AccountBalanceViewName = "account_balance"
+	AccountBalanceViewName = "temp_account_balance"
 	// EpochAddressIndexName is the index name of epoch number and address on account history table
 	EpochAddressIndexName = "epoch_address_index"
 )

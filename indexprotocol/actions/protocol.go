@@ -28,7 +28,7 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "actions"
 	// ActionHistoryTableName is the table name of action history
-	ActionHistoryTableName = "action_history"
+	ActionHistoryTableName = "temp_action_history"
 )
 
 type (

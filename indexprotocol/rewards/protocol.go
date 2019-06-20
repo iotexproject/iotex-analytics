@@ -37,9 +37,9 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "rewards"
 	// RewardHistoryTableName is the table name of reward history
-	RewardHistoryTableName = "reward_history"
+	RewardHistoryTableName = "temp_reward_history"
 	// AccountRewardTableName is the table name of account rewards
-	AccountRewardTableName = "account_reward"
+	AccountRewardTableName = "temp_account_reward"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on account reward view
 	EpochCandidateIndexName = "epoch_candidate_index"
 )
