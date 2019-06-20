@@ -125,6 +125,11 @@ type ComplexityRoot struct {
 		TotalStaking func(childComplexity int) int
 	}
 
+	StakingStruct struct {
+		Exist       func(childComplexity int) int
+		StakingInfo func(childComplexity int) int
+	}
+
 	Voting struct {
 		CandidateMeta func(childComplexity int) int
 		Exist         func(childComplexity int) int
@@ -489,6 +494,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.StakingInformation.TotalStaking(childComplexity), true
 
+	case "StakingStruct.Exist":
+		if e.complexity.StakingStruct.Exist == nil {
+			break
+		}
+
+		return e.complexity.StakingStruct.Exist(childComplexity), true
+
+	case "StakingStruct.StakingInfo":
+		if e.complexity.StakingStruct.StakingInfo == nil {
+			break
+		}
+
+		return e.complexity.StakingStruct.StakingInfo(childComplexity), true
+
 	case "Voting.CandidateMeta":
 		if e.complexity.Voting.CandidateMeta == nil {
 			break
@@ -583,7 +602,12 @@ type Delegate {
     productivity: Productivity
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
-    staking:[StakingInformation]!
+    staking:StakingStruct
+}
+
+type StakingStruct{
+    exist:Boolean!
+    stakingInfo:[StakingInformation]!
 }
 
 type StakingInformation{
@@ -1529,15 +1553,12 @@ func (ec *executionContext) _Delegate_staking(ctx context.Context, field graphql
 		return obj.Staking, nil
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.([]*StakingInformation)
+	res := resTmp.(*StakingStruct)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNStakingInformation2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx, field.Selections, res)
+	return ec.marshalOStakingStruct2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingStruct(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _NumberOfActions_exist(ctx context.Context, field graphql.CollectedField, obj *NumberOfActions) graphql.Marshaler {
@@ -2081,6 +2102,60 @@ func (ec *executionContext) _StakingInformation_selfStaking(ctx context.Context,
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _StakingStruct_exist(ctx context.Context, field graphql.CollectedField, obj *StakingStruct) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "StakingStruct",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _StakingStruct_stakingInfo(ctx context.Context, field graphql.CollectedField, obj *StakingStruct) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "StakingStruct",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StakingInfo, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*StakingInformation)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNStakingInformation2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Voting_exist(ctx context.Context, field graphql.CollectedField, obj *Voting) graphql.Marshaler {
@@ -3293,9 +3368,6 @@ func (ec *executionContext) _Delegate(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._Delegate_bucketInfo(ctx, field, obj)
 		case "staking":
 			out.Values[i] = ec._Delegate_staking(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3547,6 +3619,38 @@ func (ec *executionContext) _StakingInformation(ctx context.Context, sel ast.Sel
 			}
 		case "selfStaking":
 			out.Values[i] = ec._StakingInformation_selfStaking(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var stakingStructImplementors = []string{"StakingStruct"}
+
+func (ec *executionContext) _StakingStruct(ctx context.Context, sel ast.SelectionSet, obj *StakingStruct) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, stakingStructImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StakingStruct")
+		case "exist":
+			out.Values[i] = ec._StakingStruct_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "stakingInfo":
+			out.Values[i] = ec._StakingStruct_stakingInfo(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -4449,6 +4553,17 @@ func (ec *executionContext) marshalOStakingInformation2ᚖgithubᚗcomᚋiotexpr
 		return graphql.Null
 	}
 	return ec._StakingInformation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOStakingStruct2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingStruct(ctx context.Context, sel ast.SelectionSet, v StakingStruct) graphql.Marshaler {
+	return ec._StakingStruct(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOStakingStruct2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingStruct(ctx context.Context, sel ast.SelectionSet, v *StakingStruct) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._StakingStruct(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

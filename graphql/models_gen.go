@@ -44,11 +44,11 @@ type Chain struct {
 }
 
 type Delegate struct {
-	Reward       *Reward               `json:"reward"`
-	Productivity *Productivity         `json:"productivity"`
-	Bookkeeping  *Bookkeeping          `json:"bookkeeping"`
-	BucketInfo   *BucketInfoOutput     `json:"bucketInfo"`
-	Staking      []*StakingInformation `json:"staking"`
+	Reward       *Reward           `json:"reward"`
+	Productivity *Productivity     `json:"productivity"`
+	Bookkeeping  *Bookkeeping      `json:"bookkeeping"`
+	BucketInfo   *BucketInfoOutput `json:"bucketInfo"`
+	Staking      *StakingStruct    `json:"staking"`
 }
 
 type EpochRange struct {
@@ -88,6 +88,11 @@ type RewardDistribution struct {
 type StakingInformation struct {
 	TotalStaking string `json:"totalStaking"`
 	SelfStaking  string `json:"selfStaking"`
+}
+
+type StakingStruct struct {
+	Exist       bool                  `json:"exist"`
+	StakingInfo []*StakingInformation `json:"stakingInfo"`
 }
 
 type Voting struct {

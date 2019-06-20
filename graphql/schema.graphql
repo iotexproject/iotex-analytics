@@ -14,7 +14,12 @@ type Delegate {
     productivity: Productivity
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
-    staking:[StakingInformation]!
+    staking:StakingStruct
+}
+
+type StakingStruct{
+    exist:Boolean!
+    stakingInfo:[StakingInformation]!
 }
 
 type StakingInformation{
