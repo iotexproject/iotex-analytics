@@ -148,7 +148,34 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 	if containField(requestedFields, "bucketInfo") {
 		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
 	}
+	if containField(requestedFields, "staking") {
+		g.Go(func() error { return r.getStaking(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
 	return delegateResponse, g.Wait()
+}
+
+func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	rl, err := r.VP.GetStaking(uint64(startEpoch), uint64(epochCount), delegateName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.Staking = &StakingOutput{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward information")
+	}
+	stakingInfoList := make([]*StakingInformation, 0)
+	for _, stakingInfo := range rl {
+		stakingInfoList = append(stakingInfoList, &StakingInformation{
+			EpochNumber:  int(stakingInfo.EpochNumber),
+			TotalStaking: stakingInfo.TotalStaking,
+			SelfStaking:  stakingInfo.SelfStaking,
+		})
+	}
+	delegateResponse.Staking = &StakingOutput{
+		Exist:       true,
+		StakingInfo: stakingInfoList,
+	}
+	return nil
 }
 
 func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *Account) error {

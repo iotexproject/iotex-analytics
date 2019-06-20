@@ -48,6 +48,7 @@ type Delegate struct {
 	Productivity *Productivity     `json:"productivity"`
 	Bookkeeping  *Bookkeeping      `json:"bookkeeping"`
 	BucketInfo   *BucketInfoOutput `json:"bucketInfo"`
+	Staking      *StakingOutput    `json:"staking"`
 }
 
 type EpochRange struct {
@@ -82,6 +83,17 @@ type RewardDistribution struct {
 	VoterEthAddress   string `json:"voterEthAddress"`
 	VoterIotexAddress string `json:"voterIotexAddress"`
 	Amount            string `json:"amount"`
+}
+
+type StakingInformation struct {
+	EpochNumber  int    `json:"epochNumber"`
+	TotalStaking string `json:"totalStaking"`
+	SelfStaking  string `json:"selfStaking"`
+}
+
+type StakingOutput struct {
+	Exist       bool                  `json:"exist"`
+	StakingInfo []*StakingInformation `json:"stakingInfo"`
 }
 
 type Voting struct {
