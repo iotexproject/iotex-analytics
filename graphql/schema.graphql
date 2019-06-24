@@ -7,6 +7,8 @@ type Query {
 
 type Account {
     activeAccounts(count: Int!): [String!]
+    alias(operatorAddress: String!): Alias
+    operatorAddress(aliasName: String!): OperatorAddress
 }
 
 type Delegate {
@@ -19,6 +21,16 @@ type Delegate {
 type Voting {
     exist: Boolean!
     candidateMeta: [CandidateMeta]!
+}
+
+type Alias {
+    exist: Boolean!
+    aliasName: String!
+}
+
+type OperatorAddress {
+    exist: Boolean!
+    operatorAddress: String!
 }
 
 type Reward {

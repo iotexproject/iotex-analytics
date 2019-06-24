@@ -56,6 +56,12 @@ func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
 	if containField(requestedFields, "activeAccounts") {
 		g.Go(func() error { return r.getActiveAccounts(ctx, accountResponse) })
 	}
+	if containField(requestedFields, "alias") {
+		g.Go(func() error { return r.getAlias(ctx, accountResponse) })
+	}
+	if containField(requestedFields, "operatorAddress") {
+		g.Go(func() error { return r.getOperatorAddress(ctx, accountResponse) })
+	}
 
 	return accountResponse, g.Wait()
 }
@@ -100,6 +106,42 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 		})
 	}
 	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil
+}
+
+func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
+	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
+	aName := argsMap["aliasName"].Raw
+	opAddress, err := r.VP.GetOperatorAddress(aName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		accountResponse.OperatorAddress = &OperatorAddress{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward information")
+	}
+	accountResponse.OperatorAddress = &OperatorAddress{
+		Exist:           true,
+		OperatorAddress: opAddress,
+	}
+	return nil
+}
+
+func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) error {
+	argsMap := parseFieldArguments(ctx, "alias", "")
+	opAddress := argsMap["operatorAddress"].Raw
+	aliasName, err := r.VP.GetAlias(opAddress)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		accountResponse.Alias = &Alias{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward information")
+	}
+	accountResponse.Alias = &Alias{
+		Exist:     true,
+		AliasName: aliasName,
+	}
+	return nil
 }
 
 // Delegate handles delegate requests
