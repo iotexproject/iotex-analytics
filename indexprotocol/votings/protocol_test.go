@@ -140,7 +140,7 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	votingHistoryList, err := p.getVotingHistory(uint64(1), "alfa")
+	votingHistoryList, err := p.getVotingHistory(uint64(1), "616c6661")
 	require.NoError(err)
 	require.Equal(2, len(votingHistoryList))
 	require.Equal("voter1", votingHistoryList[0].VoterAddress)
@@ -148,7 +148,7 @@ func TestProtocol(t *testing.T) {
 	require.Equal("500", votingHistoryList[0].WeightedVotes)
 	require.Equal("1day", votingHistoryList[0].RemainingDuration)
 
-	votingResult, err := p.getVotingResult(uint64(1), "bravo")
+	votingResult, err := p.getVotingResult(uint64(1), "627261766f")
 	require.NoError(err)
 	require.Equal(testutil.Addr2, votingResult.OperatorAddress)
 	require.Equal(testutil.RewardAddr2, votingResult.RewardAddress)

@@ -9,7 +9,6 @@ package votings
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"strconv"
@@ -68,6 +67,7 @@ type (
 		OperatorAddress    string
 		RewardAddress      string
 		TotalWeightedVotes string
+		SelfStaking        string
 	}
 )
 
@@ -87,7 +87,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create voting history table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(epoch_number DECIMAL(65, 0) NOT NULL, candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, votes DECIMAL(65, 0) NOT NULL, "+
+		"(epoch_number DECIMAL(65, 0) NOT NULL, candidate_name VARCHAR(24) NOT NULL, voter_address VARCHAR(40) NOT NULL, votes DECIMAL(65, 0) NOT NULL, "+
 		"weighted_votes DECIMAL(65, 0) NOT NULL, remaining_duration TEXT NOT NULL)",
 		VotingHistoryTableName)); err != nil {
 		return err
@@ -125,7 +125,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
-		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL)",
+		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL)",
 		VotingResultTableName)); err != nil {
 		return err
 	}
@@ -184,11 +184,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get buckets by candidate in epoch %d", epochNumber)
 			}
 			buckets := getBucketsResponse.Buckets
-			candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
-			if err != nil {
-				return errors.Wrap(err, "failed to decode candidate name")
-			}
-			candidateToBuckets[string(candidateNameBytes)] = buckets
+			candidateToBuckets[candidate.Name] = buckets
 		}
 		if err := p.updateVotingHistory(tx, candidateToBuckets, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
@@ -318,18 +314,14 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64) error {
 	valStrs := make([]string, 0, len(candidates))
-	valArgs := make([]interface{}, 0, len(candidates)*5)
+	valArgs := make([]interface{}, 0, len(candidates)*6)
 	for _, candidate := range candidates {
-		candidateNameBytes, err := hex.DecodeString(strings.TrimSuffix(strings.TrimLeft(candidate.Name, "0"), "00"))
-		if err != nil {
-			return errors.Wrap(err, "failed to decode candidate name")
-		}
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, epochNumber, string(candidateNameBytes), candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes)
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes, candidate.SelfStakingTokens)
 	}
 
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
+		"total_weighted_votes, self_staking) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err

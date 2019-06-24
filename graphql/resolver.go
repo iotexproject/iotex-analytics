@@ -8,9 +8,11 @@ package graphql
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/pkg/errors"
@@ -30,6 +32,27 @@ const HexPrefix = "0x"
 
 // ErrPaginationNotFound is the error indicating that pagination is not specified
 var ErrPaginationNotFound = errors.New("Pagination information is not found")
+
+// InterpretDelegateName converts a delegate name input to an internal format
+func InterpretDelegateName(name string) (string, error) {
+	l := len(name)
+	switch {
+	case l == 24:
+		return name, nil
+	case l <= 12:
+		prefixZeros := []byte{}
+		for i := 0; i < 12-len(name); i++ {
+			prefixZeros = append(prefixZeros, byte(0))
+		}
+		suffixZeros := []byte{}
+		for strings.HasSuffix(name, "#") {
+			name = strings.TrimSuffix(name, "#")
+			suffixZeros = append(suffixZeros, byte(0))
+		}
+		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
+	}
+	return "", errors.Errorf("invalid length %d", l)
+}
 
 // Resolver is hte resolver that handles GraphQL request
 type Resolver struct {
@@ -149,6 +172,11 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 	requestedFields := graphql.CollectAllFields(ctx)
 	delegateResponse := &Delegate{}
 
+	delegateName, err := InterpretDelegateName(delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format delegate name")
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	if containField(requestedFields, "reward") {
 		g.Go(func() error { return r.getRewards(delegateResponse, startEpoch, epochCount, delegateName) })
@@ -162,7 +190,34 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 	if containField(requestedFields, "bucketInfo") {
 		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
 	}
+	if containField(requestedFields, "staking") {
+		g.Go(func() error { return r.getStaking(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
 	return delegateResponse, g.Wait()
+}
+
+func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	rl, err := r.VP.GetStaking(uint64(startEpoch), uint64(epochCount), delegateName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		delegateResponse.Staking = &StakingOutput{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward information")
+	}
+	stakingInfoList := make([]*StakingInformation, 0)
+	for _, stakingInfo := range rl {
+		stakingInfoList = append(stakingInfoList, &StakingInformation{
+			EpochNumber:  int(stakingInfo.EpochNumber),
+			TotalStaking: stakingInfo.TotalStaking,
+			SelfStaking:  stakingInfo.SelfStaking,
+		})
+	}
+	delegateResponse.Staking = &StakingOutput{
+		Exist:       true,
+		StakingInfo: stakingInfoList,
+	}
+	return nil
 }
 
 func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *Account) error {

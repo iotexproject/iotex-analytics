@@ -39,6 +39,13 @@ type CandidateMeta struct {
 	TotalWeightedVotes string
 }
 
+//StakingInfo defines staked information
+type StakingInfo struct {
+	EpochNumber  uint64
+	TotalStaking string
+	SelfStaking  string
+}
+
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
@@ -103,6 +110,102 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 		bucketInfoMap[voting.EpochNumber] = append(bucketInfoMap[voting.EpochNumber], voting)
 	}
 	return bucketInfoMap, nil
+}
+
+//GetStaking get staked information
+func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName string) ([]*StakingInfo, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("votings protocol is unregistered")
+
+	}
+	db := p.indexer.Store.GetDB()
+
+	endEpoch := startEpoch + epochCount - 1
+
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+		votings.VotingResultTableName), startEpoch, endEpoch, delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return nil, indexprotocol.ErrNotExist
+	}
+
+	getQuery := fmt.Sprintf("SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?", votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(startEpoch, endEpoch, delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var stakingInfo StakingInfo
+	parsedRows, err := s.ParseSQLRows(rows, &stakingInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
+	}
+	stakingInfoList := make([]*StakingInfo, 0)
+	for _, parsedRow := range parsedRows {
+		stakingInfo := parsedRow.(*StakingInfo)
+		stakingInfoList = append(stakingInfoList, stakingInfo)
+	}
+	return stakingInfoList, nil
+}
+
+// GetCandidateMeta gets candidate metadata
+func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*CandidateMeta, uint64, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, 0, errors.New("votings protocol is unregistered")
+
+	}
+	db := p.indexer.Store.GetDB()
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to get current epoch")
+	}
+	if startEpoch > currentEpoch {
+		return nil, 0, indexprotocol.ErrNotExist
+	}
+
+	endEpoch := startEpoch + epochCount - 1
+
+	getQuery := fmt.Sprintf("SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?", votings.VotingMetaTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(startEpoch, endEpoch)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var candidateMeta CandidateMeta
+	parsedRows, err := s.ParseSQLRows(rows, &candidateMeta)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, 0, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
+	}
+
+	candidateMetaList := make([]*CandidateMeta, 0)
+	for _, parsedRow := range parsedRows {
+		candidateMeta := parsedRow.(*CandidateMeta)
+		candidateMetaList = append(candidateMetaList, candidateMeta)
+	}
+	return candidateMetaList, p.indexer.Config.NumCandidateDelegates, nil
 }
 
 //GetAlias gets operator name
@@ -176,51 +279,4 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 	}
 
 	return address, nil
-}
-
-// GetCandidateMeta gets candidate metadata
-func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*CandidateMeta, uint64, error) {
-	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
-		return nil, 0, errors.New("votings protocol is unregistered")
-
-	}
-	db := p.indexer.Store.GetDB()
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to get current epoch")
-	}
-	if startEpoch > currentEpoch {
-		return nil, 0, indexprotocol.ErrNotExist
-	}
-
-	endEpoch := startEpoch + epochCount - 1
-
-	getQuery := fmt.Sprintf("SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?", votings.VotingMetaTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(startEpoch, endEpoch)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to execute get query")
-	}
-
-	var candidateMeta CandidateMeta
-	parsedRows, err := s.ParseSQLRows(rows, &candidateMeta)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to parse results")
-	}
-
-	if len(parsedRows) == 0 {
-		return nil, 0, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
-	}
-
-	candidateMetaList := make([]*CandidateMeta, 0)
-	for _, parsedRow := range parsedRows {
-		candidateMeta := parsedRow.(*CandidateMeta)
-		candidateMetaList = append(candidateMetaList, candidateMeta)
-	}
-	return candidateMetaList, p.indexer.Config.NumCandidateDelegates, nil
 }
