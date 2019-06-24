@@ -314,7 +314,7 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64) error {
 	valStrs := make([]string, 0, len(candidates))
-	valArgs := make([]interface{}, 0, len(candidates)*5)
+	valArgs := make([]interface{}, 0, len(candidates)*6)
 	for _, candidate := range candidates {
 		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
 		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes, candidate.SelfStakingTokens)
