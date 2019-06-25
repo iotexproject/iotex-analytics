@@ -33,8 +33,8 @@ const HexPrefix = "0x"
 // ErrPaginationNotFound is the error indicating that pagination is not specified
 var ErrPaginationNotFound = errors.New("Pagination information is not found")
 
-// InterpretDelegateName converts a delegate name input to an internal format
-func InterpretDelegateName(name string) (string, error) {
+// EncodeDelegateName converts a delegate name input to an internal format
+func EncodeDelegateName(name string) (string, error) {
 	l := len(name)
 	switch {
 	case l == 24:
@@ -52,6 +52,21 @@ func InterpretDelegateName(name string) (string, error) {
 		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
 	}
 	return "", errors.Errorf("invalid length %d", l)
+}
+
+// DecodeDelegateName converts format to readable delegate name
+func DecodeDelegateName(name string) (string, error) {
+	suffix := ""
+	for strings.HasSuffix(name, "0") {
+		name = strings.TrimSuffix(name, "0")
+		suffix += "#"
+	}
+	aliasBytes, err := hex.DecodeString(strings.TrimLeft(name, "0"))
+	if err != nil {
+		return "", err
+	}
+	aliasString := string(aliasBytes) + suffix
+	return aliasString, nil
 }
 
 // Resolver is hte resolver that handles GraphQL request
@@ -137,7 +152,7 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 	if !ok {
 		return fmt.Errorf("aliasName is required")
 	}
-	aName, err := InterpretDelegateName(val.Raw)
+	aName, err := EncodeDelegateName(val.Raw)
 	if err != nil {
 		return err
 	}
@@ -147,7 +162,7 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 		accountResponse.OperatorAddress = &OperatorAddress{Exist: false}
 		return nil
 	case err != nil:
-		return errors.Wrap(err, "failed to get reward information")
+		return errors.Wrap(err, "failed to get operator address")
 	}
 	accountResponse.OperatorAddress = &OperatorAddress{
 		Exist:           true,
@@ -169,15 +184,15 @@ func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) 
 		accountResponse.Alias = &Alias{Exist: false}
 		return nil
 	case err != nil:
-		return errors.Wrap(err, "failed to get reward information")
+		return errors.Wrap(err, "failed to get alias name")
 	}
-	aliasBytes, err := hex.DecodeString(strings.TrimLeft(aliasName, "0"))
+	aliasString, err := DecodeDelegateName(aliasName)
 	if err != nil {
 		return err
 	}
 	accountResponse.Alias = &Alias{
 		Exist:     true,
-		AliasName: string(aliasBytes),
+		AliasName: aliasString,
 	}
 	return nil
 }
@@ -187,7 +202,7 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 	requestedFields := graphql.CollectAllFields(ctx)
 	delegateResponse := &Delegate{}
 
-	delegateName, err := InterpretDelegateName(delegateName)
+	delegateName, err := EncodeDelegateName(delegateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to format delegate name")
 	}
