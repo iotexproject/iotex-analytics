@@ -3,7 +3,14 @@
 package graphql
 
 type Account struct {
-	ActiveAccounts []string `json:"activeAccounts"`
+	ActiveAccounts  []string         `json:"activeAccounts"`
+	Alias           *Alias           `json:"alias"`
+	OperatorAddress *OperatorAddress `json:"operatorAddress"`
+}
+
+type Alias struct {
+	Exist     bool   `json:"exist"`
+	AliasName string `json:"aliasName"`
 }
 
 type Bookkeeping struct {
@@ -59,6 +66,11 @@ type EpochRange struct {
 type NumberOfActions struct {
 	Exist bool `json:"exist"`
 	Count int  `json:"count"`
+}
+
+type OperatorAddress struct {
+	Exist           bool   `json:"exist"`
+	OperatorAddress string `json:"operatorAddress"`
 }
 
 type Pagination struct {

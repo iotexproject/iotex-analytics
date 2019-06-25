@@ -33,8 +33,8 @@ const HexPrefix = "0x"
 // ErrPaginationNotFound is the error indicating that pagination is not specified
 var ErrPaginationNotFound = errors.New("Pagination information is not found")
 
-// InterpretDelegateName converts a delegate name input to an internal format
-func InterpretDelegateName(name string) (string, error) {
+// EncodeDelegateName converts a delegate name input to an internal format
+func EncodeDelegateName(name string) (string, error) {
 	l := len(name)
 	switch {
 	case l == 24:
@@ -52,6 +52,21 @@ func InterpretDelegateName(name string) (string, error) {
 		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
 	}
 	return "", errors.Errorf("invalid length %d", l)
+}
+
+// DecodeDelegateName converts format to readable delegate name
+func DecodeDelegateName(name string) (string, error) {
+	suffix := ""
+	for strings.HasSuffix(name, "00") {
+		name = strings.TrimSuffix(name, "00")
+		suffix += "#"
+	}
+	aliasBytes, err := hex.DecodeString(strings.TrimLeft(name, "0"))
+	if err != nil {
+		return "", err
+	}
+	aliasString := string(aliasBytes) + suffix
+	return aliasString, nil
 }
 
 // Resolver is hte resolver that handles GraphQL request
@@ -78,6 +93,12 @@ func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	if containField(requestedFields, "activeAccounts") {
 		g.Go(func() error { return r.getActiveAccounts(ctx, accountResponse) })
+	}
+	if containField(requestedFields, "alias") {
+		g.Go(func() error { return r.getAlias(ctx, accountResponse) })
+	}
+	if containField(requestedFields, "operatorAddress") {
+		g.Go(func() error { return r.getOperatorAddress(ctx, accountResponse) })
 	}
 
 	return accountResponse, g.Wait()
@@ -125,12 +146,63 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil
 }
 
+func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
+	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
+	val, ok := argsMap["aliasName"]
+	if !ok {
+		return fmt.Errorf("aliasName is required")
+	}
+	aName, err := EncodeDelegateName(val.Raw)
+	if err != nil {
+		return err
+	}
+	opAddress, err := r.VP.GetOperatorAddress(aName)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		accountResponse.OperatorAddress = &OperatorAddress{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get operator address")
+	}
+	accountResponse.OperatorAddress = &OperatorAddress{
+		Exist:           true,
+		OperatorAddress: opAddress,
+	}
+	return nil
+}
+
+func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) error {
+	argsMap := parseFieldArguments(ctx, "alias", "")
+	val, ok := argsMap["operatorAddress"]
+	if !ok {
+		return fmt.Errorf("operatorAddress is required")
+	}
+	opAddress := val.Raw
+	aliasName, err := r.VP.GetAlias(opAddress)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		accountResponse.Alias = &Alias{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get alias name")
+	}
+	aliasString, err := DecodeDelegateName(aliasName)
+	if err != nil {
+		return err
+	}
+	accountResponse.Alias = &Alias{
+		Exist:     true,
+		AliasName: aliasString,
+	}
+	return nil
+}
+
 // Delegate handles delegate requests
 func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error) {
 	requestedFields := graphql.CollectAllFields(ctx)
 	delegateResponse := &Delegate{}
 
-	delegateName, err := InterpretDelegateName(delegateName)
+	delegateName, err := EncodeDelegateName(delegateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to format delegate name")
 	}

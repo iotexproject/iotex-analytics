@@ -41,7 +41,14 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Account struct {
-		ActiveAccounts func(childComplexity int, count int) int
+		ActiveAccounts  func(childComplexity int, count int) int
+		Alias           func(childComplexity int, operatorAddress string) int
+		OperatorAddress func(childComplexity int, aliasName string) int
+	}
+
+	Alias struct {
+		AliasName func(childComplexity int) int
+		Exist     func(childComplexity int) int
 	}
 
 	Bookkeeping struct {
@@ -92,6 +99,11 @@ type ComplexityRoot struct {
 	NumberOfActions struct {
 		Count func(childComplexity int) int
 		Exist func(childComplexity int) int
+	}
+
+	OperatorAddress struct {
+		Exist           func(childComplexity int) int
+		OperatorAddress func(childComplexity int) int
 	}
 
 	Productivity struct {
@@ -170,6 +182,44 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Account.ActiveAccounts(childComplexity, args["count"].(int)), true
+
+	case "Account.Alias":
+		if e.complexity.Account.Alias == nil {
+			break
+		}
+
+		args, err := ec.field_Account_alias_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Account.Alias(childComplexity, args["operatorAddress"].(string)), true
+
+	case "Account.OperatorAddress":
+		if e.complexity.Account.OperatorAddress == nil {
+			break
+		}
+
+		args, err := ec.field_Account_operatorAddress_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Account.OperatorAddress(childComplexity, args["aliasName"].(string)), true
+
+	case "Alias.AliasName":
+		if e.complexity.Alias.AliasName == nil {
+			break
+		}
+
+		return e.complexity.Alias.AliasName(childComplexity), true
+
+	case "Alias.Exist":
+		if e.complexity.Alias.Exist == nil {
+			break
+		}
+
+		return e.complexity.Alias.Exist(childComplexity), true
 
 	case "Bookkeeping.Count":
 		if e.complexity.Bookkeeping.Count == nil {
@@ -372,6 +422,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.NumberOfActions.Exist(childComplexity), true
+
+	case "OperatorAddress.Exist":
+		if e.complexity.OperatorAddress.Exist == nil {
+			break
+		}
+
+		return e.complexity.OperatorAddress.Exist(childComplexity), true
+
+	case "OperatorAddress.OperatorAddress":
+		if e.complexity.OperatorAddress.OperatorAddress == nil {
+			break
+		}
+
+		return e.complexity.OperatorAddress.OperatorAddress(childComplexity), true
 
 	case "Productivity.Exist":
 		if e.complexity.Productivity.Exist == nil {
@@ -603,6 +667,8 @@ var parsedSchema = gqlparser.MustLoadSchema(
 
 type Account {
     activeAccounts(count: Int!): [String!]
+    alias(operatorAddress: String!): Alias
+    operatorAddress(aliasName: String!): OperatorAddress
 }
 
 type Delegate {
@@ -627,6 +693,16 @@ type StakingInformation{
 type Voting {
     exist: Boolean!
     candidateMeta: [CandidateMeta]!
+}
+
+type Alias {
+    exist: Boolean!
+    aliasName: String!
+}
+
+type OperatorAddress {
+    exist: Boolean!
+    operatorAddress: String!
 }
 
 type Reward {
@@ -716,6 +792,34 @@ func (ec *executionContext) field_Account_activeAccounts_args(ctx context.Contex
 		}
 	}
 	args["count"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Account_alias_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["operatorAddress"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["operatorAddress"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Account_operatorAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["aliasName"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["aliasName"] = arg0
 	return args, nil
 }
 
@@ -910,6 +1014,122 @@ func (ec *executionContext) _Account_activeAccounts(ctx context.Context, field g
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOString2ᚕstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Account_alias(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Account",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Account_alias_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Alias, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*Alias)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOAlias2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAlias(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Account_operatorAddress(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Account",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Account_operatorAddress_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OperatorAddress, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*OperatorAddress)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOOperatorAddress2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐOperatorAddress(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Alias_exist(ctx context.Context, field graphql.CollectedField, obj *Alias) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Alias",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Alias_aliasName(ctx context.Context, field graphql.CollectedField, obj *Alias) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Alias",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AliasName, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Bookkeeping_exist(ctx context.Context, field graphql.CollectedField, obj *Bookkeeping) graphql.Marshaler {
@@ -1622,6 +1842,60 @@ func (ec *executionContext) _NumberOfActions_count(ctx context.Context, field gr
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _OperatorAddress_exist(ctx context.Context, field graphql.CollectedField, obj *OperatorAddress) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "OperatorAddress",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _OperatorAddress_operatorAddress(ctx context.Context, field graphql.CollectedField, obj *OperatorAddress) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "OperatorAddress",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OperatorAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Productivity_exist(ctx context.Context, field graphql.CollectedField, obj *Productivity) graphql.Marshaler {
@@ -3148,6 +3422,42 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = graphql.MarshalString("Account")
 		case "activeAccounts":
 			out.Values[i] = ec._Account_activeAccounts(ctx, field, obj)
+		case "alias":
+			out.Values[i] = ec._Account_alias(ctx, field, obj)
+		case "operatorAddress":
+			out.Values[i] = ec._Account_operatorAddress(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var aliasImplementors = []string{"Alias"}
+
+func (ec *executionContext) _Alias(ctx context.Context, sel ast.SelectionSet, obj *Alias) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, aliasImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Alias")
+		case "exist":
+			out.Values[i] = ec._Alias_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "aliasName":
+			out.Values[i] = ec._Alias_aliasName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3433,6 +3743,38 @@ func (ec *executionContext) _NumberOfActions(ctx context.Context, sel ast.Select
 			}
 		case "count":
 			out.Values[i] = ec._NumberOfActions_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var operatorAddressImplementors = []string{"OperatorAddress"}
+
+func (ec *executionContext) _OperatorAddress(ctx context.Context, sel ast.SelectionSet, obj *OperatorAddress) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, operatorAddressImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("OperatorAddress")
+		case "exist":
+			out.Values[i] = ec._OperatorAddress_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "operatorAddress":
+			out.Values[i] = ec._OperatorAddress_operatorAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -4417,6 +4759,17 @@ func (ec *executionContext) marshalOAccount2ᚖgithubᚗcomᚋiotexprojectᚋiot
 	return ec._Account(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOAlias2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAlias(ctx context.Context, sel ast.SelectionSet, v Alias) graphql.Marshaler {
+	return ec._Alias(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOAlias2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAlias(ctx context.Context, sel ast.SelectionSet, v *Alias) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Alias(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOBookkeeping2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBookkeeping(ctx context.Context, sel ast.SelectionSet, v Bookkeeping) graphql.Marshaler {
 	return ec._Bookkeeping(ctx, sel, &v)
 }
@@ -4538,6 +4891,17 @@ func (ec *executionContext) marshalONumberOfActions2ᚖgithubᚗcomᚋiotexproje
 		return graphql.Null
 	}
 	return ec._NumberOfActions(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOOperatorAddress2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐOperatorAddress(ctx context.Context, sel ast.SelectionSet, v OperatorAddress) graphql.Marshaler {
+	return ec._OperatorAddress(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOOperatorAddress2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐOperatorAddress(ctx context.Context, sel ast.SelectionSet, v *OperatorAddress) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._OperatorAddress(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx context.Context, v interface{}) (Pagination, error) {
