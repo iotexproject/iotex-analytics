@@ -133,7 +133,14 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
-	aName := argsMap["aliasName"].Raw
+	val, ok := argsMap["aliasName"]
+	if !ok {
+		return fmt.Errorf("aliasName is required")
+	}
+	aName, err := InterpretDelegateName(val.Raw)
+	if err != nil {
+		return err
+	}
 	opAddress, err := r.VP.GetOperatorAddress(aName)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -151,7 +158,11 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 
 func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "alias", "")
-	opAddress := argsMap["operatorAddress"].Raw
+	val, ok := argsMap["operatorAddress"]
+	if !ok {
+		return fmt.Errorf("operatorAddress is required")
+	}
+	opAddress := val.Raw
 	aliasName, err := r.VP.GetAlias(opAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -160,9 +171,13 @@ func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) 
 	case err != nil:
 		return errors.Wrap(err, "failed to get reward information")
 	}
+	aliasBytes, err := hex.DecodeString(strings.TrimLeft(aliasName, "0"))
+	if err != nil {
+		return err
+	}
 	accountResponse.Alias = &Alias{
 		Exist:     true,
-		AliasName: aliasName,
+		AliasName: string(aliasBytes),
 	}
 	return nil
 }

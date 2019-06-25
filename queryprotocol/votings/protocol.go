@@ -7,6 +7,7 @@
 package votings
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -216,16 +217,6 @@ func (p *Protocol) GetAlias(operatorAddress string) (string, error) {
 	}
 	db := p.indexer.Store.GetDB()
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1",
-		votings.VotingResultTableName), operatorAddress)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return "", indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1",
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
@@ -236,6 +227,9 @@ func (p *Protocol) GetAlias(operatorAddress string) (string, error) {
 
 	var name string
 	if err = stmt.QueryRow(operatorAddress).Scan(&name); err != nil {
+		if err == sql.ErrNoRows {
+			return "", indexprotocol.ErrNotExist
+		}
 		return "", errors.Wrap(err, "failed to execute get query")
 	}
 
@@ -249,21 +243,6 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 
 	}
 	db := p.indexer.Store.GetDB()
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get current epoch")
-	}
-	currentEpoch = currentEpoch - 1
-
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1",
-		votings.VotingResultTableName), aliasName)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return "", indexprotocol.ErrNotExist
-	}
 
 	getQuery := fmt.Sprintf("SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1",
 		votings.VotingResultTableName)
@@ -275,6 +254,9 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 
 	var address string
 	if err = stmt.QueryRow(aliasName).Scan(&address); err != nil {
+		if err == sql.ErrNoRows {
+			return "", indexprotocol.ErrNotExist
+		}
 		return "", errors.Wrap(err, "failed to execute get query")
 	}
 
