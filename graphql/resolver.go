@@ -57,8 +57,8 @@ func EncodeDelegateName(name string) (string, error) {
 // DecodeDelegateName converts format to readable delegate name
 func DecodeDelegateName(name string) (string, error) {
 	suffix := ""
-	for strings.HasSuffix(name, "0") {
-		name = strings.TrimSuffix(name, "0")
+	for strings.HasSuffix(name, "00") {
+		name = strings.TrimSuffix(name, "00")
 		suffix += "#"
 	}
 	aliasBytes, err := hex.DecodeString(strings.TrimLeft(name, "0"))
