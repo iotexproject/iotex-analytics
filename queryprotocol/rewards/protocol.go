@@ -8,18 +8,17 @@ package rewards
 
 import (
 	"fmt"
-	"github.com/iotexproject/iotex-address/address"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	qvotings "github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -63,7 +62,6 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 	db := p.indexer.Store.GetDB()
 
 	endEpoch := startEpoch + epochCount - 1
-
 	// Check existence
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
 		rewards.AccountRewardTableName), startEpoch, endEpoch, candidateName)
@@ -94,14 +92,8 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("votings protocol is unregistered")
 	}
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		return nil, errors.New("failed to get most recent epoch")
-	}
+
 	endEpoch := startEpoch + epochCount - 1
-	if endEpoch > currentEpoch {
-		endEpoch = currentEpoch
-	}
 	// Check existence
 	db := p.indexer.Store.GetDB()
 	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
@@ -127,11 +119,7 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 	}
 
 	voterAddrToReward := make(map[string]*big.Int)
-	for epoch := startEpoch; epoch <= endEpoch; epoch++ {
-		distrReward, ok := distrRewardMap[epoch]
-		if !ok {
-			continue
-		}
+	for epoch, distrReward := range distrRewardMap {
 		totalWeightedVotes, ok := delegateTotalVotesMap[epoch]
 		if !ok {
 			return nil, errors.Errorf("Missing delegate total weighted votes information on epoch %d", epoch)

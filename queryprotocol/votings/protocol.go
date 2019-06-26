@@ -15,7 +15,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -69,16 +68,6 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 
 	db := p.indexer.Store.GetDB()
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
-		votings.VotingHistoryTableName), startEpoch, endEpoch, delegateName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return nil, indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name = ?",
 		votings.VotingHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
@@ -97,7 +86,6 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
-
 	if len(parsedRows) == 0 {
 		return nil, indexprotocol.ErrNotExist
 	}
@@ -123,16 +111,6 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 
 	endEpoch := startEpoch + epochCount - 1
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
-		votings.VotingResultTableName), startEpoch, endEpoch, delegateName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return nil, indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?", votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -150,9 +128,8 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
-
 	if len(parsedRows) == 0 {
-		return nil, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
+		return nil, indexprotocol.ErrNotExist
 	}
 	stakingInfoList := make([]*StakingInfo, 0)
 	for _, parsedRow := range parsedRows {
@@ -169,13 +146,6 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 
 	}
 	db := p.indexer.Store.GetDB()
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to get current epoch")
-	}
-	if startEpoch > currentEpoch {
-		return nil, 0, indexprotocol.ErrNotExist
-	}
 
 	endEpoch := startEpoch + epochCount - 1
 
@@ -198,7 +168,7 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 	}
 
 	if len(parsedRows) == 0 {
-		return nil, 0, errors.Wrapf(err, "missing data in %s", votings.VotingResultTableName)
+		return nil, 0, indexprotocol.ErrNotExist
 	}
 
 	candidateMetaList := make([]*CandidateMeta, 0)

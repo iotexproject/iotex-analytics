@@ -14,7 +14,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -41,16 +40,6 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 
 	db := p.indexer.Store.GetDB()
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT `from` FROM %s",
-		actions.ActionHistoryTableName))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return nil, indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d", actions.ActionHistoryTableName, count)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -67,6 +56,10 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	parsedRows, err := s.ParseSQLRows(rows, &acc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
 	}
 
 	var addrs []string
