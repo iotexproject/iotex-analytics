@@ -7,11 +7,12 @@
 package rewards
 
 import (
+	"database/sql"
 	"fmt"
-	"github.com/iotexproject/iotex-address/address"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
@@ -64,16 +65,6 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 
 	endEpoch := startEpoch + epochCount - 1
 
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
-		rewards.AccountRewardTableName), startEpoch, endEpoch, candidateName)
-	if err != nil {
-		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return "", "", "", indexprotocol.ErrNotExist
-	}
-
 	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
 		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
@@ -84,6 +75,9 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 
 	var blockReward, epochReward, foundationBonus string
 	if err = stmt.QueryRow(candidateName).Scan(&blockReward, &epochReward, &foundationBonus); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", "", indexprotocol.ErrNotExist
+		}
 		return "", "", "", errors.Wrap(err, "failed to execute get query")
 	}
 	return blockReward, epochReward, foundationBonus, nil

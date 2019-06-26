@@ -7,13 +7,13 @@
 package chainmetautil
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -24,15 +24,6 @@ func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (
 		return uint64(0), uint64(0), errors.New("blocks protocol is unregistered")
 	}
 	db := store.GetDB()
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT epoch_number, block_height FROM %s",
-		blocks.BlockHistoryTableName))
-	if err != nil {
-		return uint64(0), uint64(0), errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return uint64(0), uint64(0), indexprotocol.ErrNotExist
-	}
 
 	getQuery := fmt.Sprintf("SELECT MAX(epoch_number),MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
@@ -44,6 +35,9 @@ func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (
 
 	var epoch, tipHeight uint64
 	if err = stmt.QueryRow().Scan(&epoch, &tipHeight); err != nil {
+		if err == sql.ErrNoRows {
+			return uint64(0), uint64(0), indexprotocol.ErrNotExist
+		}
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to execute get query")
 	}
 	return epoch, tipHeight, nil

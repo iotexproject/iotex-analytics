@@ -7,6 +7,7 @@
 package chainmeta
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -121,17 +122,6 @@ func (p *Protocol) GetLastEpochAndHeight() (uint64, uint64, error) {
 // GetNumberOfActions gets number of actions
 func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (numberOfActions uint64, err error) {
 	db := p.indexer.Store.GetDB()
-
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get current epoch")
-		return
-	}
-	if startEpoch > currentEpoch {
-		err = indexprotocol.ErrNotExist
-		return
-	}
-
 	endEpoch := startEpoch + epochCount - 1
 	getQuery := fmt.Sprintf("SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?", blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
@@ -142,6 +132,10 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 	defer stmt.Close()
 
 	if err = stmt.QueryRow(startEpoch, endEpoch).Scan(&numberOfActions); err != nil {
+		if err == sql.ErrNoRows {
+			err = indexprotocol.ErrNotExist
+			return
+		}
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
