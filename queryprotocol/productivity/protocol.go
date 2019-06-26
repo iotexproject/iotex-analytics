@@ -7,7 +7,6 @@
 package productivity
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -15,6 +14,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
+	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -44,6 +44,16 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 
 	endEpoch := startEpoch + epochCount - 1
 
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+		blocks.ProductivityTableName), startEpoch, endEpoch, producerName)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to check if the row exists")
+	}
+	if !exist {
+		return "", "", indexprotocol.ErrNotExist
+	}
+
 	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
 		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
@@ -54,9 +64,6 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 
 	var production, expectedProduction string
 	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
-		if err == sql.ErrNoRows {
-			return "", "", indexprotocol.ErrNotExist
-		}
 		return "", "", errors.Wrap(err, "failed to execute get query")
 	}
 	return production, expectedProduction, nil
