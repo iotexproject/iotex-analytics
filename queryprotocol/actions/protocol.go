@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -55,6 +56,10 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	parsedRows, err := s.ParseSQLRows(rows, &acc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
 	}
 
 	var addrs []string
