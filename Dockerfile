@@ -12,11 +12,10 @@ RUN go mod download
 COPY . .
 
 RUN rm -rf ./bin/server && \
-    rm -rf analytics.db && \
     go build -o ./bin/server -v . && \
     cp ./bin/server /usr/local/bin/iotex-server  && \
     mkdir -p /etc/iotex/ && \
     cp config.yaml /etc/iotex/config.yaml && \
     rm -rf apps/iotex-analytics/
 
-CMD [ "iotex-server", "-config=/etc/iotex/config.yaml", "-chain-endpoint=130.211.201.187:80", "-election-endpoint=35.232.228.38:8089"]
+CMD [ "iotex-server"]
