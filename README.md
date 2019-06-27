@@ -1,6 +1,14 @@
 # iotex-analytics
 The independent service that analyzes data from IoTeX blockchain
 
+## Get started
+
+### Minimum requirements
+
+| Components | Version | Description |
+|----------|-------------|-------------|
+| [Golang](https://golang.org) | &ge; 1.11.5 | Go programming language |
+
 ## Run as a service
 1. If you put the project code under your `$GOPATH/src`, you will need to set up an environment variable:
 ```
@@ -44,3 +52,33 @@ make run
 6. If you want to query analytical data through GraphQL playground, after starting the server, go to http://localhost:8089/
 
 You need to change the port number if you specify a different one. 
+
+## Start a service in Docker Container
+
+You can find the docker image on [docker hub](https://hub.docker.com/r/iotex/iotex-analytics).
+
+1. Pull the docker image:
+
+```
+docker pull iotex/iotex-analytics:v0.1.0
+```
+
+2. Run the following command to start a node:
+
+```
+docker run -d --restart on-failure --name analytics \
+        -p 8089:8089 \
+        -e CONFIG=/etc/iotex/config.yaml \
+        -e CHAIN_ENDPOINT=35.233.188.105:14014 \
+        -e ELECTION_ENDPOINT=35.233.188.105:8089 \
+        -e CONNECTION_STRING=root:rootuser@tcp(host.docker.internal:3306)/ \
+        -e DB_NAME=analytics \
+        iotex/iotex-analytics:v0.1.0 \
+        iotex-server
+```
+
+Note that you might need to change environment variables above based on your settings. 
+
+Now the service should be started successfully.
+
+
