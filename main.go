@@ -85,13 +85,13 @@ func main() {
 	}
 
 	http.Handle("/", graphqlHandler(handler.Playground("GraphQL playground", "/query")))
-	http.Handle("/query", handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
+	http.Handle("/query", graphqlHandler(handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
 		PP: productivity.NewProtocol(idx),
 		RP: rewards.NewProtocol(idx),
 		VP: votings.NewProtocol(idx),
 		AP: actions.NewProtocol(idx),
 		CP: chainmeta.NewProtocol(idx),
-	}})))
+	}}))))
 
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
 
