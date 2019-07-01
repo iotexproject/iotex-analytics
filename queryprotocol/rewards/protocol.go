@@ -124,6 +124,9 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 		if !ok {
 			return nil, errors.Errorf("Missing delegate total weighted votes information on epoch %d", epoch)
 		}
+		if totalWeightedVotes.Sign() == 0 {
+			continue
+		}
 		votersInfo, ok := epochToVotersMap[epoch]
 		if !ok {
 			return nil, errors.Errorf("Missing voters' weighted votes information on epoch %d", epoch)
@@ -185,9 +188,6 @@ func (p *Protocol) totalWeightedVotes(startEpoch uint64, endEpoch uint64, delega
 		bigIntVotes, err := stringToBigInt(votes.TotalWeight)
 		if err != nil {
 			return nil, errors.New("failed to covert string to big int")
-		}
-		if bigIntVotes.Sign() == 0 {
-			return nil, errors.New("total votes is 0")
 		}
 		totalVotesMap[votes.EpochNumber] = bigIntVotes
 	}
