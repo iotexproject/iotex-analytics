@@ -139,6 +139,9 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err != nil {
 				return errors.Wrap(err, "failed to get reward info from receipt")
 			}
+			if len(rewardInfoMap) == 0 {
+				continue
+			}
 			// Update reward info in DB
 			actionHash := hex.EncodeToString(receipt.ActionHash[:])
 			if err := p.updateRewardHistory(tx, epochNumber, actionHash, rewardInfoMap); err != nil {
