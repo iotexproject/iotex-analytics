@@ -62,12 +62,23 @@ type (
 
 	// VotingResult defines the schema of "voting result" table
 	VotingResult struct {
-		EpochNumber        uint64
-		DelegateName       string
-		OperatorAddress    string
-		RewardAddress      string
-		TotalWeightedVotes string
-		SelfStaking        string
+		EpochNumber               uint64
+		DelegateName              string
+		OperatorAddress           string
+		RewardAddress             string
+		TotalWeightedVotes        string
+		SelfStaking               string
+		BlockRewardPercentage     uint64
+		EpochRewardPercentage     uint64
+		FoundationBonusPercentage uint64
+	}
+
+	// AggregateVoting defines the schema of "aggregate voting" table
+	AggregateVoting struct {
+		EpochNumber    uint64
+		CandidateName  string
+		VoterAddress   string
+		AggregateVotes string
 	}
 )
 
@@ -125,7 +136,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create voting result table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
-		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL)",
+		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, "+
+		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100)",
 		VotingResultTableName)); err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ type Query {
     chain: Chain
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
+    hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): Hermes
 }
 
 type Account {
@@ -31,8 +32,25 @@ type StakingInformation{
 }
 
 type Voting {
+    votingMeta: VotingMeta
+    rewardSources(voterIotexAddress: String!): RewardSources
+}
+
+type Hermes {
+    exist: Boolean!
+    rewardDistribution(pagination: Pagination): [RewardDistribution]!
+    distributionCount: Int!
+    balanceAfterDistribution: [DelegateAmount]!
+}
+
+type VotingMeta {
     exist: Boolean!
     candidateMeta: [CandidateMeta]!
+}
+
+type RewardSources {
+    exist: Boolean!
+    delegateDistributions: [DelegateAmount]!
 }
 
 type Alias {
@@ -83,6 +101,11 @@ type BucketInfoList {
 type RewardDistribution {
     voterEthAddress: String!
     voterIotexAddress: String!
+    amount: String!
+}
+
+type DelegateAmount {
+    delegateName: String!
     amount: String!
 }
 

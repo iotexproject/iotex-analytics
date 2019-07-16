@@ -58,9 +58,21 @@ type Delegate struct {
 	Staking      *StakingOutput    `json:"staking"`
 }
 
+type DelegateAmount struct {
+	DelegateName string `json:"delegateName"`
+	Amount       string `json:"amount"`
+}
+
 type EpochRange struct {
 	StartEpoch int `json:"startEpoch"`
 	EpochCount int `json:"epochCount"`
+}
+
+type Hermes struct {
+	Exist                    bool                  `json:"exist"`
+	RewardDistribution       []*RewardDistribution `json:"rewardDistribution"`
+	DistributionCount        int                   `json:"distributionCount"`
+	BalanceAfterDistribution []*DelegateAmount     `json:"balanceAfterDistribution"`
 }
 
 type NumberOfActions struct {
@@ -97,6 +109,11 @@ type RewardDistribution struct {
 	Amount            string `json:"amount"`
 }
 
+type RewardSources struct {
+	Exist                 bool              `json:"exist"`
+	DelegateDistributions []*DelegateAmount `json:"delegateDistributions"`
+}
+
 type StakingInformation struct {
 	EpochNumber  int    `json:"epochNumber"`
 	TotalStaking string `json:"totalStaking"`
@@ -109,6 +126,11 @@ type StakingOutput struct {
 }
 
 type Voting struct {
+	VotingMeta    *VotingMeta    `json:"votingMeta"`
+	RewardSources *RewardSources `json:"rewardSources"`
+}
+
+type VotingMeta struct {
 	Exist         bool             `json:"exist"`
 	CandidateMeta []*CandidateMeta `json:"candidateMeta"`
 }

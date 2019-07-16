@@ -124,26 +124,105 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	return chainResponse, g.Wait()
 }
 
+// Delegate handles delegate requests
+func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	delegateResponse := &Delegate{}
+
+	delegateName, err := EncodeDelegateName(delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to format delegate name")
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "reward") {
+		g.Go(func() error { return r.getRewards(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "productivity") {
+		g.Go(func() error { return r.getProductivity(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "bookkeeping") {
+		g.Go(func() error { return r.getBookkeeping(ctx, delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "bucketInfo") {
+		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	if containField(requestedFields, "staking") {
+		g.Go(func() error { return r.getStaking(delegateResponse, startEpoch, epochCount, delegateName) })
+	}
+	return delegateResponse, g.Wait()
+}
+
 // Voting handles voting requests
 func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount int) (*Voting, error) {
-	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(uint64(startEpoch), uint64(epochCount))
+	requestedFields := graphql.CollectAllFields(ctx)
+	votingResponse := &Voting{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "votingMeta") {
+		g.Go(func() error { return r.getVotingMeta(votingResponse, startEpoch, epochCount) })
+	}
+	if containField(requestedFields, "rewardSources") {
+		g.Go(func() error { return r.getRewardSources(ctx, votingResponse, startEpoch, epochCount) })
+	}
+	return votingResponse, g.Wait()
+}
+
+// Hermes handles Hermes bookkeeping requests
+func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*Hermes, error) {
+	argsMap := parseFieldArguments(ctx, "rewardDistribution", "")
+	distributions, balances, err := r.RP.GetHermesBookkeeping(uint64(startEpoch), uint64(epochCount), rewardAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		return &Voting{Exist: false}, nil
+		return &Hermes{Exist: false}, nil
 	case err != nil:
-		return nil, errors.Wrap(err, "failed to get reward information")
+		return nil, errors.Wrap(err, "failed to get hermes bookkeeping information")
 	}
-	candidateMetaList := make([]*CandidateMeta, 0)
-	for _, candidateMeta := range cl {
-		candidateMetaList = append(candidateMetaList, &CandidateMeta{
-			EpochNumber:        int(candidateMeta.EpochNumber),
-			TotalCandidates:    int(candidateMeta.NumberOfCandidates),
-			ConsensusDelegates: int(numConsensusDelegates),
-			TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
-			VotedTokens:        candidateMeta.VotedTokens,
-		})
+
+	rds := make([]*RewardDistribution, 0)
+	for _, ret := range distributions {
+		v := &RewardDistribution{
+			VoterEthAddress:   HexPrefix + ret.VoterEthAddress,
+			VoterIotexAddress: ret.VoterIotexAddress,
+			Amount:            ret.Amount,
+		}
+		rds = append(rds, v)
 	}
-	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil
+	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
+
+	bals := make([]*DelegateAmount, 0)
+	for _, ret := range balances {
+		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode delegate name")
+		}
+		v := &DelegateAmount{
+			DelegateName: aliasString,
+			Amount:       ret.Amount,
+		}
+		bals = append(bals, v)
+	}
+	sort.Slice(bals, func(i, j int) bool { return bals[i].DelegateName < bals[j].DelegateName })
+
+	hermes := &Hermes{Exist: true, DistributionCount: len(rds), BalanceAfterDistribution: bals}
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	case err == ErrPaginationNotFound:
+		hermes.RewardDistribution = rds
+	case err != nil:
+		return nil, errors.Wrap(err, "failed to get pagination arguments for reward distributions")
+	default:
+		skip := paginationMap["skip"]
+		first := paginationMap["first"]
+		if skip < 0 || skip >= len(rds) {
+			return nil, errors.New("invalid pagination skip number for reward distributions")
+		}
+		if len(rds)-skip < first {
+			first = len(rds) - skip
+		}
+		hermes.RewardDistribution = rds[skip : skip+first]
+	}
+	return hermes, nil
 }
 
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
@@ -197,33 +276,64 @@ func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) 
 	return nil
 }
 
-// Delegate handles delegate requests
-func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error) {
-	requestedFields := graphql.CollectAllFields(ctx)
-	delegateResponse := &Delegate{}
+func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, epochCount int) error {
+	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(uint64(startEpoch), uint64(epochCount))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		votingResponse.VotingMeta = &VotingMeta{Exist: false}
+	case err != nil:
+		return errors.Wrap(err, "failed to get candidate metadata")
+	}
+	candidateMetaList := make([]*CandidateMeta, 0)
+	for _, candidateMeta := range cl {
+		candidateMetaList = append(candidateMetaList, &CandidateMeta{
+			EpochNumber:        int(candidateMeta.EpochNumber),
+			TotalCandidates:    int(candidateMeta.NumberOfCandidates),
+			ConsensusDelegates: int(numConsensusDelegates),
+			TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
+			VotedTokens:        candidateMeta.VotedTokens,
+		})
+	}
+	votingResponse.VotingMeta = &VotingMeta{
+		Exist:         true,
+		CandidateMeta: candidateMetaList,
+	}
+	return nil
+}
 
-	delegateName, err := EncodeDelegateName(delegateName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to format delegate name")
+func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Voting, startEpoch int, epochCount int) error {
+	argsMap := parseFieldArguments(ctx, "rewardSources", "")
+	val, ok := argsMap["voterIotexAddress"]
+	if !ok {
+		return fmt.Errorf("voter's IoTeX address is requried")
+	}
+	voterIotexAddress := val.Raw
+	delegateDistributions, err := r.RP.GetRewardSources(uint64(startEpoch), uint64(epochCount), voterIotexAddress)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		votingResponse.RewardSources = &RewardSources{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get reward sources for the voter")
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
-	if containField(requestedFields, "reward") {
-		g.Go(func() error { return r.getRewards(delegateResponse, startEpoch, epochCount, delegateName) })
+	delegateAmount := make([]*DelegateAmount, 0)
+	for _, ret := range delegateDistributions {
+		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode delegate name")
+		}
+		v := &DelegateAmount{
+			DelegateName: aliasString,
+			Amount:       ret.Amount,
+		}
+		delegateAmount = append(delegateAmount, v)
 	}
-	if containField(requestedFields, "productivity") {
-		g.Go(func() error { return r.getProductivity(delegateResponse, startEpoch, epochCount, delegateName) })
+	votingResponse.RewardSources = &RewardSources{
+		Exist:                 true,
+		DelegateDistributions: delegateAmount,
 	}
-	if containField(requestedFields, "bookkeeping") {
-		g.Go(func() error { return r.getBookkeeping(ctx, delegateResponse, startEpoch, epochCount, delegateName) })
-	}
-	if containField(requestedFields, "bucketInfo") {
-		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
-	}
-	if containField(requestedFields, "staking") {
-		g.Go(func() error { return r.getStaking(delegateResponse, startEpoch, epochCount, delegateName) })
-	}
-	return delegateResponse, g.Wait()
+	return nil
 }
 
 func (r *queryResolver) getStaking(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
