@@ -134,13 +134,11 @@ func (p *Protocol) GetContract(address string, numPerPage, page uint64) (ret []*
 }
 
 func parseData(data string) (to, amount string, err error) {
-	fmt.Println(len(data))
 	if len(data) != 136 {
 		err = errors.New("data's len is wrong")
 		return
 	}
 	addr := data[32:72]
-	fmt.Println(addr)
 	addrHash, err := hex.DecodeString(addr)
 	if err != nil {
 		return
@@ -151,7 +149,6 @@ func parseData(data string) (to, amount string, err error) {
 	}
 	to = callerAddr.String()
 	amountString := data[72:]
-	fmt.Println(amountString)
 	amountBig, ok := new(big.Int).SetString(amountString, 16)
 	if !ok {
 		err = errors.New("amount convert error")
