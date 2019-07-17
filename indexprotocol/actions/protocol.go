@@ -45,6 +45,7 @@ type (
 		Nonce         uint64
 		Amount        string
 		ReceiptStatus string
+		Data          string
 	}
 
 	// ActionInfo defines an action's information
@@ -57,6 +58,7 @@ type (
 		GasPrice    string
 		Nonce       uint64
 		Amount      string
+		Data        string
 	}
 
 	// ReceiptInfo defines a receipt's information
@@ -83,7 +85,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, "+
 		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, "+
-		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
+		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, data TEXT, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
@@ -111,7 +113,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		nonce := selp.Nonce()
 
 		act := selp.Action()
-		var actionType string
+		var actionType, data string
 		amount := "0"
 		if tsf, ok := act.(*action.Transfer); ok {
 			actionType = "transfer"
@@ -119,6 +121,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		} else if exec, ok := act.(*action.Execution); ok {
 			actionType = "execution"
 			amount = exec.Amount().String()
+			data = hex.EncodeToString(exec.Data())
 		} else if df, ok := act.(*action.DepositToRewardingFund); ok {
 			actionType = "depositToRewardingFund"
 			amount = df.Amount().String()
@@ -138,6 +141,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			GasPrice:   gasPrice,
 			Nonce:      nonce,
 			Amount:     amount,
+			Data:       data,
 		}
 	}
 
@@ -217,13 +221,13 @@ func (p *Protocol) updateActionHistory(
 		}
 		receiptInfo := hashToReceiptInfo[actionInfo.ReceiptHash]
 
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		valArgs = append(valArgs, actionInfo.ActionType, actionInfo.ActionHash, receiptInfo.ReceiptHash, block.Height(),
 			actionInfo.From, actionInfo.To, actionInfo.GasPrice, receiptInfo.GasConsumed, actionInfo.Nonce,
-			actionInfo.Amount, receiptInfo.ReceiptStatus)
+			actionInfo.Amount, receiptInfo.ReceiptStatus, actionInfo.Data)
 	}
 	insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
-		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s", ActionHistoryTableName, strings.Join(valStrs, ","))
+		"gas_price, gas_consumed, nonce, amount, receipt_status, data) VALUES %s", ActionHistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
