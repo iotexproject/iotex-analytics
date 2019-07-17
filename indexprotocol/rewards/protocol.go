@@ -231,6 +231,9 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHas
 		valStrs = append(valStrs, "(?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
 		valArgs = append(valArgs, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus)
 	}
+	if len(valArgs) == 0 {
+		return nil
+	}
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
 		"foundation_bonus) VALUES %s", RewardHistoryTableName, strings.Join(valStrs, ","))
 

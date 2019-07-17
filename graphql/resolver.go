@@ -146,6 +146,28 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 	return &Voting{Exist: true, CandidateMeta: candidateMetaList}, nil
 }
 
+// Contract handles Contract requests
+func (r *queryResolver) Contract(ctx context.Context, address string, numPerPage int, page int) ([]*Contract, error) {
+	Cons, err := r.AP.GetContract(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil, nil
+	case err != nil:
+		return nil, errors.Wrap(err, "failed to get contract information")
+	}
+	can := make([]*Contract, 0)
+	for _, c := range Cons {
+		can = append(can, &Contract{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+	return can, nil
+}
+
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
 	val, ok := argsMap["aliasName"]
