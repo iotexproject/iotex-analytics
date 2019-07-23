@@ -89,7 +89,7 @@ type RewardDistribution {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    mostRecentTPS(blockWindow: Int!): Int!
+    mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
 

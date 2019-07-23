@@ -46,7 +46,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // MostRecentTPS get most tps
-func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
+func (p *Protocol) MostRecentTPS(ranges uint64) (tps float64, err error) {
 	_, ok := p.indexer.Registry.Find(blocks.ProtocolID)
 	if !ok {
 		err = errors.New("blocks protocol is unregistered")
@@ -109,7 +109,7 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 	if timeDuration < 1 {
 		timeDuration = 1
 	}
-	tps = numActions / timeDuration
+	tps = float64(numActions) / float64(timeDuration)
 	return
 }
 

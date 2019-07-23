@@ -749,7 +749,7 @@ type RewardDistribution {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    mostRecentTPS(blockWindow: Int!): Int!
+    mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
 
@@ -1626,10 +1626,10 @@ func (ec *executionContext) _Chain_mostRecentTPS(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(float64)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Chain_numberOfActions(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
@@ -4442,6 +4442,14 @@ func (ec *executionContext) marshalNCandidateMeta2ᚕᚖgithubᚗcomᚋiotexproj
 	}
 	wg.Wait()
 	return ret
+}
+
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
+	return graphql.UnmarshalFloat(v)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	return graphql.MarshalFloat(v)
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
