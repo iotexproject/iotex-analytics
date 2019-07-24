@@ -8,6 +8,7 @@ package chainmeta
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -105,11 +106,10 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps float64, err error) {
 			endTime = blk.Timestamp
 		}
 	}
-	timeDuration := startTime - endTime
-	if timeDuration < 1 {
-		timeDuration = 1
-	}
-	tps = float64(numActions) / float64(timeDuration)
+	t1 := time.Unix(int64(startTime), 0)
+	t2 := time.Unix(int64(endTime), 0)
+	timeDiff := (t1.Sub(t2) + 10*time.Second) / time.Millisecond
+	tps = float64(numActions*1000) / float64(timeDiff)
 	return
 }
 
