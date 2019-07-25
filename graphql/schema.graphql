@@ -3,6 +3,15 @@ type Query {
     chain: Chain
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
+    contract(address:String!,numPerPage:Int!,page:Int!):[Contract]
+}
+
+type Contract{
+    hash:String!
+    timestamp:String!
+    from:String!
+    to:String!
+    quantity:String!
 }
 
 type Account {
