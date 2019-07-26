@@ -50,6 +50,14 @@ type Chain struct {
 	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
 }
 
+type Contract struct {
+	Hash      string `json:"hash"`
+	Timestamp string `json:"timestamp"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Quantity  string `json:"quantity"`
+}
+
 type Delegate struct {
 	Reward       *Reward           `json:"reward"`
 	Productivity *Productivity     `json:"productivity"`

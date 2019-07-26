@@ -88,6 +88,14 @@ type ComplexityRoot struct {
 		NumberOfActions       func(childComplexity int, pagination *EpochRange) int
 	}
 
+	Contract struct {
+		From      func(childComplexity int) int
+		Hash      func(childComplexity int) int
+		Quantity  func(childComplexity int) int
+		Timestamp func(childComplexity int) int
+		To        func(childComplexity int) int
+	}
+
 	Delegate struct {
 		Bookkeeping  func(childComplexity int, percentage int, includeFoundationBonus bool) int
 		BucketInfo   func(childComplexity int) int
@@ -127,6 +135,7 @@ type ComplexityRoot struct {
 	Query struct {
 		Account  func(childComplexity int) int
 		Chain    func(childComplexity int) int
+		Contract func(childComplexity int, address string, numPerPage int, page int) int
 		Delegate func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
 		Hermes   func(childComplexity int, startEpoch int, epochCount int, rewardAddress string) int
 		Voting   func(childComplexity int, startEpoch int, epochCount int) int
@@ -178,6 +187,7 @@ type QueryResolver interface {
 	Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error)
 	Voting(ctx context.Context, startEpoch int, epochCount int) (*Voting, error)
 	Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*Hermes, error)
+	Contract(ctx context.Context, address string, numPerPage int, page int) ([]*Contract, error)
 }
 
 type executableSchema struct {
@@ -393,6 +403,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Chain.NumberOfActions(childComplexity, args["pagination"].(*EpochRange)), true
 
+	case "Contract.From":
+		if e.complexity.Contract.From == nil {
+			break
+		}
+
+		return e.complexity.Contract.From(childComplexity), true
+
+	case "Contract.Hash":
+		if e.complexity.Contract.Hash == nil {
+			break
+		}
+
+		return e.complexity.Contract.Hash(childComplexity), true
+
+	case "Contract.Quantity":
+		if e.complexity.Contract.Quantity == nil {
+			break
+		}
+
+		return e.complexity.Contract.Quantity(childComplexity), true
+
+	case "Contract.Timestamp":
+		if e.complexity.Contract.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.Contract.Timestamp(childComplexity), true
+
+	case "Contract.To":
+		if e.complexity.Contract.To == nil {
+			break
+		}
+
+		return e.complexity.Contract.To(childComplexity), true
+
 	case "Delegate.Bookkeeping":
 		if e.complexity.Delegate.Bookkeeping == nil {
 			break
@@ -542,6 +587,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Chain(childComplexity), true
+
+	case "Query.Contract":
+		if e.complexity.Query.Contract == nil {
+			break
+		}
+
+		args, err := ec.field_Query_contract_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Contract(childComplexity, args["address"].(string), args["numPerPage"].(int), args["page"].(int)), true
 
 	case "Query.Delegate":
 		if e.complexity.Query.Delegate == nil {
@@ -780,6 +837,15 @@ var parsedSchema = gqlparser.MustLoadSchema(
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): Hermes
+    contract(address:String!,numPerPage:Int!,page:Int!):[Contract]
+}
+
+type Contract{
+    hash:String!
+    timestamp:String!
+    from:String!
+    to:String!
+    quantity:String!
 }
 
 type Account {
@@ -826,7 +892,7 @@ type VotingMeta {
 
 type RewardSources {
     exist: Boolean!
-    delegateDistributions: [DelegateAmount]! 
+    delegateDistributions: [DelegateAmount]!
 }
 
 type Alias {
@@ -1051,6 +1117,36 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_contract_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["numPerPage"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["numPerPage"] = arg1
+	var arg2 int
+	if tmp, ok := rawArgs["page"]; ok {
+		arg2, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg2
 	return args, nil
 }
 
@@ -1860,6 +1956,141 @@ func (ec *executionContext) _Chain_numberOfActions(ctx context.Context, field gr
 	return ec.marshalONumberOfActions2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfActions(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Contract_hash(ctx context.Context, field graphql.CollectedField, obj *Contract) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Contract",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Hash, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Contract_timestamp(ctx context.Context, field graphql.CollectedField, obj *Contract) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Contract",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Timestamp, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Contract_from(ctx context.Context, field graphql.CollectedField, obj *Contract) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Contract",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.From, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Contract_to(ctx context.Context, field graphql.CollectedField, obj *Contract) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Contract",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.To, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Contract_quantity(ctx context.Context, field graphql.CollectedField, obj *Contract) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Contract",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Delegate_reward(ctx context.Context, field graphql.CollectedField, obj *Delegate) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -2484,6 +2715,37 @@ func (ec *executionContext) _Query_hermes(ctx context.Context, field graphql.Col
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOHermes2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_contract(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_contract_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Contract(rctx, args["address"].(string), args["numPerPage"].(int), args["page"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*Contract)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOContract2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐContract(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -4199,6 +4461,53 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var contractImplementors = []string{"Contract"}
+
+func (ec *executionContext) _Contract(ctx context.Context, sel ast.SelectionSet, obj *Contract) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, contractImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Contract")
+		case "hash":
+			out.Values[i] = ec._Contract_hash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "timestamp":
+			out.Values[i] = ec._Contract_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "from":
+			out.Values[i] = ec._Contract_from(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "to":
+			out.Values[i] = ec._Contract_to(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "quantity":
+			out.Values[i] = ec._Contract_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var delegateImplementors = []string{"Delegate"}
 
 func (ec *executionContext) _Delegate(ctx context.Context, sel ast.SelectionSet, obj *Delegate) graphql.Marshaler {
@@ -4474,6 +4783,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_hermes(ctx, field)
+				return res
+			})
+		case "contract":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_contract(ctx, field)
 				return res
 			})
 		case "__type":
@@ -5543,6 +5863,57 @@ func (ec *executionContext) marshalOChain2ᚖgithubᚗcomᚋiotexprojectᚋiotex
 		return graphql.Null
 	}
 	return ec._Chain(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOContract2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐContract(ctx context.Context, sel ast.SelectionSet, v Contract) graphql.Marshaler {
+	return ec._Contract(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOContract2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐContract(ctx context.Context, sel ast.SelectionSet, v []*Contract) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOContract2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐContract(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalOContract2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐContract(ctx context.Context, sel ast.SelectionSet, v *Contract) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Contract(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalODelegate2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegate(ctx context.Context, sel ast.SelectionSet, v Delegate) graphql.Marshaler {
