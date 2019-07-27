@@ -690,14 +690,10 @@ func parseDistributionPlanFromVotingResult(rows *sql.Rows) (map[uint64]map[strin
 }
 
 // stringToBigInt transforms a string to big int
-func stringToBigInt(estr string) (ret *big.Int, err error) {
-	// convert string like this:2.687455198114428e+21
-	retFloat, _, err := new(big.Float).Parse(estr, 10)
-	if err != nil {
-		err = errors.Wrap(err, "failed to parse string to big float")
-		return
+func stringToBigInt(estr string) (*big.Int, error) {
+	ret, ok := big.NewInt(0).SetString(estr, 10)
+	if !ok {
+		return nil, errors.New("failed to parse string to big int")
 	}
-	ret = new(big.Int)
-	retFloat.Int(ret)
-	return
+	return ret, nil
 }
