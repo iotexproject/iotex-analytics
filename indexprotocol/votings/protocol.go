@@ -47,6 +47,8 @@ const (
 	EpochCandidateIndexName = "epoch_candidate_index"
 	// EpochCandidateVoterIndexName is the index name of epoch number, candidate name, and voter address on aggregate voting table
 	EpochCandidateVoterIndexName = "epoch_candidate_voter_index"
+	// DefaultStakingAddress is the default staking address for delegates
+	DefaultStakingAddress = "0000000000000000000000000000000000000000"
 )
 
 type (
@@ -71,6 +73,7 @@ type (
 		BlockRewardPercentage     uint64
 		EpochRewardPercentage     uint64
 		FoundationBonusPercentage uint64
+		StakingAddress            string
 	}
 
 	// AggregateVoting defines the schema of "aggregate voting" table
@@ -137,8 +140,9 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
 		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, "+
-		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100)",
-		VotingResultTableName)); err != nil {
+		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100, " +
+		"staking_address VARCHAR(40) DEFAULT %s)",
+		VotingResultTableName, DefaultStakingAddress)); err != nil {
 		return err
 	}
 
@@ -326,14 +330,15 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64) error {
 	valStrs := make([]string, 0, len(candidates))
-	valArgs := make([]interface{}, 0, len(candidates)*6)
+	valArgs := make([]interface{}, 0, len(candidates)*7)
 	for _, candidate := range candidates {
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress, candidate.TotalWeightedVotes, candidate.SelfStakingTokens)
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress,
+			candidate.TotalWeightedVotes, candidate.SelfStakingTokens, candidate.Address)
 	}
 
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes, self_staking) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
+		"total_weighted_votes, self_staking, staking_address) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
