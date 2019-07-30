@@ -233,8 +233,8 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 				distrReward.Add(distrReward, distrFoundationBonus)
 			}
 
-			if distributePlan.BlockRewardPercentage > waiverThreshold && distributePlan.EpochRewardPercentage > waiverThreshold &&
-				distributePlan.FoundationBonusPercentage > waiverThreshold {
+			if distributePlan.BlockRewardPercentage >= waiverThreshold && distributePlan.EpochRewardPercentage >= waiverThreshold &&
+				distributePlan.FoundationBonusPercentage >= waiverThreshold {
 				if _, ok := delegateFeeWaiver[delegate]; !ok {
 					delegateFeeWaiver[delegate] = true
 				}
