@@ -38,10 +38,13 @@ type RewardDistribution struct {
 	Amount            string
 }
 
-// DelegateAmount defines delegate and related amount info
-type DelegateAmount struct {
-	DelegateName string
-	Amount       string
+// DelegateHermesMeta defines delegate's metadata for Hermes service
+type DelegateHermesMeta struct {
+	DelegateName        string
+	StakingIotexAddress string
+	VoterCount          uint64
+	WaiveServiceFee     bool
+	Amount              string
 }
 
 // TotalWeight defines a delegate's total weighted votes
@@ -60,6 +63,7 @@ type EpochFoundationReward struct {
 // HermesDistributionPlan defines the distribution plan of delegates registering in Hermes
 type HermesDistributionPlan struct {
 	TotalWeightedVotes        *big.Int
+	StakingAddress            string
 	BlockRewardPercentage     uint64
 	EpochRewardPercentage     uint64
 	FoundationBonusPercentage uint64
@@ -153,8 +157,8 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 	return convertVoterDistributionMapToList(voterAddrToReward)
 }
 
-// GetHermesBookkeeping gets reward distribution info and delegate reward balance after distributions for all delegates who register Hermes
-func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, rewardAddress string) ([]*RewardDistribution, []*DelegateAmount, error) {
+// GetHermesBookkeeping gets reward distribution info and delegate metadata for all delegates who register Hermes
+func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, rewardAddress string, waiverThreshold uint64) ([]*RewardDistribution, []*DelegateHermesMeta, error) {
 	endEpoch := startEpoch + epochCount - 1
 
 	distributePlanMap, err := p.distributionPlanByRewardAddress(startEpoch, endEpoch, rewardAddress)
@@ -180,6 +184,10 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 
 	voterAddrToReward := make(map[string]*big.Int)
 	balanceAfterDistributionMap := make(map[string]*big.Int)
+	delegateVoterCountMap := make(map[string]map[string]bool)
+	delegateFeeWaiver := make(map[string]bool)
+	delegateStakingAddress := make(map[string]string)
+
 	for epoch, rewardsMap := range accountRewardsMap {
 		planMap := distributePlanMap[epoch]
 		delegateVoterMap := voterVotesMap[epoch]
@@ -187,6 +195,15 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 		for delegate, rewards := range rewardsMap {
 			distributePlan := planMap[delegate]
 			voterMap := delegateVoterMap[delegate]
+
+			if _, ok := delegateStakingAddress[delegate]; !ok {
+				ethStakingAddress := common.HexToAddress(distributePlan.StakingAddress)
+				ioStakingAddress, err := address.FromBytes(ethStakingAddress.Bytes())
+				if err != nil {
+					return nil, nil, errors.New("failed to form IoTeX address from ETH address")
+				}
+				delegateStakingAddress[delegate] = ioStakingAddress.String()
+			}
 
 			if _, ok := balanceAfterDistributionMap[delegate]; !ok {
 				balanceAfterDistributionMap[delegate] = big.NewInt(0)
@@ -216,6 +233,15 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 				distrReward.Add(distrReward, distrFoundationBonus)
 			}
 
+			if distributePlan.BlockRewardPercentage > waiverThreshold && distributePlan.EpochRewardPercentage > waiverThreshold &&
+				distributePlan.FoundationBonusPercentage > waiverThreshold {
+				if _, ok := delegateFeeWaiver[delegate]; !ok {
+					delegateFeeWaiver[delegate] = true
+				}
+			} else {
+				delegateFeeWaiver[delegate] = false
+			}
+
 			for voterAddr, weightedVotes := range voterMap {
 				amount := new(big.Int).Set(distrReward)
 				amount = amount.Mul(amount, weightedVotes).Div(amount, distributePlan.TotalWeightedVotes)
@@ -224,15 +250,22 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 				}
 				voterAddrToReward[voterAddr].Add(voterAddrToReward[voterAddr], amount)
 				balanceAfterDistributionMap[delegate].Sub(balanceAfterDistributionMap[delegate], amount)
+				if _, ok := delegateVoterCountMap[delegate]; !ok {
+					delegateVoterCountMap[delegate] = make(map[string]bool)
+				}
+				delegateVoterCountMap[delegate][voterAddr] = true
 			}
 		}
 	}
 
-	balanceAfterDistribution := make([]*DelegateAmount, 0)
+	delegateHermesMeta := make([]*DelegateHermesMeta, 0)
 	for delegateName, balance := range balanceAfterDistributionMap {
-		balanceAfterDistribution = append(balanceAfterDistribution, &DelegateAmount{
-			DelegateName: delegateName,
-			Amount:       balance.String(),
+		delegateHermesMeta = append(delegateHermesMeta, &DelegateHermesMeta{
+			DelegateName:        delegateName,
+			StakingIotexAddress: delegateStakingAddress[delegateName],
+			VoterCount:          uint64(len(delegateVoterCountMap[delegateName])),
+			WaiveServiceFee:     delegateFeeWaiver[delegateName],
+			Amount:              balance.String(),
 		})
 	}
 
@@ -240,11 +273,11 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to convert voter distribution map to list")
 	}
-	return rewardDistribution, balanceAfterDistribution, nil
+	return rewardDistribution, delegateHermesMeta, nil
 }
 
 // GetRewardSources gets reward sources given a voter's IoTeX address
-func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateAmount, error) {
+func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateHermesMeta, error) {
 	voterEthAddress, err := util.IoAddrToEvmAddr(voterIotexAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
@@ -307,9 +340,9 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 		}
 	}
 
-	delegateDistributions := make([]*DelegateAmount, 0)
+	delegateDistributions := make([]*DelegateHermesMeta, 0)
 	for delegateName, amount := range delegateDistributionMap {
-		delegateDistributions = append(delegateDistributions, &DelegateAmount{
+		delegateDistributions = append(delegateDistributions, &DelegateHermesMeta{
 			DelegateName: delegateName,
 			Amount:       amount.String(),
 		})
@@ -683,6 +716,7 @@ func parseDistributionPlanFromVotingResult(rows *sql.Rows) (map[uint64]map[strin
 			BlockRewardPercentage:     result.BlockRewardPercentage,
 			EpochRewardPercentage:     result.EpochRewardPercentage,
 			FoundationBonusPercentage: result.FoundationBonusPercentage,
+			StakingAddress:            result.StakingAddress,
 			TotalWeightedVotes:        totalWeightedVotes,
 		}
 	}

@@ -169,9 +169,9 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 }
 
 // Hermes handles Hermes bookkeeping requests
-func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*Hermes, error) {
+func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) (*Hermes, error) {
 	argsMap := parseFieldArguments(ctx, "rewardDistribution", "")
-	distributions, balances, err := r.RP.GetHermesBookkeeping(uint64(startEpoch), uint64(epochCount), rewardAddress)
+	distributions, delegateHermesMeta, err := r.RP.GetHermesBookkeeping(uint64(startEpoch), uint64(epochCount), rewardAddress, uint64(waiverThreshold))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return &Hermes{Exist: false}, nil
@@ -190,21 +190,24 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	}
 	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
 
-	bals := make([]*DelegateAmount, 0)
-	for _, ret := range balances {
+	dm := make([]*DelegateHermesMeta, 0)
+	for _, ret := range delegateHermesMeta {
 		aliasString, err := DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode delegate name")
 		}
-		v := &DelegateAmount{
-			DelegateName: aliasString,
-			Amount:       ret.Amount,
+		v := &DelegateHermesMeta{
+			DelegateName:             aliasString,
+			StakingIotexAddress:      ret.StakingIotexAddress,
+			VoterCount:               int(ret.VoterCount),
+			WaiveServiceFee:          ret.WaiveServiceFee,
+			BalanceAfterDistribution: ret.Amount,
 		}
-		bals = append(bals, v)
+		dm = append(dm, v)
 	}
-	sort.Slice(bals, func(i, j int) bool { return bals[i].DelegateName < bals[j].DelegateName })
+	sort.Slice(dm, func(i, j int) bool { return dm[i].DelegateName < dm[j].DelegateName })
 
-	hermes := &Hermes{Exist: true, DistributionCount: len(rds), BalanceAfterDistribution: bals}
+	hermes := &Hermes{Exist: true, DistributionCount: len(rds), DelegateHermesMeta: dm}
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	case err == ErrPaginationNotFound:

@@ -3,7 +3,7 @@ type Query {
     chain: Chain
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
-    hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): Hermes
+    hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
 }
 
 type Account {
@@ -40,7 +40,7 @@ type Hermes {
     exist: Boolean!
     rewardDistribution(pagination: Pagination): [RewardDistribution]!
     distributionCount: Int!
-    balanceAfterDistribution: [DelegateAmount]!
+    delegateHermesMeta: [DelegateHermesMeta]!
 }
 
 type VotingMeta {
@@ -102,6 +102,14 @@ type RewardDistribution {
     voterEthAddress: String!
     voterIotexAddress: String!
     amount: String!
+}
+
+type DelegateHermesMeta {
+    delegateName: String!
+    stakingIotexAddress: String!
+    voterCount: Int!
+    waiveServiceFee: Boolean!
+    balanceAfterDistribution: String!
 }
 
 type DelegateAmount {
