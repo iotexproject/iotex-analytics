@@ -109,19 +109,18 @@ type ComplexityRoot struct {
 		DelegateName func(childComplexity int) int
 	}
 
-	DelegateHermesMeta struct {
-		BalanceAfterDistribution func(childComplexity int) int
-		DelegateName             func(childComplexity int) int
-		StakingIotexAddress      func(childComplexity int) int
-		VoterCount               func(childComplexity int) int
-		WaiveServiceFee          func(childComplexity int) int
+	Hermes struct {
+		Exist              func(childComplexity int) int
+		HermesDistribution func(childComplexity int) int
 	}
 
-	Hermes struct {
-		DelegateHermesMeta func(childComplexity int) int
-		DistributionCount  func(childComplexity int) int
-		Exist              func(childComplexity int) int
-		RewardDistribution func(childComplexity int, pagination *Pagination) int
+	HermesDistribution struct {
+		DelegateName        func(childComplexity int) int
+		Refund              func(childComplexity int) int
+		RewardDistribution  func(childComplexity int) int
+		StakingIotexAddress func(childComplexity int) int
+		VoterCount          func(childComplexity int) int
+		WaiveServiceFee     func(childComplexity int) int
 	}
 
 	NumberOfActions struct {
@@ -500,55 +499,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DelegateAmount.DelegateName(childComplexity), true
 
-	case "DelegateHermesMeta.BalanceAfterDistribution":
-		if e.complexity.DelegateHermesMeta.BalanceAfterDistribution == nil {
-			break
-		}
-
-		return e.complexity.DelegateHermesMeta.BalanceAfterDistribution(childComplexity), true
-
-	case "DelegateHermesMeta.DelegateName":
-		if e.complexity.DelegateHermesMeta.DelegateName == nil {
-			break
-		}
-
-		return e.complexity.DelegateHermesMeta.DelegateName(childComplexity), true
-
-	case "DelegateHermesMeta.StakingIotexAddress":
-		if e.complexity.DelegateHermesMeta.StakingIotexAddress == nil {
-			break
-		}
-
-		return e.complexity.DelegateHermesMeta.StakingIotexAddress(childComplexity), true
-
-	case "DelegateHermesMeta.VoterCount":
-		if e.complexity.DelegateHermesMeta.VoterCount == nil {
-			break
-		}
-
-		return e.complexity.DelegateHermesMeta.VoterCount(childComplexity), true
-
-	case "DelegateHermesMeta.WaiveServiceFee":
-		if e.complexity.DelegateHermesMeta.WaiveServiceFee == nil {
-			break
-		}
-
-		return e.complexity.DelegateHermesMeta.WaiveServiceFee(childComplexity), true
-
-	case "Hermes.DelegateHermesMeta":
-		if e.complexity.Hermes.DelegateHermesMeta == nil {
-			break
-		}
-
-		return e.complexity.Hermes.DelegateHermesMeta(childComplexity), true
-
-	case "Hermes.DistributionCount":
-		if e.complexity.Hermes.DistributionCount == nil {
-			break
-		}
-
-		return e.complexity.Hermes.DistributionCount(childComplexity), true
-
 	case "Hermes.Exist":
 		if e.complexity.Hermes.Exist == nil {
 			break
@@ -556,17 +506,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Hermes.Exist(childComplexity), true
 
-	case "Hermes.RewardDistribution":
-		if e.complexity.Hermes.RewardDistribution == nil {
+	case "Hermes.HermesDistribution":
+		if e.complexity.Hermes.HermesDistribution == nil {
 			break
 		}
 
-		args, err := ec.field_Hermes_rewardDistribution_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
+		return e.complexity.Hermes.HermesDistribution(childComplexity), true
+
+	case "HermesDistribution.DelegateName":
+		if e.complexity.HermesDistribution.DelegateName == nil {
+			break
 		}
 
-		return e.complexity.Hermes.RewardDistribution(childComplexity, args["pagination"].(*Pagination)), true
+		return e.complexity.HermesDistribution.DelegateName(childComplexity), true
+
+	case "HermesDistribution.Refund":
+		if e.complexity.HermesDistribution.Refund == nil {
+			break
+		}
+
+		return e.complexity.HermesDistribution.Refund(childComplexity), true
+
+	case "HermesDistribution.RewardDistribution":
+		if e.complexity.HermesDistribution.RewardDistribution == nil {
+			break
+		}
+
+		return e.complexity.HermesDistribution.RewardDistribution(childComplexity), true
+
+	case "HermesDistribution.StakingIotexAddress":
+		if e.complexity.HermesDistribution.StakingIotexAddress == nil {
+			break
+		}
+
+		return e.complexity.HermesDistribution.StakingIotexAddress(childComplexity), true
+
+	case "HermesDistribution.VoterCount":
+		if e.complexity.HermesDistribution.VoterCount == nil {
+			break
+		}
+
+		return e.complexity.HermesDistribution.VoterCount(childComplexity), true
+
+	case "HermesDistribution.WaiveServiceFee":
+		if e.complexity.HermesDistribution.WaiveServiceFee == nil {
+			break
+		}
+
+		return e.complexity.HermesDistribution.WaiveServiceFee(childComplexity), true
 
 	case "NumberOfActions.Count":
 		if e.complexity.NumberOfActions.Count == nil {
@@ -923,9 +910,16 @@ type Voting {
 
 type Hermes {
     exist: Boolean!
-    rewardDistribution(pagination: Pagination): [RewardDistribution]!
-    distributionCount: Int!
-    delegateHermesMeta: [DelegateHermesMeta]!
+    hermesDistribution: [HermesDistribution]!
+}
+
+type HermesDistribution {
+    delegateName: String!
+    rewardDistribution: [RewardDistribution]!
+    stakingIotexAddress: String!
+    voterCount: Int!
+    waiveServiceFee: Boolean!
+    refund: String!
 }
 
 type VotingMeta {
@@ -987,14 +981,6 @@ type RewardDistribution {
     voterEthAddress: String!
     voterIotexAddress: String!
     amount: String!
-}
-
-type DelegateHermesMeta {
-    delegateName: String!
-    stakingIotexAddress: String!
-    voterCount: Int!
-    waiveServiceFee: Boolean!
-    balanceAfterDistribution: String!
 }
 
 type DelegateAmount {
@@ -1140,20 +1126,6 @@ func (ec *executionContext) field_Delegate_bookkeeping_args(ctx context.Context,
 		}
 	}
 	args["includeFoundationBonus"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Hermes_rewardDistribution_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *Pagination
-	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pagination"] = arg0
 	return args, nil
 }
 
@@ -2331,141 +2303,6 @@ func (ec *executionContext) _DelegateAmount_amount(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _DelegateHermesMeta_delegateName(ctx context.Context, field graphql.CollectedField, obj *DelegateHermesMeta) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "DelegateHermesMeta",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.DelegateName, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DelegateHermesMeta_stakingIotexAddress(ctx context.Context, field graphql.CollectedField, obj *DelegateHermesMeta) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "DelegateHermesMeta",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.StakingIotexAddress, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DelegateHermesMeta_voterCount(ctx context.Context, field graphql.CollectedField, obj *DelegateHermesMeta) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "DelegateHermesMeta",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.VoterCount, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DelegateHermesMeta_waiveServiceFee(ctx context.Context, field graphql.CollectedField, obj *DelegateHermesMeta) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "DelegateHermesMeta",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.WaiveServiceFee, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DelegateHermesMeta_balanceAfterDistribution(ctx context.Context, field graphql.CollectedField, obj *DelegateHermesMeta) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "DelegateHermesMeta",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.BalanceAfterDistribution, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Hermes_exist(ctx context.Context, field graphql.CollectedField, obj *Hermes) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -2493,7 +2330,7 @@ func (ec *executionContext) _Hermes_exist(ctx context.Context, field graphql.Col
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Hermes_rewardDistribution(ctx context.Context, field graphql.CollectedField, obj *Hermes) graphql.Marshaler {
+func (ec *executionContext) _Hermes_hermesDistribution(ctx context.Context, field graphql.CollectedField, obj *Hermes) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -2503,13 +2340,60 @@ func (ec *executionContext) _Hermes_rewardDistribution(ctx context.Context, fiel
 		IsMethod: false,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Hermes_rewardDistribution_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HermesDistribution, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	rctx.Args = args
+	res := resTmp.([]*HermesDistribution)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesDistribution_delegateName(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DelegateName, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesDistribution_rewardDistribution(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
@@ -2527,11 +2411,11 @@ func (ec *executionContext) _Hermes_rewardDistribution(ctx context.Context, fiel
 	return ec.marshalNRewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Hermes_distributionCount(ctx context.Context, field graphql.CollectedField, obj *Hermes) graphql.Marshaler {
+func (ec *executionContext) _HermesDistribution_stakingIotexAddress(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "Hermes",
+		Object:   "HermesDistribution",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -2540,7 +2424,34 @@ func (ec *executionContext) _Hermes_distributionCount(ctx context.Context, field
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.DistributionCount, nil
+		return obj.StakingIotexAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesDistribution_voterCount(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterCount, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2554,11 +2465,11 @@ func (ec *executionContext) _Hermes_distributionCount(ctx context.Context, field
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Hermes_delegateHermesMeta(ctx context.Context, field graphql.CollectedField, obj *Hermes) graphql.Marshaler {
+func (ec *executionContext) _HermesDistribution_waiveServiceFee(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "Hermes",
+		Object:   "HermesDistribution",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -2567,7 +2478,7 @@ func (ec *executionContext) _Hermes_delegateHermesMeta(ctx context.Context, fiel
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.DelegateHermesMeta, nil
+		return obj.WaiveServiceFee, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2575,10 +2486,37 @@ func (ec *executionContext) _Hermes_delegateHermesMeta(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*DelegateHermesMeta)
+	res := resTmp.(bool)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNDelegateHermesMeta2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateHermesMeta(ctx, field.Selections, res)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesDistribution_refund(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Refund, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _NumberOfActions_exist(ctx context.Context, field graphql.CollectedField, obj *NumberOfActions) graphql.Marshaler {
@@ -4766,53 +4704,6 @@ func (ec *executionContext) _DelegateAmount(ctx context.Context, sel ast.Selecti
 	return out
 }
 
-var delegateHermesMetaImplementors = []string{"DelegateHermesMeta"}
-
-func (ec *executionContext) _DelegateHermesMeta(ctx context.Context, sel ast.SelectionSet, obj *DelegateHermesMeta) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, delegateHermesMetaImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("DelegateHermesMeta")
-		case "delegateName":
-			out.Values[i] = ec._DelegateHermesMeta_delegateName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "stakingIotexAddress":
-			out.Values[i] = ec._DelegateHermesMeta_stakingIotexAddress(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "voterCount":
-			out.Values[i] = ec._DelegateHermesMeta_voterCount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "waiveServiceFee":
-			out.Values[i] = ec._DelegateHermesMeta_waiveServiceFee(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "balanceAfterDistribution":
-			out.Values[i] = ec._DelegateHermesMeta_balanceAfterDistribution(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
 var hermesImplementors = []string{"Hermes"}
 
 func (ec *executionContext) _Hermes(ctx context.Context, sel ast.SelectionSet, obj *Hermes) graphql.Marshaler {
@@ -4829,18 +4720,60 @@ func (ec *executionContext) _Hermes(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "hermesDistribution":
+			out.Values[i] = ec._Hermes_hermesDistribution(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var hermesDistributionImplementors = []string{"HermesDistribution"}
+
+func (ec *executionContext) _HermesDistribution(ctx context.Context, sel ast.SelectionSet, obj *HermesDistribution) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, hermesDistributionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HermesDistribution")
+		case "delegateName":
+			out.Values[i] = ec._HermesDistribution_delegateName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "rewardDistribution":
-			out.Values[i] = ec._Hermes_rewardDistribution(ctx, field, obj)
+			out.Values[i] = ec._HermesDistribution_rewardDistribution(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "distributionCount":
-			out.Values[i] = ec._Hermes_distributionCount(ctx, field, obj)
+		case "stakingIotexAddress":
+			out.Values[i] = ec._HermesDistribution_stakingIotexAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "delegateHermesMeta":
-			out.Values[i] = ec._Hermes_delegateHermesMeta(ctx, field, obj)
+		case "voterCount":
+			out.Values[i] = ec._HermesDistribution_voterCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "waiveServiceFee":
+			out.Values[i] = ec._HermesDistribution_waiveServiceFee(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "refund":
+			out.Values[i] = ec._HermesDistribution_refund(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -5691,7 +5624,7 @@ func (ec *executionContext) marshalNDelegateAmount2ᚕᚖgithubᚗcomᚋiotexpro
 	return ret
 }
 
-func (ec *executionContext) marshalNDelegateHermesMeta2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateHermesMeta(ctx context.Context, sel ast.SelectionSet, v []*DelegateHermesMeta) graphql.Marshaler {
+func (ec *executionContext) marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v []*HermesDistribution) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -5715,7 +5648,7 @@ func (ec *executionContext) marshalNDelegateHermesMeta2ᚕᚖgithubᚗcomᚋiote
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalODelegateHermesMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateHermesMeta(ctx, sel, v[i])
+			ret[i] = ec.marshalOHermesDistribution2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -6216,17 +6149,6 @@ func (ec *executionContext) marshalODelegateAmount2ᚖgithubᚗcomᚋiotexprojec
 	return ec._DelegateAmount(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalODelegateHermesMeta2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateHermesMeta(ctx context.Context, sel ast.SelectionSet, v DelegateHermesMeta) graphql.Marshaler {
-	return ec._DelegateHermesMeta(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalODelegateHermesMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateHermesMeta(ctx context.Context, sel ast.SelectionSet, v *DelegateHermesMeta) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._DelegateHermesMeta(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalOEpochRange2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEpochRange(ctx context.Context, v interface{}) (EpochRange, error) {
 	return ec.unmarshalInputEpochRange(ctx, v)
 }
@@ -6248,6 +6170,17 @@ func (ec *executionContext) marshalOHermes2ᚖgithubᚗcomᚋiotexprojectᚋiote
 		return graphql.Null
 	}
 	return ec._Hermes(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHermesDistribution2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v HermesDistribution) graphql.Marshaler {
+	return ec._HermesDistribution(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOHermesDistribution2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v *HermesDistribution) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HermesDistribution(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalONumberOfActions2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfActions(ctx context.Context, sel ast.SelectionSet, v NumberOfActions) graphql.Marshaler {

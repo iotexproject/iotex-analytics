@@ -47,9 +47,16 @@ type Voting {
 
 type Hermes {
     exist: Boolean!
-    rewardDistribution(pagination: Pagination): [RewardDistribution]!
-    distributionCount: Int!
-    delegateHermesMeta: [DelegateHermesMeta]!
+    hermesDistribution: [HermesDistribution]!
+}
+
+type HermesDistribution {
+    delegateName: String!
+    rewardDistribution: [RewardDistribution]!
+    stakingIotexAddress: String!
+    voterCount: Int!
+    waiveServiceFee: Boolean!
+    refund: String!
 }
 
 type VotingMeta {
@@ -111,14 +118,6 @@ type RewardDistribution {
     voterEthAddress: String!
     voterIotexAddress: String!
     amount: String!
-}
-
-type DelegateHermesMeta {
-    delegateName: String!
-    stakingIotexAddress: String!
-    voterCount: Int!
-    waiveServiceFee: Boolean!
-    balanceAfterDistribution: String!
 }
 
 type DelegateAmount {

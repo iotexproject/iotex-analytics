@@ -38,13 +38,20 @@ type RewardDistribution struct {
 	Amount            string
 }
 
-// DelegateHermesMeta defines delegate's metadata for Hermes service
-type DelegateHermesMeta struct {
+// DelegateHermesDistribution defines the Hermes reward distributions for each delegate
+type DelegateHermesDistribution struct {
 	DelegateName        string
+	Distributions       []*RewardDistribution
 	StakingIotexAddress string
 	VoterCount          uint64
 	WaiveServiceFee     bool
-	Amount              string
+	Refund              string
+}
+
+// DelegateAmount defines delegate associated with an amount
+type DelegateAmount struct {
+	DelegateName string
+	Amount       string
 }
 
 // TotalWeight defines a delegate's total weighted votes
@@ -158,63 +165,57 @@ func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegate
 }
 
 // GetHermesBookkeeping gets reward distribution info and delegate metadata for all delegates who register Hermes
-func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, rewardAddress string, waiverThreshold uint64) ([]*RewardDistribution, []*DelegateHermesMeta, error) {
+func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, rewardAddress string, waiverThreshold uint64) ([]*DelegateHermesDistribution, error) {
 	endEpoch := startEpoch + epochCount - 1
 
 	distributePlanMap, err := p.distributionPlanByRewardAddress(startEpoch, endEpoch, rewardAddress)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get reward distribution plan")
+		return nil, errors.Wrap(err, "failed to get reward distribution plan")
 	}
 
 	// Form search column pairs
 	searchPairs := make([]string, 0)
-	for epochNumber, planMap := range distributePlanMap {
-		for delegateName := range planMap {
+	for delegateName, planMap := range distributePlanMap {
+		for epochNumber := range planMap {
 			searchPairs = append(searchPairs, fmt.Sprintf("(%d, '%s')", epochNumber, delegateName))
 		}
 	}
 	accountRewardsMap, err := p.accountRewards(searchPairs)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get account rewards")
+		return nil, errors.Wrap(err, "failed to get account rewards")
 	}
 	voterVotesMap, err := p.weightedVotesBySearchPairs(searchPairs)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get voter votes")
+		return nil, errors.Wrap(err, "failed to get voter votes")
 	}
 
-	voterAddrToReward := make(map[string]*big.Int)
-	balanceAfterDistributionMap := make(map[string]*big.Int)
-	delegateVoterCountMap := make(map[string]map[string]bool)
-	delegateFeeWaiver := make(map[string]bool)
-	delegateStakingAddress := make(map[string]string)
+	hermesDistributions := make([]*DelegateHermesDistribution, 0, len(accountRewardsMap))
+	for delegate, rewardsMap := range accountRewardsMap {
+		planMap := distributePlanMap[delegate]
+		epochVoterMap := voterVotesMap[delegate]
 
-	for epoch, rewardsMap := range accountRewardsMap {
-		planMap := distributePlanMap[epoch]
-		delegateVoterMap := voterVotesMap[epoch]
+		voterAddrToReward := make(map[string]*big.Int)
+		balanceAfterDistribution := big.NewInt(0)
+		voterCountMap := make(map[string]bool)
+		feeWaiver := true
+		var stakingAddress string
 
-		for delegate, rewards := range rewardsMap {
-			distributePlan := planMap[delegate]
-			voterMap := delegateVoterMap[delegate]
+		for epoch, rewards := range rewardsMap {
+			distributePlan := planMap[epoch]
+			voterMap := epochVoterMap[epoch]
 
-			if _, ok := delegateStakingAddress[delegate]; !ok {
+			if stakingAddress == "" {
 				ethStakingAddress := common.HexToAddress(distributePlan.StakingAddress)
 				ioStakingAddress, err := address.FromBytes(ethStakingAddress.Bytes())
 				if err != nil {
-					return nil, nil, errors.New("failed to form IoTeX address from ETH address")
+					return nil, errors.New("failed to form IoTeX address from ETH address")
 				}
-				delegateStakingAddress[delegate] = ioStakingAddress.String()
+				stakingAddress = ioStakingAddress.String()
 			}
 
-			if _, ok := balanceAfterDistributionMap[delegate]; !ok {
-				balanceAfterDistributionMap[delegate] = big.NewInt(0)
-			}
 			totalRewards := new(big.Int).Set(rewards.BlockReward)
 			totalRewards.Add(totalRewards, rewards.EpochReward).Add(totalRewards, rewards.FoundationBonus)
-			balanceAfterDistributionMap[delegate].Add(balanceAfterDistributionMap[delegate], totalRewards)
-
-			if distributePlan.TotalWeightedVotes.Sign() == 0 {
-				continue
-			}
+			balanceAfterDistribution.Add(balanceAfterDistribution, totalRewards)
 
 			distrReward := big.NewInt(0)
 			if distributePlan.BlockRewardPercentage > 0 {
@@ -233,13 +234,9 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 				distrReward.Add(distrReward, distrFoundationBonus)
 			}
 
-			if distributePlan.BlockRewardPercentage >= waiverThreshold && distributePlan.EpochRewardPercentage >= waiverThreshold &&
-				distributePlan.FoundationBonusPercentage >= waiverThreshold {
-				if _, ok := delegateFeeWaiver[delegate]; !ok {
-					delegateFeeWaiver[delegate] = true
-				}
-			} else {
-				delegateFeeWaiver[delegate] = false
+			if distributePlan.BlockRewardPercentage < waiverThreshold || distributePlan.EpochRewardPercentage < waiverThreshold ||
+				distributePlan.FoundationBonusPercentage < waiverThreshold {
+				feeWaiver = false
 			}
 
 			for voterAddr, weightedVotes := range voterMap {
@@ -249,35 +246,28 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 					voterAddrToReward[voterAddr] = big.NewInt(0)
 				}
 				voterAddrToReward[voterAddr].Add(voterAddrToReward[voterAddr], amount)
-				balanceAfterDistributionMap[delegate].Sub(balanceAfterDistributionMap[delegate], amount)
-				if _, ok := delegateVoterCountMap[delegate]; !ok {
-					delegateVoterCountMap[delegate] = make(map[string]bool)
-				}
-				delegateVoterCountMap[delegate][voterAddr] = true
+				balanceAfterDistribution.Sub(balanceAfterDistribution, amount)
+				voterCountMap[voterAddr] = true
 			}
 		}
-	}
-
-	delegateHermesMeta := make([]*DelegateHermesMeta, 0)
-	for delegateName, balance := range balanceAfterDistributionMap {
-		delegateHermesMeta = append(delegateHermesMeta, &DelegateHermesMeta{
-			DelegateName:        delegateName,
-			StakingIotexAddress: delegateStakingAddress[delegateName],
-			VoterCount:          uint64(len(delegateVoterCountMap[delegateName])),
-			WaiveServiceFee:     delegateFeeWaiver[delegateName],
-			Amount:              balance.String(),
+		rewardDistribution, err := convertVoterDistributionMapToList(voterAddrToReward)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert voter distribution map to list")
+		}
+		hermesDistributions = append(hermesDistributions, &DelegateHermesDistribution{
+			DelegateName:        delegate,
+			Distributions:       rewardDistribution,
+			StakingIotexAddress: stakingAddress,
+			VoterCount:          uint64(len(voterCountMap)),
+			WaiveServiceFee:     feeWaiver,
+			Refund:              balanceAfterDistribution.String(),
 		})
 	}
-
-	rewardDistribution, err := convertVoterDistributionMapToList(voterAddrToReward)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to convert voter distribution map to list")
-	}
-	return rewardDistribution, delegateHermesMeta, nil
+	return hermesDistributions, nil
 }
 
 // GetRewardSources gets reward sources given a voter's IoTeX address
-func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateHermesMeta, error) {
+func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateAmount, error) {
 	voterEthAddress, err := util.IoAddrToEvmAddr(voterIotexAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
@@ -292,8 +282,8 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 
 	// Form search column pairs
 	searchPairs := make([]string, 0)
-	for epochNumber, delegateMap := range weightedVotesMap {
-		for delegateName := range delegateMap {
+	for delegateName, epochMap := range weightedVotesMap {
+		for epochNumber := range epochMap {
 			searchPairs = append(searchPairs, fmt.Sprintf("(%d, '%s')", epochNumber, delegateName))
 		}
 	}
@@ -307,11 +297,13 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 	}
 
 	delegateDistributionMap := make(map[string]*big.Int)
-	for epoch, rewardsMap := range accountRewardsMap {
-		planMap := distributePlanMap[epoch]
-		delegateMap := weightedVotesMap[epoch]
-		for delegate, rewards := range rewardsMap {
-			distributePlan := planMap[delegate]
+	for delegate, rewardsMap := range accountRewardsMap {
+		planMap := distributePlanMap[delegate]
+		delegateMap := weightedVotesMap[delegate]
+		delegateDistributionMap[delegate] = big.NewInt(0)
+
+		for epoch, rewards := range rewardsMap {
+			distributePlan := planMap[epoch]
 
 			distrReward := big.NewInt(0)
 			if distributePlan.BlockRewardPercentage > 0 {
@@ -330,19 +322,16 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 				distrReward.Add(distrReward, distrFoundationBonus)
 			}
 
-			weightedVotes := delegateMap[delegate]
+			weightedVotes := delegateMap[epoch]
 			amount := distrReward.Mul(distrReward, weightedVotes).Div(distrReward, distributePlan.TotalWeightedVotes)
 
-			if _, ok := delegateDistributionMap[delegate]; !ok {
-				delegateDistributionMap[delegate] = big.NewInt(0)
-			}
 			delegateDistributionMap[delegate].Add(delegateDistributionMap[delegate], amount)
 		}
 	}
 
-	delegateDistributions := make([]*DelegateHermesMeta, 0)
+	delegateDistributions := make([]*DelegateAmount, 0)
 	for delegateName, amount := range delegateDistributionMap {
-		delegateDistributions = append(delegateDistributions, &DelegateHermesMeta{
+		delegateDistributions = append(delegateDistributions, &DelegateAmount{
 			DelegateName: delegateName,
 			Amount:       amount.String(),
 		})
@@ -480,7 +469,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 }
 
 // accountRewards gets the reward information for the delegates in the search pairs
-func (p *Protocol) accountRewards(searchPairs []string) (map[uint64]map[string]*HermesDistributionSource, error) {
+func (p *Protocol) accountRewards(searchPairs []string) (map[string]map[uint64]*HermesDistributionSource, error) {
 	if _, ok := p.indexer.Registry.Find(rewards.ProtocolID); !ok {
 		return nil, errors.New("rewards protocol is unregistered")
 	}
@@ -509,13 +498,13 @@ func (p *Protocol) accountRewards(searchPairs []string) (map[uint64]map[string]*
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	accountRewardsMap := make(map[uint64]map[string]*HermesDistributionSource)
+	accountRewardsMap := make(map[string]map[uint64]*HermesDistributionSource)
 	for _, parsedRow := range parsedRows {
 		rewards := parsedRow.(*rewards.AccountReward)
-		if _, ok := accountRewardsMap[rewards.EpochNumber]; !ok {
-			accountRewardsMap[rewards.EpochNumber] = make(map[string]*HermesDistributionSource, 0)
+		if _, ok := accountRewardsMap[rewards.CandidateName]; !ok {
+			accountRewardsMap[rewards.CandidateName] = make(map[uint64]*HermesDistributionSource, 0)
 		}
-		rewardsMap := accountRewardsMap[rewards.EpochNumber]
+		rewardsMap := accountRewardsMap[rewards.CandidateName]
 		blockReward, err := stringToBigInt(rewards.BlockReward)
 		if err != nil {
 			return nil, errors.New("failed to covert string to big int")
@@ -528,7 +517,7 @@ func (p *Protocol) accountRewards(searchPairs []string) (map[uint64]map[string]*
 		if err != nil {
 			return nil, errors.New("failed to covert string to big int")
 		}
-		rewardsMap[rewards.CandidateName] = &HermesDistributionSource{
+		rewardsMap[rewards.EpochNumber] = &HermesDistributionSource{
 			BlockReward:     blockReward,
 			EpochReward:     epochReward,
 			FoundationBonus: foundationBonus,
@@ -538,7 +527,7 @@ func (p *Protocol) accountRewards(searchPairs []string) (map[uint64]map[string]*
 }
 
 // distributionPlanByRewardAddress gets delegates' reward distribution plan by reward address
-func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch uint64, rewardAddress string) (map[uint64]map[string]*HermesDistributionPlan, error) {
+func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch uint64, rewardAddress string) (map[string]map[uint64]*HermesDistributionPlan, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("rewards protocol is unregistered")
 	}
@@ -561,7 +550,7 @@ func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch u
 }
 
 // weightedVotesBySearchPairs gets voters' address and weighted votes for delegates in the search pairs
-func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[uint64]map[string]map[string]*big.Int, error) {
+func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[string]map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)",
 		votings.AggregateVotingTable, strings.Join(searchPairs, ","))
@@ -586,22 +575,21 @@ func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[uint64]
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	voterVotesMap := make(map[uint64]map[string]map[string]*big.Int)
+	voterVotesMap := make(map[string]map[uint64]map[string]*big.Int)
 	for _, parsedRow := range parsedRows {
 		voting := parsedRow.(*votings.AggregateVoting)
-		if _, ok := voterVotesMap[voting.EpochNumber]; !ok {
-			voterVotesMap[voting.EpochNumber] = make(map[string]map[string]*big.Int)
+		if _, ok := voterVotesMap[voting.CandidateName]; !ok {
+			voterVotesMap[voting.CandidateName] = make(map[uint64]map[string]*big.Int)
 		}
-		delegateVoterMap := voterVotesMap[voting.EpochNumber]
-		if _, ok := delegateVoterMap[voting.CandidateName]; !ok {
-			delegateVoterMap[voting.CandidateName] = make(map[string]*big.Int)
+		epochVoterMap := voterVotesMap[voting.CandidateName]
+		if _, ok := epochVoterMap[voting.EpochNumber]; !ok {
+			epochVoterMap[voting.EpochNumber] = make(map[string]*big.Int)
 		}
-		voterMap := delegateVoterMap[voting.CandidateName]
+		voterMap := epochVoterMap[voting.EpochNumber]
 
 		weightedVotesInt, errs := stringToBigInt(voting.AggregateVotes)
 		if errs != nil {
 			return nil, errors.Wrap(errs, "failed to convert to big int")
-
 		}
 		voterMap[voting.VoterAddress] = weightedVotesInt
 	}
@@ -609,7 +597,7 @@ func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[uint64]
 }
 
 // weightedVotesByVoterAddress gets voter's weighted votes for delegates by voter's address
-func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint64, voterEthAddress string) (map[uint64]map[string]*big.Int, error) {
+func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint64, voterEthAddress string) (map[string]map[uint64]*big.Int, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("rewards protocol is unregistered")
 	}
@@ -638,24 +626,24 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	weightedVotesMap := make(map[uint64]map[string]*big.Int)
+	weightedVotesMap := make(map[string]map[uint64]*big.Int)
 	for _, parsedRow := range parsedRows {
 		voting := parsedRow.(*votings.AggregateVoting)
-		if _, ok := weightedVotesMap[voting.EpochNumber]; !ok {
-			weightedVotesMap[voting.EpochNumber] = make(map[string]*big.Int)
+		if _, ok := weightedVotesMap[voting.CandidateName]; !ok {
+			weightedVotesMap[voting.CandidateName] = make(map[uint64]*big.Int)
 		}
 		weightedVotesInt, errs := stringToBigInt(voting.AggregateVotes)
 		if errs != nil {
 			return nil, errors.Wrap(errs, "failed to convert to big int")
 
 		}
-		weightedVotesMap[voting.EpochNumber][voting.CandidateName] = weightedVotesInt
+		weightedVotesMap[voting.CandidateName][voting.EpochNumber] = weightedVotesInt
 	}
 	return weightedVotesMap, nil
 }
 
 // distributionPlanBySearchPairs gets delegates' reward distribution plan in the search pairs
-func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[uint64]map[string]*HermesDistributionPlan, error) {
+func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[string]map[uint64]*HermesDistributionPlan, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE (epoch_number, delegate_name) IN (%s)",
 		votings.VotingResultTableName, strings.Join(searchPairs, ","))
@@ -691,7 +679,7 @@ func convertVoterDistributionMapToList(voterAddrToReward map[string]*big.Int) ([
 }
 
 // parseDistributionPlanFromVotingResult parses distribution plan from raw data of voting result
-func parseDistributionPlanFromVotingResult(rows *sql.Rows) (map[uint64]map[string]*HermesDistributionPlan, error) {
+func parseDistributionPlanFromVotingResult(rows *sql.Rows) (map[string]map[uint64]*HermesDistributionPlan, error) {
 	var votingResult votings.VotingResult
 	parsedRows, err := s.ParseSQLRows(rows, &votingResult)
 	if err != nil {
@@ -701,18 +689,18 @@ func parseDistributionPlanFromVotingResult(rows *sql.Rows) (map[uint64]map[strin
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	distributePlanMap := make(map[uint64]map[string]*HermesDistributionPlan)
+	distributePlanMap := make(map[string]map[uint64]*HermesDistributionPlan)
 	for _, parsedRow := range parsedRows {
 		result := parsedRow.(*votings.VotingResult)
-		if _, ok := distributePlanMap[result.EpochNumber]; !ok {
-			distributePlanMap[result.EpochNumber] = make(map[string]*HermesDistributionPlan)
+		if _, ok := distributePlanMap[result.DelegateName]; !ok {
+			distributePlanMap[result.DelegateName] = make(map[uint64]*HermesDistributionPlan)
 		}
-		planMap := distributePlanMap[result.EpochNumber]
+		planMap := distributePlanMap[result.DelegateName]
 		totalWeightedVotes, err := stringToBigInt(result.TotalWeightedVotes)
 		if err != nil {
-			return nil, errors.New("failed to covert string to big int")
+			return nil, errors.New("failed to convert string to big int")
 		}
-		planMap[result.DelegateName] = &HermesDistributionPlan{
+		planMap[result.EpochNumber] = &HermesDistributionPlan{
 			BlockRewardPercentage:     result.BlockRewardPercentage,
 			EpochRewardPercentage:     result.EpochRewardPercentage,
 			FoundationBonusPercentage: result.FoundationBonusPercentage,

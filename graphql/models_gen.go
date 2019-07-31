@@ -71,14 +71,6 @@ type DelegateAmount struct {
 	Amount       string `json:"amount"`
 }
 
-type DelegateHermesMeta struct {
-	DelegateName             string `json:"delegateName"`
-	StakingIotexAddress      string `json:"stakingIotexAddress"`
-	VoterCount               int    `json:"voterCount"`
-	WaiveServiceFee          bool   `json:"waiveServiceFee"`
-	BalanceAfterDistribution string `json:"balanceAfterDistribution"`
-}
-
 type EpochRange struct {
 	StartEpoch int `json:"startEpoch"`
 	EpochCount int `json:"epochCount"`
@@ -86,9 +78,16 @@ type EpochRange struct {
 
 type Hermes struct {
 	Exist              bool                  `json:"exist"`
-	RewardDistribution []*RewardDistribution `json:"rewardDistribution"`
-	DistributionCount  int                   `json:"distributionCount"`
-	DelegateHermesMeta []*DelegateHermesMeta `json:"delegateHermesMeta"`
+	HermesDistribution []*HermesDistribution `json:"hermesDistribution"`
+}
+
+type HermesDistribution struct {
+	DelegateName        string                `json:"delegateName"`
+	RewardDistribution  []*RewardDistribution `json:"rewardDistribution"`
+	StakingIotexAddress string                `json:"stakingIotexAddress"`
+	VoterCount          int                   `json:"voterCount"`
+	WaiveServiceFee     bool                  `json:"waiveServiceFee"`
+	Refund              string                `json:"refund"`
 }
 
 type NumberOfActions struct {

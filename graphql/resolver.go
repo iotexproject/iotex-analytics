@@ -170,8 +170,7 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 
 // Hermes handles Hermes bookkeeping requests
 func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) (*Hermes, error) {
-	argsMap := parseFieldArguments(ctx, "rewardDistribution", "")
-	distributions, delegateHermesMeta, err := r.RP.GetHermesBookkeeping(uint64(startEpoch), uint64(epochCount), rewardAddress, uint64(waiverThreshold))
+	hermes, err := r.RP.GetHermesBookkeeping(uint64(startEpoch), uint64(epochCount), rewardAddress, uint64(waiverThreshold))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return &Hermes{Exist: false}, nil
@@ -179,53 +178,34 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 		return nil, errors.Wrap(err, "failed to get hermes bookkeeping information")
 	}
 
-	rds := make([]*RewardDistribution, 0)
-	for _, ret := range distributions {
-		v := &RewardDistribution{
-			VoterEthAddress:   HexPrefix + ret.VoterEthAddress,
-			VoterIotexAddress: ret.VoterIotexAddress,
-			Amount:            ret.Amount,
+	hermesDistribution := make([]*HermesDistribution, 0, len(hermes))
+	for _, ret := range hermes {
+		rds := make([]*RewardDistribution, 0)
+		for _, distribution := range ret.Distributions {
+			v := &RewardDistribution{
+				VoterEthAddress:   HexPrefix + distribution.VoterEthAddress,
+				VoterIotexAddress: distribution.VoterIotexAddress,
+				Amount:            distribution.Amount,
+			}
+			rds = append(rds, v)
 		}
-		rds = append(rds, v)
-	}
-	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
+		sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
 
-	dm := make([]*DelegateHermesMeta, 0)
-	for _, ret := range delegateHermesMeta {
 		aliasString, err := DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode delegate name")
 		}
-		v := &DelegateHermesMeta{
-			DelegateName:             aliasString,
-			StakingIotexAddress:      ret.StakingIotexAddress,
-			VoterCount:               int(ret.VoterCount),
-			WaiveServiceFee:          ret.WaiveServiceFee,
-			BalanceAfterDistribution: ret.Amount,
-		}
-		dm = append(dm, v)
+		hermesDistribution = append(hermesDistribution, &HermesDistribution{
+			DelegateName:        aliasString,
+			RewardDistribution:  rds,
+			StakingIotexAddress: ret.StakingIotexAddress,
+			VoterCount:          int(ret.VoterCount),
+			WaiveServiceFee:     ret.WaiveServiceFee,
+			Refund:              ret.Refund,
+		})
 	}
-	sort.Slice(dm, func(i, j int) bool { return dm[i].DelegateName < dm[j].DelegateName })
-
-	hermes := &Hermes{Exist: true, DistributionCount: len(rds), DelegateHermesMeta: dm}
-	paginationMap, err := getPaginationArgs(argsMap)
-	switch {
-	case err == ErrPaginationNotFound:
-		hermes.RewardDistribution = rds
-	case err != nil:
-		return nil, errors.Wrap(err, "failed to get pagination arguments for reward distributions")
-	default:
-		skip := paginationMap["skip"]
-		first := paginationMap["first"]
-		if skip < 0 || skip >= len(rds) {
-			return nil, errors.New("invalid pagination skip number for reward distributions")
-		}
-		if len(rds)-skip < first {
-			first = len(rds) - skip
-		}
-		hermes.RewardDistribution = rds[skip : skip+first]
-	}
-	return hermes, nil
+	sort.Slice(hermesDistribution, func(i, j int) bool { return hermesDistribution[i].DelegateName < hermesDistribution[j].DelegateName })
+	return &Hermes{Exist: true, HermesDistribution: hermesDistribution}, nil
 }
 
 // Contract handles Contract requests
@@ -354,6 +334,7 @@ func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Vo
 		}
 		delegateAmount = append(delegateAmount, v)
 	}
+	sort.Slice(delegateAmount, func(i, j int) bool { return delegateAmount[i].DelegateName < delegateAmount[j].DelegateName })
 	votingResponse.RewardSources = &RewardSources{
 		Exist:                 true,
 		DelegateDistributions: delegateAmount,
