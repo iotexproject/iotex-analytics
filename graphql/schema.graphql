@@ -4,6 +4,15 @@ type Query {
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
+    contract(address:String!,numPerPage:Int!,page:Int!):[Contract]
+}
+
+type Contract{
+    hash:String!
+    timestamp:String!
+    from:String!
+    to:String!
+    quantity:String!
 }
 
 type Account {
