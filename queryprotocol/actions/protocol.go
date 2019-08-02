@@ -20,7 +20,7 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
-var (
+const (
 	topicsPlusDataLen = 256
 	sha3Len           = 64
 	contractParamsLen = 64
@@ -39,14 +39,6 @@ type Contract struct {
 	To        string
 	Quantity  string
 	Timestamp string
-}
-
-// RetData
-type RetData struct {
-	ActionHash string
-	Topics     string
-	Data       string
-	Timestamp  string
 }
 
 // Protocol defines the protocol of querying tables
@@ -108,7 +100,7 @@ func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf("SELECT action_hash,topics,data,`timestamp` FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, address, offset, numPerPage)
+	getQuery := fmt.Sprintf("SELECT action_hash,receipt_hash,address,topics,data,block_height,index,`timestamp`,status FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, address, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -120,7 +112,7 @@ func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var ret RetData
+	var ret actions.Xrc20History
 	parsedRows, err := s.ParseSQLRows(rows, &ret)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
@@ -131,7 +123,7 @@ func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []
 	}
 	for _, parsedRow := range parsedRows {
 		con := &Contract{}
-		r := parsedRow.(*RetData)
+		r := parsedRow.(*actions.Xrc20History)
 		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
 		if err != nil {
 			return
