@@ -25,3 +25,9 @@ jobs:
       - run: golint -set_exit_status $(go list ./... | grep -v /vendor/)
       - run: bash ./go.test.sh
       - run: bash <(curl -s https://codecov.io/bash)
+
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build
