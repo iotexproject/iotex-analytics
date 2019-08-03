@@ -32,7 +32,7 @@ type activeAccout struct {
 	BlockHeight uint64
 }
 
-// Contract
+// Contract defines xrc20 transfer info
 type Contract struct {
 	Hash      string
 	From      string
@@ -89,7 +89,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	return addrs, nil
 }
 
-// GetContract
+// GetContract get xrc20 transfer info
 func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []*Contract, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
