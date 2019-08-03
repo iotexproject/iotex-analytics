@@ -7,6 +7,7 @@
 package testutil
 
 import (
+	"encoding/hex"
 	"math/big"
 
 	"github.com/golang/protobuf/proto"
@@ -135,6 +136,16 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 					},
 					SenderPubKey: PubKey1.Bytes(),
 				},
+				{
+					Core: &iotextypes.ActionCore{
+						Action: &iotextypes.ActionCore_Execution{
+							Execution: &iotextypes.Execution{},
+						},
+						Version: version.ProtocolVersion,
+						Nonce:   107,
+					},
+					SenderPubKey: PubKey1.Bytes(),
+				},
 			},
 		},
 	}); err != nil {
@@ -193,6 +204,25 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr3, "100"),
 		},
 	})
+	// add for xrc20
+	transferHash, _ := hex.DecodeString("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
+	data, _ := hex.DecodeString("0000000000000000000000006356908ace09268130dee2b7de643314bbeb3683000000000000000000000000da7e12ef57c236a06117c5e0d04a228e7181cf360000000000000000000000000000000000000000000000000de0b6b3a7640000")
+	receipts = append(receipts, &action.Receipt{
+		ActionHash:      blk.Actions[6].Hash(),
+		Status:          7,
+		GasConsumed:     7,
+		ContractAddress: "7",
+		Logs: []*action.Log{&action.Log{
+			Address:     "xxxxx",
+			Topics:      []hash.Hash256{hash.BytesToHash256(transferHash)},
+			Data:        data,
+			BlockHeight: 100000,
+			ActionHash:  blk.Actions[6].Hash(),
+			Index:       888,
+		},
+		},
+	})
+
 	blk.Receipts = make([]*action.Receipt, 0)
 	/*for _, receipt := range receipts {
 		blk.Receipts = append(blk.Receipts, receipt)
