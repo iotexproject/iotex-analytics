@@ -9,18 +9,25 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/contract"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -87,14 +94,15 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store        s.Store
-	NumDelegates uint64
-	NumSubEpochs uint64
+	Store           s.Store
+	NumDelegates    uint64
+	NumSubEpochs    uint64
+	GravityChainCfg indexprotocol.GravityChain
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Protocol {
-	return &Protocol{Store: store, NumDelegates: numDelegates, NumSubEpochs: numSubEpochs}
+func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain) *Protocol {
+	return &Protocol{Store: store, NumDelegates: numDelegates, NumSubEpochs: numSubEpochs, GravityChainCfg: gravityChainCfg}
 }
 
 // CreateTables creates tables
@@ -205,7 +213,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.updateVotingHistory(tx, candidateToBuckets, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
 		}
-		if err := p.updateVotingResult(tx, candidates, epochNumber); err != nil {
+		if err := p.updateVotingResult(tx, candidates, epochNumber, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
 		}
 	}
@@ -328,17 +336,22 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string
 	return nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64) error {
+func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64, gravityHeight uint64) error {
 	valStrs := make([]string, 0, len(candidates))
-	valArgs := make([]interface{}, 0, len(candidates)*7)
+	valArgs := make([]interface{}, 0, len(candidates)*10)
 	for _, candidate := range candidates {
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?)")
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+		stakingAddress := common.HexToAddress(candidate.Address)
+		blockRewardPortion, epochRewardPortion, foundationBonusPortion, err := p.getDelegateRewardPortions(stakingAddress, gravityHeight)
+		if err != nil {
+			return err
+		}
 		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress,
-			candidate.TotalWeightedVotes, candidate.SelfStakingTokens, candidate.Address)
+			candidate.TotalWeightedVotes, candidate.SelfStakingTokens, blockRewardPortion, epochRewardPortion, foundationBonusPortion, candidate.Address)
 	}
 
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes, self_staking, staking_address) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
+		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
@@ -368,4 +381,49 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 		return err
 	}
 	return nil
+}
+
+func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (int64, int64, int64, error) {
+	if p.GravityChainCfg.GravityChainAPIs == nil {
+		return 100, 100, 100, nil
+	}
+	clientPool := carrier.NewEthClientPool(p.GravityChainCfg.GravityChainAPIs)
+
+	var blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64
+	if err := clientPool.Execute(func(client *ethclient.Client) error {
+		if caller, err := contract.NewDelegateProfileCaller(common.HexToAddress(p.GravityChainCfg.RegisterContractAddress), client); err == nil {
+			opts := &bind.CallOpts{BlockNumber: new(big.Int).SetUint64(gravityChainHeight)}
+			blockRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "blockRewardPortion")
+			if err != nil {
+				return err
+			}
+			epochRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "epochRewardPortion")
+			if err != nil {
+				return err
+			}
+			foundationRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "foundationRewardPortion")
+			if err != nil {
+				return err
+			}
+			blockPortion, err := strconv.ParseInt(hex.EncodeToString(blockRewardPortion), 0, 64)
+			if err != nil {
+				return err
+			}
+			epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 0, 64)
+			if err != nil {
+				return err
+			}
+			foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 0, 64)
+			if err != nil {
+				return err
+			}
+			blockRewardPercentage = blockPortion / 10000
+			epochRewardPercentage = epochPortion / 10000
+			foundationBonusPercentage = foundationPortion / 10000
+		}
+		return nil
+	}); err != nil {
+		err = errors.Wrap(err, "failed to get delegate reward portions")
+	}
+	return blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, nil
 }

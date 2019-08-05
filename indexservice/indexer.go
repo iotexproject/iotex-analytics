@@ -41,11 +41,12 @@ type Indexer struct {
 
 // Config contains indexer configs
 type Config struct {
-	NumDelegates          uint64                `yaml:"numDelegates"`
-	NumCandidateDelegates uint64                `yaml:"numCandidateDelegates"`
-	NumSubEpochs          uint64                `yaml:"numSubEpochs"`
-	RangeQueryLimit       uint64                `yaml:"rangeQueryLimit"`
-	Genesis               indexprotocol.Genesis `yaml:"genesis"`
+	NumDelegates          uint64                     `yaml:"numDelegates"`
+	NumCandidateDelegates uint64                     `yaml:"numCandidateDelegates"`
+	NumSubEpochs          uint64                     `yaml:"numSubEpochs"`
+	RangeQueryLimit       uint64                     `yaml:"rangeQueryLimit"`
+	Genesis               indexprotocol.Genesis      `yaml:"genesis"`
+	GravityChain          indexprotocol.GravityChain `yaml:"gravityChain"`
 }
 
 // NewIndexer creates a new indexer
@@ -160,7 +161,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
+	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")

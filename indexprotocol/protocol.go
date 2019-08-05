@@ -34,6 +34,11 @@ type (
 		// InitBalanceMap is the address and initial balance mapping before the first block.
 		InitBalanceMap map[string]string `yaml:"initBalances"`
 	}
+	GravityChain struct {
+		GravityChainAPIs        []string `yaml:"gravityChainAPIs"`
+		RegisterContractAddress string   `yaml:"registerContractAddress"`
+		StakingContractAddress  string   `yaml:"stakingContractAddress"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer
