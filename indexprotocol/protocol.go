@@ -34,6 +34,7 @@ type (
 		// InitBalanceMap is the address and initial balance mapping before the first block.
 		InitBalanceMap map[string]string `yaml:"initBalances"`
 	}
+	// GravityChain contains the configs for gravity chain
 	GravityChain struct {
 		GravityChainAPIs        []string `yaml:"gravityChainAPIs"`
 		RegisterContractAddress string   `yaml:"registerContractAddress"`
