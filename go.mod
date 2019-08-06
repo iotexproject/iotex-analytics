@@ -9,11 +9,11 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
-	github.com/iotexproject/go-pkgs v0.1.1-0.20190513193226-f065b9342b78
+	github.com/iotexproject/go-pkgs v0.1.1-0.20190613181553-bd03f6d4187e
 	github.com/iotexproject/iotex-address v0.2.0
-	github.com/iotexproject/iotex-core v0.7.1-0.20190527174610-e327ed2f35d8
+	github.com/iotexproject/iotex-core v0.8.0
 	github.com/iotexproject/iotex-election v0.1.17
-	github.com/iotexproject/iotex-proto v0.2.1-0.20190528210926-c48a31f9d016
+	github.com/iotexproject/iotex-proto v0.2.1-0.20190626221605-1f92737a3f6a
 	github.com/jbenet/goprocess v0.1.2 // indirect
 	github.com/libp2p/go-libp2p v0.0.22 // indirect
 	github.com/libp2p/go-libp2p-circuit v0.0.6 // indirect
