@@ -18,25 +18,25 @@ import (
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/version"
-	"github.com/iotexproject/iotex-core/test/testaddress"
+	"github.com/iotexproject/iotex-core/test/identityset"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
 
 var (
 	// Addr1 is a testing address
-	Addr1 = testaddress.Addrinfo["alfa"].String()
+	Addr1 = identityset.Address(0).String()
 	// PubKey1 is a testing public key
-	PubKey1 = testaddress.Keyinfo["alfa"].PubKey
+	PubKey1 = identityset.PrivateKey(0).PublicKey()
 	// Addr2 is a testing address
-	Addr2 = testaddress.Addrinfo["bravo"].String()
+	Addr2 = identityset.Address(1).String()
 	// PubKey2 is testing public key
-	PubKey2 = testaddress.Keyinfo["bravo"].PubKey
+	PubKey2 = identityset.PrivateKey(1).PublicKey()
 	// RewardAddr1 is a testing reward address
-	RewardAddr1 = testaddress.Addrinfo["charlie"].String()
+	RewardAddr1 = identityset.Address(2).String()
 	// RewardAddr2 is a testing reward address
-	RewardAddr2 = testaddress.Addrinfo["delta"].String()
+	RewardAddr2 = identityset.Address(3).String()
 	// RewardAddr3 is a testing reward address
-	RewardAddr3 = testaddress.Addrinfo["echo"].String()
+	RewardAddr3 = identityset.Address(4).String()
 )
 
 // BuildCompleteBlock builds a complete block

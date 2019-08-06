@@ -14,13 +14,6 @@ require (
 	github.com/iotexproject/iotex-core v0.7.3
 	github.com/iotexproject/iotex-election v0.1.17
 	github.com/iotexproject/iotex-proto v0.2.1-0.20190711042234-eb3d2a61ab27
-	github.com/jbenet/goprocess v0.1.2 // indirect
-	github.com/libp2p/go-libp2p v0.0.22 // indirect
-	github.com/libp2p/go-libp2p-circuit v0.0.6 // indirect
-	github.com/libp2p/go-libp2p-connmgr v0.0.4 // indirect
-	github.com/libp2p/go-libp2p-crypto v0.0.2 // indirect
-	github.com/libp2p/go-libp2p-pubsub v0.0.2 // indirect
-	github.com/multiformats/go-multistream v0.0.3 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0 // indirect
 	github.com/rs/zerolog v1.14.3
@@ -36,3 +29,7 @@ require (
 replace github.com/ethereum/go-ethereum => github.com/iotexproject/go-ethereum v1.7.4-0.20190216004546-2bbee71fbe61
 
 exclude github.com/dgraph-io/badger v2.0.0-rc.2+incompatible
+
+exclude github.com/dgraph-io/badger v2.0.0-rc2+incompatible
+
+exclude github.com/ipfs/go-ds-badger v0.0.3
