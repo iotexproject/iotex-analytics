@@ -383,14 +383,16 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 	return nil
 }
 
-func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (int64, int64, int64, error) {
+func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
 	if p.GravityChainCfg.GravityChainAPIs == nil {
-		return 100, 100, 100, nil
+		blockRewardPercentage = 100
+		epochRewardPercentage = 100
+		foundationBonusPercentage = 100
+		return
 	}
 	clientPool := carrier.NewEthClientPool(p.GravityChainCfg.GravityChainAPIs)
 
-	var blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64
-	if err := clientPool.Execute(func(client *ethclient.Client) error {
+	if err = clientPool.Execute(func(client *ethclient.Client) error {
 		if caller, err := contract.NewDelegateProfileCaller(common.HexToAddress(p.GravityChainCfg.RegisterContractAddress), client); err == nil {
 			opts := &bind.CallOpts{BlockNumber: new(big.Int).SetUint64(gravityChainHeight)}
 			blockRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "blockRewardPortion")
@@ -405,25 +407,25 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 			if err != nil {
 				return err
 			}
-			blockPortion, err := strconv.ParseInt(hex.EncodeToString(blockRewardPortion), 0, 64)
+			blockPortion, err := strconv.ParseInt(hex.EncodeToString(blockRewardPortion), 16, 64)
 			if err != nil {
 				return err
 			}
-			epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 0, 64)
+			epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 16, 64)
 			if err != nil {
 				return err
 			}
-			foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 0, 64)
+			foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 16, 64)
 			if err != nil {
 				return err
 			}
-			blockRewardPercentage = blockPortion / 10000
-			epochRewardPercentage = epochPortion / 10000
-			foundationBonusPercentage = foundationPortion / 10000
+			blockRewardPercentage = blockPortion / 100
+			epochRewardPercentage = epochPortion / 100
+			foundationBonusPercentage = foundationPortion / 100
 		}
 		return nil
 	}); err != nil {
 		err = errors.Wrap(err, "failed to get delegate reward portions")
 	}
-	return blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, nil
+	return
 }

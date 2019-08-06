@@ -36,5 +36,4 @@ genesis:
 gravityChain:
   gravityChainAPIs:
     - https://mainnet.infura.io/v3/b355cae6fafc4302b106b937ee6c15af
-  registerContractAddress: 0x95724986563028deb58f15c5fac19fa09304f32d
-  stakingContractAddress: 0x87c9dbff0016af23f5b1ab9b8e072124ab729193
+  registerContractAddress: 0x8619a5c5232c32bae63c442b905a27ae46598566

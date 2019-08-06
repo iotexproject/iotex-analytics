@@ -38,7 +38,6 @@ type (
 	GravityChain struct {
 		GravityChainAPIs        []string `yaml:"gravityChainAPIs"`
 		RegisterContractAddress string   `yaml:"registerContractAddress"`
-		StakingContractAddress  string   `yaml:"stakingContractAddress"`
 	}
 )
 
