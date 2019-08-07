@@ -399,6 +399,10 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 			if err != nil {
 				return err
 			}
+			// In the case that the delegate has not provided reward percentages, just return
+			if len(blockRewardPortion) == 0 {
+				return nil
+			}
 			epochRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "epochRewardPortion")
 			if err != nil {
 				return err
