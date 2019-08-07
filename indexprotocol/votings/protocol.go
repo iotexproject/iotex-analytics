@@ -384,7 +384,7 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
 }
 
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
-	if p.GravityChainCfg.GravityChainAPIs == nil {
+	if p.GravityChainCfg.GravityChainAPIs == nil || gravityChainHeight < p.GravityChainCfg.RewardPercentageStartHeight {
 		blockRewardPercentage = 100
 		epochRewardPercentage = 100
 		foundationBonusPercentage = 100
