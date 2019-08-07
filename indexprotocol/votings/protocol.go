@@ -399,10 +399,6 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 			if err != nil {
 				return err
 			}
-			// In the case that the delegate has not provided reward percentages, just return
-			if len(blockRewardPortion) == 0 {
-				return nil
-			}
 			epochRewardPortion, err := caller.GetProfileByField(opts, stakingAddress, "epochRewardPortion")
 			if err != nil {
 				return err
@@ -411,21 +407,28 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 			if err != nil {
 				return err
 			}
-			blockPortion, err := strconv.ParseInt(hex.EncodeToString(blockRewardPortion), 16, 64)
-			if err != nil {
-				return err
+
+			if len(blockRewardPortion) > 0 {
+				blockPortion, err := strconv.ParseInt(hex.EncodeToString(blockRewardPortion), 16, 64)
+				if err != nil {
+					return err
+				}
+				blockRewardPercentage = blockPortion / 100
 			}
-			epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 16, 64)
-			if err != nil {
-				return err
+			if len(epochRewardPortion) > 0 {
+				epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 16, 64)
+				if err != nil {
+					return err
+				}
+				epochRewardPercentage = epochPortion / 100
 			}
-			foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 16, 64)
-			if err != nil {
-				return err
+			if len(foundationRewardPortion) > 0 {
+				foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 16, 64)
+				if err != nil {
+					return err
+				}
+				foundationBonusPercentage = foundationPortion / 100
 			}
-			blockRewardPercentage = blockPortion / 100
-			epochRewardPercentage = epochPortion / 100
-			foundationBonusPercentage = foundationPortion / 100
 		}
 		return nil
 	}); err != nil {
