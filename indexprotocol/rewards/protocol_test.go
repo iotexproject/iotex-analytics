@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -47,7 +48,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(1), uint64(1))
+	p := NewProtocol(store, uint64(1), uint64(1), indexprotocol.Rewarding{})
 
 	require.NoError(p.CreateTables(ctx))
 
@@ -61,10 +62,10 @@ func TestProtocol(t *testing.T) {
 		ElectionClient: electionClient,
 	})
 
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(2).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
@@ -87,12 +88,6 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk1)
 	}))
 
-	blk2, err := testutil.BuildEmptyBlock(2)
-	require.NoError(err)
-	require.NoError(store.Transact(func(tx *sql.Tx) error {
-		return p.HandleBlock(ctx, tx, blk2)
-	}))
-
 	actionHash1 := blk1.Actions[4].Hash()
 	rewardHistoryList, err := p.getRewardHistory(hex.EncodeToString(actionHash1[:]))
 	require.NoError(err)
@@ -108,10 +103,4 @@ func TestProtocol(t *testing.T) {
 	rewardHistoryList, err = p.getRewardHistory(hex.EncodeToString(actionHash2[:]))
 	require.NoError(err)
 	require.Equal(3, len(rewardHistoryList))
-
-	accountReward, err := p.getAccountReward(uint64(1), "616c6661")
-	require.NoError(err)
-	require.Equal("16", accountReward.BlockReward)
-	require.Equal("10", accountReward.EpochReward)
-	require.Equal("100", accountReward.FoundationBonus)
 }

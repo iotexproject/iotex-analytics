@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,8 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -64,6 +67,27 @@ type (
 		EpochReward     string
 		FoundationBonus string
 	}
+
+	// AggregateReward defines aggregate reward records
+	AggregateReward struct {
+		EpochNumber     uint64
+		RewardAddress   string
+		BlockReward     string
+		EpochReward     string
+		FoundationBonus string
+	}
+
+	// CandidateVote defines candidate vote structure
+	CandidateVote struct {
+		CandidateName      string
+		TotalWeightedVotes *big.Int
+	}
+
+	// Productivity defines block producers' productivity in an epoch
+	Productivity struct {
+		Production         uint64
+		ExpectedProduction uint64
+	}
 )
 
 // Protocol defines the protocol of indexing blocks
@@ -72,7 +96,8 @@ type Protocol struct {
 	NumDelegates          uint64
 	NumCandidateDelegates uint64
 	NumSubEpochs          uint64
-	RewardAddrToName      map[string]string
+	RewardAddrToName      map[string][]string
+	RewardConfig          indexprotocol.Rewarding
 }
 
 // RewardInfo indicates the amount of different reward types
@@ -83,8 +108,18 @@ type RewardInfo struct {
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Protocol {
-	return &Protocol{Store: store, NumDelegates: numDelegates, NumSubEpochs: numSubEpochs}
+func NewProtocol(
+	store s.Store,
+	numDelegates uint64,
+	numSubEpochs uint64,
+	rewardingConfig indexprotocol.Rewarding,
+) *Protocol {
+	return &Protocol{
+		Store:        store,
+		NumDelegates: numDelegates,
+		NumSubEpochs: numSubEpochs,
+		RewardConfig: rewardingConfig,
+	}
 }
 
 // CreateTables creates tables
@@ -94,6 +129,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name VARCHAR(24) NOT NULL, "+
 		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)",
 		RewardHistoryTableName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"candidate_name VARCHAR(24) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
+		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))", AccountRewardTableName, EpochCandidateIndexName)); err != nil {
 		return err
 	}
 	return nil
@@ -119,7 +159,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 	}
 	if height == epochHeight {
-		if err := p.rebuildAccountRewardTable(tx); err != nil {
+		if err := p.rebuildAccountRewardTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
 	}
@@ -229,7 +269,12 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHas
 		blockReward := rewards.BlockReward.String()
 		epochReward := rewards.EpochReward.String()
 		foundationBonus := rewards.FoundationBonus.String()
-		candidateName := p.RewardAddrToName[rewardAddress]
+
+		var candidateName string
+		// If more than one candidates share the same reward address, just use the first candidate as their delegate
+		if len(p.RewardAddrToName[rewardAddress]) > 0 {
+			candidateName = p.RewardAddrToName[rewardAddress][0]
+		}
 
 		valStrs = append(valStrs, "(?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
 		valArgs = append(valArgs, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus)
@@ -305,23 +350,266 @@ func (p *Protocol) updateCandidateRewardAddress(
 		return errors.Wrap(err, "failed to get candidates from election service")
 	}
 
-	p.RewardAddrToName = make(map[string]string)
+	p.RewardAddrToName = make(map[string][]string)
 	for _, candidate := range getCandidatesResponse.Candidates {
-		p.RewardAddrToName[candidate.RewardAddress] = candidate.Name
+		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
+			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
+		}
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], candidate.Name)
 	}
 	return nil
 }
 
-func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(24) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
-		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))", AccountRewardTableName, EpochCandidateIndexName)); err != nil {
-		return err
+func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error {
+	if lastEpoch == 0 {
+		return nil
 	}
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
-		"SUM(block_reward) AS block_reward, SUM(epoch_reward) AS epoch_reward, SUM(foundation_bonus) AS foundation_bonus FROM %s "+
-		"GROUP BY epoch_number, candidate_name", AccountRewardTableName, RewardHistoryTableName)); err != nil {
+	// Get voting result from last epoch
+	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(lastEpoch)
+	if err != nil {
+		return errors.Wrap(err, "failed to get voting info")
+	}
+	// Get aggregate reward	records from last epoch
+	getQuery := fmt.Sprintf("SELECT epoch_number, reward_address, SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) "+
+		"FROM %s WHERE epoch_number = ? GROUP BY epoch_number, reward_address", RewardHistoryTableName)
+
+	db := p.Store.GetDB()
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(lastEpoch)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute get query")
+	}
+
+	var aggregateReward AggregateReward
+	parsedRows, err := s.ParseSQLRows(rows, &aggregateReward)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		return indexprotocol.ErrNotExist
+	}
+
+	exemptionMap := make(map[string]bool)
+	for _, name := range p.RewardConfig.ExemptCandidatesFromEpochReward {
+		exemptionMap[name] = true
+	}
+
+	valStrs := make([]string, 0)
+	valArgs := make([]interface{}, 0)
+	for _, parsedRow := range parsedRows {
+		record := parsedRow.(*AggregateReward)
+		epochNumber := record.EpochNumber
+		rewardAddress := record.RewardAddress
+		candidateNames := rewardAddrToNameMapping[rewardAddress]
+		if len(candidateNames) == 1 {
+			candidateName := candidateNames[0]
+			valStrs = append(valStrs, "(?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
+			valArgs = append(valArgs, epochNumber, candidateName, record.BlockReward, record.EpochReward, record.FoundationBonus)
+			continue
+		}
+
+		// Multiple delegates share reward address
+		totalBlockReward, ok := big.NewInt(0).SetString(record.BlockReward, 10)
+		if !ok {
+			return errors.New("failed to convert string to big int")
+		}
+		totalEpochReward, ok := big.NewInt(0).SetString(record.EpochReward, 10)
+		if !ok {
+			return errors.New("failed to convert string to big int")
+		}
+		totalFoundationBonus, ok := big.NewInt(0).SetString(record.FoundationBonus, 10)
+		if !ok {
+			return errors.New("failed to convert string to big int")
+		}
+		candidateRewardsMap, err := p.breakdownRewards(epochNumber, candidateNames, weightedVotesMapping,
+			exemptionMap, totalBlockReward, totalEpochReward, totalFoundationBonus)
+		if err != nil {
+			return errors.Wrap(err, "failed to get candidate rewards map")
+		}
+		for candidateName, rewards := range candidateRewardsMap {
+			valStrs = append(valStrs, "(?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
+			valArgs = append(valArgs, epochNumber, candidateName, rewards[0], rewards[1], rewards[2])
+		}
+	}
+
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number,candidate_name,block_reward,epoch_reward,"+
+		"foundation_bonus) VALUES %s", AccountRewardTableName, strings.Join(valStrs, ","))
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (p *Protocol) getVotingInfo(lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
+	// get voting results
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ?", votings.VotingResultTableName)
+	db := p.Store.GetDB()
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(lastEpoch)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var votingResult votings.VotingResult
+	parsedRows, err := s.ParseSQLRows(rows, &votingResult)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, nil, indexprotocol.ErrNotExist
+	}
+	rewardAddrToNameMapping := make(map[string][]string)
+	weightedVotesMapping := make(map[string]*big.Int)
+	for _, parsedRow := range parsedRows {
+		voting := parsedRow.(*votings.VotingResult)
+		if _, ok := rewardAddrToNameMapping[voting.RewardAddress]; !ok {
+			rewardAddrToNameMapping[voting.RewardAddress] = make([]string, 0)
+		}
+		rewardAddrToNameMapping[voting.RewardAddress] = append(rewardAddrToNameMapping[voting.RewardAddress], voting.DelegateName)
+
+		totalWeightedVotes, err := stringToBigInt(voting.TotalWeightedVotes)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to covert string to big int")
+		}
+		weightedVotesMapping[voting.DelegateName] = totalWeightedVotes
+	}
+	return rewardAddrToNameMapping, weightedVotesMapping, nil
+}
+
+func (p *Protocol) getProductivity(epochNumber uint64) (map[string]*Productivity, error) {
+	// get voting results
+	getQuery := fmt.Sprintf("SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
+		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
+		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, expected_producer_name) "+
+		"AS t1 LEFT JOIN (SELECT epoch_number, producer_name, COUNT(producer_address) AS production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, producer_name) "+
+		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", blocks.BlockHistoryTableName, blocks.BlockHistoryTableName)
+	db := p.Store.GetDB()
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(epochNumber, epochNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var productivity blocks.ProductivityHistory
+	parsedRows, err := s.ParseSQLRows(rows, &productivity)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, indexprotocol.ErrNotExist
+	}
+
+	productivityMap := make(map[string]*Productivity)
+	for _, parsedRow := range parsedRows {
+		p := parsedRow.(*blocks.ProductivityHistory)
+		productivityMap[p.ProducerName] = &Productivity{
+			Production:         p.Production,
+			ExpectedProduction: p.ExpectedProduction,
+		}
+	}
+	return productivityMap, nil
+}
+
+func (p *Protocol) breakdownRewards(
+	epochNumber uint64,
+	candidateNames []string,
+	weightedVotesMap map[string]*big.Int,
+	exemptionMap map[string]bool,
+	totalBlockReward *big.Int,
+	totalEpochReward *big.Int,
+	totalFoundationBonus *big.Int,
+) (map[string][]string, error) {
+	candidateVoteList := make([]*CandidateVote, 0, len(weightedVotesMap))
+	for name, votes := range weightedVotesMap {
+		candidateVoteList = append(candidateVoteList, &CandidateVote{
+			CandidateName:      name,
+			TotalWeightedVotes: votes,
+		})
+	}
+	// Sort list by votes in decreasing order
+	sort.Slice(candidateVoteList, func(i, j int) bool {
+		return candidateVoteList[i].TotalWeightedVotes.Cmp(candidateVoteList[j].TotalWeightedVotes) == 1
+	})
+	candidateRank := make(map[string]uint64)
+	for i, candidateVote := range candidateVoteList {
+		candidateRank[candidateVote.CandidateName] = uint64(i + 1)
+	}
+	productivityMap, err := p.getProductivity(epochNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get productivity map")
+	}
+	productionSum := big.NewInt(0)
+	qualifiedTotalVotes := big.NewInt(0)
+	foundationBonusCount := big.NewInt(0)
+	earnBlockReward := make(map[string]bool)
+	earnEpochReward := make(map[string]bool)
+	earnFoundationBonus := make(map[string]bool)
+	for _, candidateName := range candidateNames {
+		productive := true
+		if productivity, ok := productivityMap[candidateName]; ok {
+			productionSum.Add(productionSum, big.NewInt(int64(productivity.Production)))
+			earnBlockReward[candidateName] = true
+			if productivity.Production*100/productivity.ExpectedProduction < p.RewardConfig.ProductivityThreshold {
+				productive = false
+			}
+		}
+		// qualify for epoch reward
+		if candidateRank[candidateName] <= p.RewardConfig.NumDelegatesForEpochReward && !exemptionMap[candidateName] && productive {
+			qualifiedTotalVotes.Add(qualifiedTotalVotes, weightedVotesMap[candidateName])
+			earnEpochReward[candidateName] = true
+		}
+		// qualify for foundation bonus
+		if epochNumber <= p.RewardConfig.FoundationBonusLastEpoch && candidateRank[candidateName] <= p.RewardConfig.NumDelegatesForFoundationBonus && !exemptionMap[candidateName] {
+			foundationBonusCount.Add(foundationBonusCount, big.NewInt(1))
+			earnFoundationBonus[candidateName] = true
+		}
+	}
+	candidateRewardsMap := make(map[string][]string)
+	for _, candidateName := range candidateNames {
+		blockReward := big.NewInt(0)
+		epochReward := big.NewInt(0)
+		foundationBonus := big.NewInt(0)
+		if productionSum.Sign() > 0 && earnBlockReward[candidateName] {
+			production := big.NewInt(0).SetUint64(productivityMap[candidateName].Production)
+			blockReward = big.NewInt(0).Div(big.NewInt(0).Mul(totalBlockReward, production), productionSum)
+		}
+		if qualifiedTotalVotes.Sign() > 0 && earnEpochReward[candidateName] {
+			epochReward = big.NewInt(0).Div(big.NewInt(0).Mul(totalEpochReward, weightedVotesMap[candidateName]), qualifiedTotalVotes)
+		}
+		if totalFoundationBonus.Sign() > 0 && earnFoundationBonus[candidateName] {
+			foundationBonus = big.NewInt(0).Div(totalFoundationBonus, foundationBonusCount)
+		}
+
+		if blockReward.Sign() == 0 && epochReward.Sign() == 0 && foundationBonus.Sign() == 0 {
+			continue
+		}
+		candidateRewardsMap[candidateName] = []string{blockReward.String(), epochReward.String(), foundationBonus.String()}
+	}
+	return candidateRewardsMap, nil
+}
+
+// stringToBigInt transforms a string to big int
+func stringToBigInt(estr string) (*big.Int, error) {
+	ret, ok := big.NewInt(0).SetString(estr, 10)
+	if !ok {
+		return nil, errors.New("failed to parse string to big int")
+	}
+	return ret, nil
 }

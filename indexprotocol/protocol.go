@@ -40,6 +40,14 @@ type (
 		RegisterContractAddress     string   `yaml:"registerContractAddress"`
 		RewardPercentageStartHeight uint64   `yaml:"rewardPercentageStartHeight"`
 	}
+	// Rewarding contains the configs for rewarding
+	Rewarding struct {
+		NumDelegatesForEpochReward      uint64   `yaml:"numDelegatesForEpochReward"`
+		NumDelegatesForFoundationBonus  uint64   `yaml:"numDelegatesForFoundationBonus"`
+		FoundationBonusLastEpoch        uint64   `yaml:"foundationBonusLastEpoch"`
+		ProductivityThreshold           uint64   `yaml:"productivityThreshold"`
+		ExemptCandidatesFromEpochReward []string `yaml:"exemptCandidatesFromEpochReward"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer
