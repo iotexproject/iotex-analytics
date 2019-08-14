@@ -11,12 +11,11 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
-
 )
 
 const (
-	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
-	dbName     = "heroku_7fed0b046078f80"
+	connectStr             = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
+	dbName                 = "heroku_7fed0b046078f80"
 	ActionHistoryTableName = "action_history"
 )
 
@@ -44,7 +43,7 @@ func TestProtocol_GetActiveAccount(t *testing.T) {
 
 	// Testing unregistered
 	t.Run("Testing unregistered", func(t *testing.T) {
-		_,err = p.GetActiveAccount(1)
+		_, err = p.GetActiveAccount(1)
 		require.Error(err)
 		require.True(strings.Contains(err.Error(), "actions protocol is unregistered"))
 	})
@@ -52,7 +51,7 @@ func TestProtocol_GetActiveAccount(t *testing.T) {
 	// Testing no table
 	t.Run("Testing no table", func(t *testing.T) {
 		idx.RegisterDefaultProtocols()
-		_,err = p.GetActiveAccount(1)
+		_, err = p.GetActiveAccount(1)
 		require.Error(err)
 		require.True(strings.Contains(err.Error(), "failed to prepare get query"))
 	})
@@ -71,20 +70,19 @@ func TestProtocol_GetActiveAccount(t *testing.T) {
 		require.True(strings.Contains(err.Error(), "not exist in DB"))
 	})
 
-
 	// Populate Table
 	type testdata struct {
-		input int
+		input    int
 		listSize int
-		hList []uint64
-		fList []string
-		output []string
+		hList    []uint64
+		fList    []string
+		output   []string
 	}
 
-	var testsituations = []testdata {
-		{2, 3, []uint64 {1, 2, 3}, []string {"a", "b", "c"}, []string {"c", "b"}},
-		{2, 3, []uint64 {1, 2, 2}, []string {"a", "b", "b"}, []string{"b", "a"}},
-		{2, 3, []uint64 {3, 2, 1}, []string {"a", "b", "c"}, []string{"a", "b"}},
+	var testsituations = []testdata{
+		{2, 3, []uint64{1, 2, 3}, []string{"a", "b", "c"}, []string{"c", "b"}},
+		{2, 3, []uint64{1, 2, 2}, []string{"a", "b", "b"}, []string{"b", "a"}},
+		{2, 3, []uint64{3, 2, 1}, []string{"a", "b", "c"}, []string{"a", "b"}},
 	}
 
 	for _, tCase := range testsituations {
@@ -119,4 +117,3 @@ func TestProtocol_GetActiveAccount(t *testing.T) {
 	}
 
 }
-
