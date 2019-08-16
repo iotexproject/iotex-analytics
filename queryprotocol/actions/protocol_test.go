@@ -144,12 +144,12 @@ func TestProtocol(t *testing.T) {
 		inputnpp         uint64
 		inputp           uint64
 		listSize         int
-		action_hashList  []string
-		receipt_hashList []string
+		actionHashList  []string
+		receiptHashList []string
 		addressList      []string
 		topicsList       []string
 		dataList         []string
-		block_heightList []uint64
+		blockHeightList []uint64
 		indexList        []uint64
 		timestampList    []uint64
 		statusList       []string
@@ -201,7 +201,7 @@ func TestProtocol(t *testing.T) {
 	valArgs := make([]interface{}, 0, 3*2)
 	for i := 0; i < 3; i++ {
 		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, testsituation.action_hashList[i], testsituation.receipt_hashList[i], testsituation.addressList[i], testsituation.topicsList[i], testsituation.dataList[i], testsituation.block_heightList[i], testsituation.indexList[i], testsituation.timestampList[i], testsituation.statusList[i])
+		valArgs = append(valArgs, testsituation.actionHashList[i], testsituation.receiptHashList[i], testsituation.addressList[i], testsituation.topicsList[i], testsituation.dataList[i], testsituation.blockHeightList[i], testsituation.indexList[i], testsituation.timestampList[i], testsituation.statusList[i])
 	}
 
 	_, errXrc = store.GetDB().Exec("SET AUTOCOMMIT = 1")
