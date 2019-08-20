@@ -104,6 +104,17 @@ func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
 	return accountResponse, g.Wait()
 }
 
+func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	actionResponse := &Action{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "byDates") {
+		g.Go(func() error { return r.getActionsByDates(ctx, actionResponse) })
+	}
+	return actionResponse, g.Wait()
+}
+
 // Chain handles chain requests
 func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	requestedFields := graphql.CollectAllFields(ctx)
@@ -380,6 +391,39 @@ func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *
 		return errors.Wrap(err, "failed to get active accounts information")
 	}
 	accountResponse.ActiveAccounts = accounts
+	return nil
+}
+
+func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byDates", "")
+	startDate, err := getIntArg(argsMap, "startDate")
+	if err != nil {
+		return errors.Wrap(err, "failed to get start date")
+	}
+	endDate, err := getIntArg(argsMap, "endDate")
+	if err != nil {
+		return errors.Wrap(err, "failed to get end date")
+	}
+	if startDate > endDate {
+		return errors.New("invalid dates")
+	}
+	actionInfoList, err := r.AP.GetActionsByDates(uint64(startDate), uint64(endDate))
+	if err != nil {
+		return errors.Wrap(err, "failed to get actions by dates")
+	}
+	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
+	for _, act := range actionInfoList {
+		actInfoList = append(actInfoList, &ActionInfo{
+			ActHash:   act.ActHash,
+			BlkHash:   act.BlkHash,
+			ActType:   act.ActType,
+			TimeStamp: int(act.TimeStamp),
+			Sender:    act.Sender,
+			Recipient: act.Recipient,
+			Amount:    act.Amount,
+		})
+	}
+	actionResponse.ByDates = actInfoList
 	return nil
 }
 

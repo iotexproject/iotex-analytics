@@ -5,6 +5,7 @@ type Query {
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
     contract(address:String!,numPerPage:Int!,page:Int!):[Contract]
+    action: Action
 }
 
 type Contract{
@@ -19,6 +20,10 @@ type Account {
     activeAccounts(count: Int!): [String!]
     alias(operatorAddress: String!): Alias
     operatorAddress(aliasName: String!): OperatorAddress
+}
+
+type Action {
+    byDates(startDate: Int!, endDate: Int!): [ActionInfo]!
 }
 
 type Delegate {
@@ -67,6 +72,16 @@ type VotingMeta {
 type RewardSources {
     exist: Boolean!
     delegateDistributions: [DelegateAmount]!
+}
+
+type ActionInfo {
+    actHash: String!
+    blkHash: String!
+    timeStamp: Int!
+    actType: String!
+    sender: String!
+    recipient: String!
+    amount: String!
 }
 
 type Alias {

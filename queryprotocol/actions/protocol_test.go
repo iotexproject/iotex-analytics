@@ -140,20 +140,20 @@ func TestProtocol(t *testing.T) {
 
 	// Populate Xrc20History
 	type testdataXrc struct {
-		inputa           string
-		inputnpp         uint64
-		inputp           uint64
-		listSize         int
+		inputa          string
+		inputnpp        uint64
+		inputp          uint64
+		listSize        int
 		actionHashList  []string
 		receiptHashList []string
-		addressList      []string
-		topicsList       []string
-		dataList         []string
+		addressList     []string
+		topicsList      []string
+		dataList        []string
 		blockHeightList []uint64
-		indexList        []uint64
-		timestampList    []uint64
-		statusList       []string
-		output           []*Contract
+		indexList       []uint64
+		timestampList   []uint64
+		statusList      []string
+		output          []*Contract
 	}
 
 	contract1 := []*Contract{

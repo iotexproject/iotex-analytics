@@ -8,6 +8,20 @@ type Account struct {
 	OperatorAddress *OperatorAddress `json:"operatorAddress"`
 }
 
+type Action struct {
+	ByDates []*ActionInfo `json:"byDates"`
+}
+
+type ActionInfo struct {
+	ActHash   string `json:"actHash"`
+	BlkHash   string `json:"blkHash"`
+	TimeStamp int    `json:"timeStamp"`
+	ActType   string `json:"actType"`
+	Sender    string `json:"sender"`
+	Recipient string `json:"recipient"`
+	Amount    string `json:"amount"`
+}
+
 type Alias struct {
 	Exist     bool   `json:"exist"`
 	AliasName string `json:"aliasName"`

@@ -8,6 +8,7 @@ package actions
 
 import (
 	"fmt"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +33,17 @@ type activeAccout struct {
 	BlockHeight uint64
 }
 
+// ActionInfo defines action information
+type ActionInfo struct {
+	ActHash   string
+	BlkHash   string
+	TimeStamp uint64
+	ActType   string
+	Sender    string
+	Recipient string
+	Amount    string
+}
+
 // Contract defines xrc20 transfer info
 type Contract struct {
 	Hash      string
@@ -49,6 +61,44 @@ type Protocol struct {
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
+}
+
+// GetActionsByDates gets actions by start date and end date
+func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE timestamp >= ? AND timestamp <= ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(startDate, endDate)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var actInfo ActionInfo
+	parsedRows, err := s.ParseSQLRows(rows, &actInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	actionInfoList := make([]*ActionInfo, 0)
+	for _, parsedRow := range parsedRows {
+		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
+	}
+	return actionInfoList, nil
 }
 
 // GetActiveAccount gets active account address
