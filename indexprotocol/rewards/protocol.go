@@ -436,7 +436,9 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 			valArgs = append(valArgs, epochNumber, candidateName, rewards[0], rewards[1], rewards[2])
 		}
 	}
-
+	if len(valStrs) == 0 || len(valArgs) == 0 {
+		return nil
+	}
 	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number,candidate_name,block_reward,epoch_reward,"+
 		"foundation_bonus) VALUES %s", AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
