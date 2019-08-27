@@ -13,7 +13,7 @@ require (
 	github.com/iotexproject/iotex-address v0.2.1-0.20190725020429-99e5492ea0c3
 	github.com/iotexproject/iotex-core v0.7.3
 	github.com/iotexproject/iotex-election v0.1.18-0.20190720010220-fddc58c26ff5
-	github.com/iotexproject/iotex-proto v0.2.1-0.20190707070949-4abe81017bf3
+	github.com/iotexproject/iotex-proto v0.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0 // indirect
 	github.com/rs/zerolog v1.14.3
