@@ -60,6 +60,12 @@ type ComplexityRoot struct {
 		TimeStamp func(childComplexity int) int
 	}
 
+	ActionList struct {
+		Actions func(childComplexity int, pagination *Pagination) int
+		Count   func(childComplexity int) int
+		Exist   func(childComplexity int) int
+	}
+
 	Alias struct {
 		AliasName func(childComplexity int) int
 		Exist     func(childComplexity int) int
@@ -324,6 +330,32 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ActionInfo.TimeStamp(childComplexity), true
+
+	case "ActionList.Actions":
+		if e.complexity.ActionList.Actions == nil {
+			break
+		}
+
+		args, err := ec.field_ActionList_actions_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.ActionList.Actions(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "ActionList.Count":
+		if e.complexity.ActionList.Count == nil {
+			break
+		}
+
+		return e.complexity.ActionList.Count(childComplexity), true
+
+	case "ActionList.Exist":
+		if e.complexity.ActionList.Exist == nil {
+			break
+		}
+
+		return e.complexity.ActionList.Exist(childComplexity), true
 
 	case "Alias.AliasName":
 		if e.complexity.Alias.AliasName == nil {
@@ -970,7 +1002,7 @@ type Account {
 }
 
 type Action {
-    byDates(startDate: Int!, endDate: Int!): [ActionInfo]!
+    byDates(startDate: Int!, endDate: Int!): ActionList
 }
 
 type Delegate {
@@ -1019,6 +1051,12 @@ type VotingMeta {
 type RewardSources {
     exist: Boolean!
     delegateDistributions: [DelegateAmount]!
+}
+
+type ActionList {
+    exist: Boolean!
+    actions(pagination: Pagination): [ActionInfo]!
+    count: Int!
 }
 
 type ActionInfo {
@@ -1161,6 +1199,20 @@ func (ec *executionContext) field_Account_operatorAddress_args(ctx context.Conte
 		}
 	}
 	args["aliasName"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_ActionList_actions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
 	return args, nil
 }
 
@@ -1546,15 +1598,12 @@ func (ec *executionContext) _Action_byDates(ctx context.Context, field graphql.C
 		return obj.ByDates, nil
 	})
 	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.([]*ActionInfo)
+	res := resTmp.(*ActionList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNActionInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx, field.Selections, res)
+	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ActionInfo_actHash(ctx context.Context, field graphql.CollectedField, obj *ActionInfo) graphql.Marshaler {
@@ -1744,6 +1793,94 @@ func (ec *executionContext) _ActionInfo_amount(ctx context.Context, field graphq
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionList_exist(ctx context.Context, field graphql.CollectedField, obj *ActionList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionList_actions(ctx context.Context, field graphql.CollectedField, obj *ActionList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_ActionList_actions_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Actions, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ActionInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNActionInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionList_count(ctx context.Context, field graphql.CollectedField, obj *ActionList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Alias_exist(ctx context.Context, field graphql.CollectedField, obj *Alias) graphql.Marshaler {
@@ -4718,9 +4855,6 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Action")
 		case "byDates":
 			out.Values[i] = ec._Action_byDates(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4775,6 +4909,43 @@ func (ec *executionContext) _ActionInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "amount":
 			out.Values[i] = ec._ActionInfo_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var actionListImplementors = []string{"ActionList"}
+
+func (ec *executionContext) _ActionList(ctx context.Context, sel ast.SelectionSet, obj *ActionList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, actionListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActionList")
+		case "exist":
+			out.Values[i] = ec._ActionList_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "actions":
+			out.Values[i] = ec._ActionList_actions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._ActionList_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -6496,6 +6667,17 @@ func (ec *executionContext) marshalOActionInfo2ᚖgithubᚗcomᚋiotexprojectᚋ
 		return graphql.Null
 	}
 	return ec._ActionInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOActionList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx context.Context, sel ast.SelectionSet, v ActionList) graphql.Marshaler {
+	return ec._ActionList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx context.Context, sel ast.SelectionSet, v *ActionList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ActionList(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOAlias2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAlias(ctx context.Context, sel ast.SelectionSet, v Alias) graphql.Marshaler {

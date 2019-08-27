@@ -395,7 +395,7 @@ func (r *queryResolver) getActiveAccounts(ctx context.Context, accountResponse *
 }
 
 func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *Action) error {
-	argsMap := parseFieldArguments(ctx, "byDates", "")
+	argsMap := parseFieldArguments(ctx, "byDates", "actions")
 	startDate, err := getIntArg(argsMap, "startDate")
 	if err != nil {
 		return errors.Wrap(err, "failed to get start date")
@@ -408,9 +408,14 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 		return errors.New("invalid dates")
 	}
 	actionInfoList, err := r.AP.GetActionsByDates(uint64(startDate), uint64(endDate))
-	if err != nil {
-		return errors.Wrap(err, "failed to get actions by dates")
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByDates = &ActionList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get bookkeeping information")
 	}
+
 	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
 	for _, act := range actionInfoList {
 		actInfoList = append(actInfoList, &ActionInfo{
@@ -423,7 +428,27 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 			Amount:    act.Amount,
 		})
 	}
-	actionResponse.ByDates = actInfoList
+	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp < actInfoList[j].TimeStamp })
+
+	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	case err == ErrPaginationNotFound:
+		actionOutput.Actions = actInfoList
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	default:
+		skip := paginationMap["skip"]
+		first := paginationMap["first"]
+		if skip < 0 || skip >= len(actInfoList) {
+			return errors.New("invalid pagination skip number for actions")
+		}
+		if len(actInfoList)-skip < first {
+			first = len(actInfoList) - skip
+		}
+		actionOutput.Actions = actInfoList[skip : skip+first]
+	}
+	actionResponse.ByDates = actionOutput
 	return nil
 }
 

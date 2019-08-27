@@ -23,7 +23,7 @@ type Account {
 }
 
 type Action {
-    byDates(startDate: Int!, endDate: Int!): [ActionInfo]!
+    byDates(startDate: Int!, endDate: Int!): ActionList
 }
 
 type Delegate {
@@ -72,6 +72,12 @@ type VotingMeta {
 type RewardSources {
     exist: Boolean!
     delegateDistributions: [DelegateAmount]!
+}
+
+type ActionList {
+    exist: Boolean!
+    actions(pagination: Pagination): [ActionInfo]!
+    count: Int!
 }
 
 type ActionInfo {

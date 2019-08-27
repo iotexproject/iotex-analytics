@@ -9,7 +9,7 @@ type Account struct {
 }
 
 type Action struct {
-	ByDates []*ActionInfo `json:"byDates"`
+	ByDates *ActionList `json:"byDates"`
 }
 
 type ActionInfo struct {
@@ -20,6 +20,12 @@ type ActionInfo struct {
 	Sender    string `json:"sender"`
 	Recipient string `json:"recipient"`
 	Amount    string `json:"amount"`
+}
+
+type ActionList struct {
+	Exist   bool          `json:"exist"`
+	Actions []*ActionInfo `json:"actions"`
+	Count   int           `json:"count"`
 }
 
 type Alias struct {
