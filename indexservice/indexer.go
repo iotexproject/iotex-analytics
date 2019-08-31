@@ -184,7 +184,7 @@ func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 
-	startHeight := idx.lastHeight + 1
+	startHeight := idx.lastHeight
 	for startHeight <= tipHeight {
 		count := idx.Config.RangeQueryLimit
 		if idx.Config.RangeQueryLimit > tipHeight-startHeight+1 {

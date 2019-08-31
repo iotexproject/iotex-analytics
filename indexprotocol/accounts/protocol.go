@@ -250,14 +250,14 @@ func (p *Protocol) updateAccountHistory(
 	amount string,
 ) error {
 	if inAddr != "" {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, `in`) VALUES (?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, block_height, action_hash, address, `in`) VALUES (?, ?, ?, ?, ?)",
 			AccountHistoryTableName)
 		if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), inAddr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update account history for address %s", inAddr)
 		}
 	}
 	if outAddr != "" {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, address, `out`) VALUES (?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, block_height, action_hash, address, `out`) VALUES (?, ?, ?, ?, ?)",
 			AccountHistoryTableName)
 		if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), outAddr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update account history for address %s", outAddr)

@@ -226,7 +226,7 @@ func (p *Protocol) updateActionHistory(
 			actionInfo.From, actionInfo.To, actionInfo.GasPrice, receiptInfo.GasConsumed, actionInfo.Nonce,
 			actionInfo.Amount, receiptInfo.ReceiptStatus)
 	}
-	insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
 		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s", ActionHistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {

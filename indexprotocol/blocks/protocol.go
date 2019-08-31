@@ -267,7 +267,7 @@ func (p *Protocol) updateBlockHistory(
 	expectedProducerName string,
 	timestamp time.Time,
 ) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, "+
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, block_height, block_hash, transfer, execution, "+
 		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, "+
 		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		BlockHistoryTableName)

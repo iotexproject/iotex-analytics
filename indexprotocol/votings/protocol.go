@@ -327,7 +327,7 @@ func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string
 			valArgs = append(valArgs, epochNumber, candidateName, bucket.Voter, bucket.Votes, bucket.WeightedVotes, bucket.RemainingDuration)
 		}
 	}
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,candidate_name,voter_address,votes,weighted_votes,"+
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number,candidate_name,voter_address,votes,weighted_votes,"+
 		"remaining_duration) VALUES %s", VotingHistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
@@ -350,7 +350,7 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 			candidate.TotalWeightedVotes, candidate.SelfStakingTokens, blockRewardPortion, epochRewardPortion, foundationBonusPortion, candidate.Address)
 	}
 
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
