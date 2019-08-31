@@ -219,7 +219,7 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	return &Hermes{Exist: true, HermesDistribution: hermesDistribution}, nil
 }
 
-// Xrc20 handles Contract requests
+// Xrc20 handles Xrc20 requests
 func (r *queryResolver) Xrc20(ctx context.Context, address string, numPerPage int, page int) ([]*Xrc20, error) {
 	Cons, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
 	switch {
