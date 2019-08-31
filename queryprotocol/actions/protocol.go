@@ -8,7 +8,7 @@ package actions
 
 import (
 	"fmt"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,6 +17,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -44,8 +45,8 @@ type ActionInfo struct {
 	Amount    string
 }
 
-// Contract defines xrc20 transfer info
-type Contract struct {
+// Xrc20 defines xrc20 transfer info
+type Xrc20 struct {
 	Hash      string
 	From      string
 	To        string
@@ -139,8 +140,8 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	return addrs, nil
 }
 
-// GetContract get xrc20 transfer info
-func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []*Contract, err error) {
+// GetXrc20 get xrc20 transfer info
+func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xrc20, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -172,7 +173,7 @@ func (p *Protocol) GetContract(address string, numPerPage, page uint64) (cons []
 		return nil, err
 	}
 	for _, parsedRow := range parsedRows {
-		con := &Contract{}
+		con := &Xrc20{}
 		r := parsedRow.(*actions.Xrc20History)
 		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
 		if err != nil {
