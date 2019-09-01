@@ -50,7 +50,7 @@ func TestProtocol(t *testing.T) {
 		require.Error(errA)
 		require.EqualError(errA, "actions protocol is unregistered")
 
-		_, errXrc = p.GetContract("", 1, 1)
+		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
 		require.EqualError(errXrc, "actions protocol is unregistered")
 	})
@@ -62,7 +62,7 @@ func TestProtocol(t *testing.T) {
 		require.Error(errA)
 		require.EqualError(errA, "failed to prepare get query: Error 1146: Table 'heroku_7fed0b046078f80.action_history' doesn't exist")
 
-		_, errXrc = p.GetContract("", 1, 1)
+		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
 		require.EqualError(errXrc, "failed to prepare get query: Error 1146: Table 'heroku_7fed0b046078f80.xrc20_history' doesn't exist")
 	})
@@ -87,7 +87,7 @@ func TestProtocol(t *testing.T) {
 		require.Error(errA)
 		require.EqualError(errA, "not exist in DB")
 
-		_, errXrc = p.GetContract("", 1, 1)
+		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
 		require.EqualError(errXrc, "not exist in DB")
 	})
@@ -153,10 +153,10 @@ func TestProtocol(t *testing.T) {
 		indexList       []uint64
 		timestampList   []uint64
 		statusList      []string
-		output          []*Contract
+		output          []*Xrc20
 	}
 
-	contract1 := []*Contract{
+	contract1 := []*Xrc20{
 		{
 			"0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5",
 			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",
@@ -210,7 +210,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(errXrc)
 
 	t.Run("Testing data cases", func(t *testing.T) {
-		test, errXrc := p.GetContract(testsituation.inputa, testsituation.inputnpp, testsituation.inputp)
+		test, errXrc := p.GetXrc20(testsituation.inputa, testsituation.inputnpp, testsituation.inputp)
 		require.NoError(errXrc)
 		for k := 0; k < 3; k++ {
 			require.Equal(test[k].Hash, testsituation.output[k].Hash)

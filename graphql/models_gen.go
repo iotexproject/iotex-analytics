@@ -70,14 +70,6 @@ type Chain struct {
 	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
 }
 
-type Contract struct {
-	Hash      string `json:"hash"`
-	Timestamp string `json:"timestamp"`
-	From      string `json:"from"`
-	To        string `json:"to"`
-	Quantity  string `json:"quantity"`
-}
-
 type Delegate struct {
 	Reward       *Reward           `json:"reward"`
 	Productivity *Productivity     `json:"productivity"`
@@ -168,4 +160,12 @@ type Voting struct {
 type VotingMeta struct {
 	Exist         bool             `json:"exist"`
 	CandidateMeta []*CandidateMeta `json:"candidateMeta"`
+}
+
+type Xrc20 struct {
+	Hash      string `json:"hash"`
+	Timestamp string `json:"timestamp"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Quantity  string `json:"quantity"`
 }

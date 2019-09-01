@@ -219,18 +219,18 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	return &Hermes{Exist: true, HermesDistribution: hermesDistribution}, nil
 }
 
-// Contract handles Contract requests
-func (r *queryResolver) Contract(ctx context.Context, address string, numPerPage int, page int) ([]*Contract, error) {
-	Cons, err := r.AP.GetContract(address, uint64(numPerPage), uint64(page))
+// Xrc20 handles Xrc20 requests
+func (r *queryResolver) Xrc20(ctx context.Context, address string, numPerPage int, page int) ([]*Xrc20, error) {
+	Cons, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil, nil
 	case err != nil:
 		return nil, errors.Wrap(err, "failed to get contract information")
 	}
-	can := make([]*Contract, 0)
+	can := make([]*Xrc20, 0)
 	for _, c := range Cons {
-		can = append(can, &Contract{
+		can = append(can, &Xrc20{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
