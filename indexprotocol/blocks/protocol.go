@@ -114,6 +114,17 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))",
+		ExpectedProducerTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) "+
+		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))",
+		ProductivityTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -335,11 +346,6 @@ func (p *Protocol) updateDelegates(
 }
 
 func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))",
-		ExpectedProducerTableName, EpochProducerIndexName)); err != nil {
-		return err
-	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, "+
 		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name",
 		ExpectedProducerTableName, BlockHistoryTableName)); err != nil {
@@ -357,12 +363,6 @@ func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) "+
-		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))",
-		ProductivityTableName, EpochProducerIndexName)); err != nil {
-		return err
-	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
 		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityTableName,

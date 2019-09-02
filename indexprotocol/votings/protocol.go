@@ -163,7 +163,16 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
-
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
+		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
+		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -360,21 +369,12 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 }
 
 func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
-		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
-		return err
-	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
 		"voter_address, SUM(weighted_votes) FROM %s GROUP BY epoch_number, candidate_name, voter_address",
 		AggregateVotingTable, VotingHistoryTableName)); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
-		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
-		return err
-	}
+
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT history_t.epoch_number, voted_token, "+
 		"delegate_count, total_weighted FROM (SELECT epoch_number,SUM(votes) AS voted_token FROM %s GROUP BY epoch_number) AS history_t INNER JOIN (SELECT epoch_number,COUNT(delegate_name) AS delegate_count,SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number) AS result_t ON history_t.epoch_number=result_t.epoch_number ",
 		VotingMetaTableName, VotingHistoryTableName, VotingResultTableName)); err != nil {
