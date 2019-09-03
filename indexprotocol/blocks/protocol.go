@@ -125,6 +125,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		ProductivityTableName, EpochProducerIndexName)); err != nil {
 		return err
 	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
+		ProducerTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -352,11 +357,6 @@ func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
-		ProducerTableName, EpochProducerIndexName)); err != nil {
-		return err
-	}
 	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, producer_name, "+
 		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name",
 		ProducerTableName, BlockHistoryTableName)); err != nil {
