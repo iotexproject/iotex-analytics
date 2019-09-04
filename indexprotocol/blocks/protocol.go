@@ -115,6 +115,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		}
 	}
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
+		ProducerTableName, EpochProducerIndexName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
 		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))",
 		ExpectedProducerTableName, EpochProducerIndexName)); err != nil {
 		return err
@@ -123,11 +128,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) "+
 		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))",
 		ProductivityTableName, EpochProducerIndexName)); err != nil {
-		return err
-	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
-		ProducerTableName, EpochProducerIndexName)); err != nil {
 		return err
 	}
 	return nil
