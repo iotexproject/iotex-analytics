@@ -129,8 +129,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 					return errors.Wrapf(err, "failed to update account history on height %d", height)
 				}
 			}
-		case *action.Execution:
-			// balance changes from execution are handled in state-tracker version of iotex-core
 		case *action.DepositToRewardingFund:
 			if act.Amount().Sign() > 0 {
 				if err := p.updateAccountHistory(tx, epochNumber, height, actionHash, "", src, act.Amount().String()); err != nil {
