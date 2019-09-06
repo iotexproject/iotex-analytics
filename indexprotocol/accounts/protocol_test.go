@@ -46,18 +46,8 @@ func TestProtocol(t *testing.T) {
 	}))
 
 	// get account history
-	accountHistory, err := p.getAccountHistory(testutil.Addr1)
+	accountHistory, err := p.getBalanceHistory(testutil.Addr1)
 	require.NoError(err)
-	require.Equal(3, len(accountHistory))
-	require.Equal("0", accountHistory[2].In)
-	require.Equal("2", accountHistory[2].Out)
-
-	// get account balance change
-	accountBalance, err := p.getAccountBalanceChange(uint64(1), testutil.Addr1)
-	require.NoError(err)
-	require.Equal("-2", accountBalance.BalanceChange)
-
-	accountBalance, err = p.getAccountBalanceChange(uint64(1), testutil.Addr2)
-	require.NoError(err)
-	require.Equal("2", accountBalance.BalanceChange)
+	require.Equal(2, len(accountHistory))
+	require.Equal("2", accountHistory[1].Amount)
 }
