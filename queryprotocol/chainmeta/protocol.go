@@ -52,8 +52,8 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps int, err error) {
 		err = errors.New("blocks protocol is unregistered")
 		return
 	}
-	if ranges <= 0 {
-		err = errors.Wrap(err, "TPS block window should be greater than 0")
+	if ranges == uint64(0) {
+		err = errors.New("TPS block window should be greater than 0")
 		return
 	}
 	db := p.indexer.Store.GetDB()
