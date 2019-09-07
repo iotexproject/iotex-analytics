@@ -31,7 +31,6 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -488,43 +487,7 @@ func (p *Protocol) getVotingInfo(lastEpoch uint64) (map[string][]string, map[str
 }
 
 func (p *Protocol) getProductivity(epochNumber uint64) (map[string]*Productivity, error) {
-	// get voting results
-	getQuery := fmt.Sprintf("SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
-		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
-		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, expected_producer_name) "+
-		"AS t1 LEFT JOIN (SELECT epoch_number, producer_name, COUNT(producer_address) AS production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, producer_name) "+
-		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", blocks.BlockHistoryTableName, blocks.BlockHistoryTableName)
-	db := p.Store.GetDB()
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(epochNumber, epochNumber)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute get query")
-	}
-
-	var productivity blocks.ProductivityHistory
-	parsedRows, err := s.ParseSQLRows(rows, &productivity)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse results")
-	}
-
-	if len(parsedRows) == 0 {
-		return nil, indexprotocol.ErrNotExist
-	}
-
-	productivityMap := make(map[string]*Productivity)
-	for _, parsedRow := range parsedRows {
-		p := parsedRow.(*blocks.ProductivityHistory)
-		productivityMap[p.ProducerName] = &Productivity{
-			Production:         p.Production,
-			ExpectedProduction: p.ExpectedProduction,
-		}
-	}
-	return productivityMap, nil
+	return nil, nil
 }
 
 func (p *Protocol) breakdownRewards(

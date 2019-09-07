@@ -10,20 +10,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
-	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
-	"github.com/iotexproject/iotex-core/state"
-	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
-	"github.com/iotexproject/iotex-election/pb/api"
-	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
-	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
 
-	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
@@ -52,58 +43,11 @@ func TestXrc20(t *testing.T) {
 	require.NoError(bp.CreateTables(ctx))
 	require.NoError(p.CreateTables(ctx))
 
-	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
-	electionClient := mock_election.NewMockAPIServiceClient(ctrl)
-	bpctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:    chainClient,
-		ElectionClient: electionClient,
-	})
-
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
-	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
-		&api.CandidateResponse{
-			Candidates: []*api.Candidate{
-				{
-					Name:            "616c6661",
-					OperatorAddress: testutil.Addr1,
-				},
-				{
-					Name:            "627261766f",
-					OperatorAddress: testutil.Addr2,
-				},
-			},
-		}, nil,
-	)
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
-	}
-	candidateList := state.CandidateList{
-		{
-			Address:       testutil.Addr1,
-			RewardAddress: testutil.RewardAddr1,
-			Votes:         big.NewInt(100),
-		},
-		{
-			Address:       testutil.Addr2,
-			RewardAddress: testutil.RewardAddr2,
-			Votes:         big.NewInt(10),
-		},
-	}
-	data, err := candidateList.Serialize()
-	require.NoError(err)
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: data,
-	}, nil)
-
 	blk, err := testutil.BuildCompleteBlock(uint64(180), uint64(361))
 	require.NoError(err)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
-		return bp.HandleBlock(bpctx, tx, blk)
+		return bp.HandleBlock(ctx, tx, blk)
 	}))
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {

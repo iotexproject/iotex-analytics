@@ -9,21 +9,11 @@ package blocks
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
-	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
-	"github.com/iotexproject/iotex-core/state"
-	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
-	"github.com/iotexproject/iotex-election/pb/api"
-	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
-	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
 
-	"github.com/iotexproject/iotex-analytics/indexcontext"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -57,82 +47,12 @@ func TestProtocol(t *testing.T) {
 	blk1, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
 
-	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
-	electionClient := mock_election.NewMockAPIServiceClient(ctrl)
-	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:    chainClient,
-		ElectionClient: electionClient,
-	})
-
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(blk1.Height())},
-	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
-	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
-		&api.CandidateResponse{
-			Candidates: []*api.Candidate{
-				{
-					Name:            "616c6661",
-					OperatorAddress: testutil.Addr1,
-				},
-				{
-					Name:            "627261766f",
-					OperatorAddress: testutil.Addr2,
-				},
-			},
-		}, nil,
-	)
-	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
-	}
-	candidateList := state.CandidateList{
-		{
-			Address:       testutil.Addr1,
-			RewardAddress: testutil.RewardAddr1,
-			Votes:         big.NewInt(100),
-		},
-		{
-			Address:       testutil.Addr2,
-			RewardAddress: testutil.RewardAddr2,
-			Votes:         big.NewInt(10),
-		},
-	}
-	data, err := candidateList.Serialize()
-	require.NoError(err)
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: data,
-	}, nil)
-
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk1)
 	}))
 
 	blk2, err := testutil.BuildEmptyBlock(2)
 	require.NoError(err)
-
-	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(blk2.Height())},
-	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1100)),
-	}, nil)
-
-	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(2))},
-	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: data,
-	}, nil)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk2)
@@ -141,14 +61,5 @@ func TestProtocol(t *testing.T) {
 	blockHistory, err := p.getBlockHistory(uint64(1))
 	require.NoError(err)
 
-	blk1Hash := blk1.HashBlock()
 	require.Equal(uint64(1), blockHistory.EpochNumber)
-	require.Equal(hex.EncodeToString(blk1Hash[:]), blockHistory.BlockHash)
-	require.Equal("616c6661", blockHistory.ProducerName)
-	require.Equal("627261766f", blockHistory.ExpectedProducerName)
-
-	productivityHistory, err := p.getProductivityHistory(uint64(1), "627261766f")
-	require.NoError(err)
-	require.Equal(uint64(0), productivityHistory.Production)
-	require.Equal(uint64(1), productivityHistory.ExpectedProduction)
 }

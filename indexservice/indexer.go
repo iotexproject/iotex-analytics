@@ -21,10 +21,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -159,22 +156,10 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 
 // RegisterDefaultProtocols registers default protocols to hte indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.Store)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
-	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.Rewarding)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")
-	}
-	if err := idx.RegisterProtocol(actions.ProtocolID, actionsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register actions protocol")
-	}
-	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register rewards protocol")
-	}
-	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register accounts protocol")
 	}
 	return idx.RegisterProtocol(accounts.ProtocolID, accountsProtocol)
 }

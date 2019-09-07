@@ -7,26 +7,12 @@
 package productivity
 
 import (
-	"fmt"
-
-	"github.com/pkg/errors"
-
-	"github.com/iotexproject/iotex-analytics/indexprotocol"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
-	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
-}
-
-type productivity struct {
-	SumOfProduction         uint64
-	SumOfExpectedProduction uint64
 }
 
 // NewProtocol creates a new protocol
@@ -36,87 +22,5 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 
 // GetProductivityHistory gets productivity history
 func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, producerName string) (string, string, error) {
-	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
-		return "", "", errors.New("blocks protocol is unregistered")
-	}
-
-	db := p.indexer.Store.GetDB()
-
-	endEpoch := startEpoch + epochCount - 1
-
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
-		blocks.ProductivityTableName), startEpoch, endEpoch, producerName)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to check if the row exists")
-	}
-	if !exist {
-		return "", "", indexprotocol.ErrNotExist
-	}
-
-	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
-		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityTableName, startEpoch, endEpoch)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	var production, expectedProduction string
-	if err = stmt.QueryRow(producerName).Scan(&production, &expectedProduction); err != nil {
-		return "", "", errors.Wrap(err, "failed to execute get query")
-	}
-	return production, expectedProduction, nil
-}
-
-// GetAverageProductivity handles GetAverageProductivity request
-func (p *Protocol) GetAverageProductivity(startEpoch uint64, epochCount uint64) (averageProcucitvity float64, err error) {
-	if _, ok := p.indexer.Registry.Find(blocks.ProtocolID); !ok {
-		err = errors.New("blocks protocol is unregistered")
-		return
-	}
-
-	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
-	if err != nil {
-		err = errors.Wrap(err, "failed to get current epoch number")
-	}
-	if startEpoch > currentEpoch {
-		err = errors.New("epoch number is not exist")
-		return
-	}
-
-	db := p.indexer.Store.GetDB()
-
-	getQuery := fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(startEpoch, startEpoch+epochCount-1)
-	if err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-
-	var product productivity
-	parsedRows, err := s.ParseSQLRows(rows, &product)
-	if err != nil {
-		err = errors.Wrap(err, "failed to parse results")
-		return
-	}
-
-	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return
-	}
-	var productivitySums float64
-	for _, parsedRow := range parsedRows {
-		p := parsedRow.(*productivity)
-		productivitySums += float64(p.SumOfProduction) / float64(p.SumOfExpectedProduction)
-	}
-	averageProcucitvity = productivitySums / float64(len(parsedRows))
-	return
+	return "", "", nil
 }

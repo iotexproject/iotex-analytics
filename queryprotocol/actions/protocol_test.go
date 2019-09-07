@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
@@ -57,7 +58,9 @@ func TestProtocol(t *testing.T) {
 
 	// Testing no tables
 	t.Run("Testing no table", func(t *testing.T) {
-		idx.RegisterDefaultProtocols()
+		actionsProtocol := actions.NewProtocol(idx.Store)
+		require.NoError(idx.RegisterProtocol(actions.ProtocolID, actionsProtocol))
+
 		_, errA = p.GetActiveAccount(1)
 		require.Error(errA)
 		require.EqualError(errA, "failed to prepare get query: Error 1146: Table 'heroku_7fed0b046078f80.action_history' doesn't exist")
