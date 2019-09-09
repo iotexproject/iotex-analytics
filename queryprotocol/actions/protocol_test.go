@@ -47,7 +47,6 @@ func TestProtocol(t *testing.T) {
 	// Testing unregistered
 	t.Run("Testing unregistered", func(t *testing.T) {
 		_, errA = p.GetActiveAccount(1)
-		require.Error(errA)
 		require.EqualError(errA, "actions protocol is unregistered")
 
 		_, errXrc = p.GetXrc20("", 1, 1)
@@ -55,12 +54,13 @@ func TestProtocol(t *testing.T) {
 		require.EqualError(errXrc, "actions protocol is unregistered")
 	})
 
+	idx.RegisterDefaultProtocols()
+
 	// Testing no tables
 	t.Run("Testing no table", func(t *testing.T) {
-		idx.RegisterDefaultProtocols()
 		_, errA = p.GetActiveAccount(1)
-		require.Error(errA)
-		require.EqualError(errA, "failed to prepare get query: Error 1146: Table 'heroku_7fed0b046078f80.action_history' doesn't exist")
+		require.EqualError(errA, "failed to prepare get query: "+
+			"Error 1146: Table 'heroku_7fed0b046078f80.action_history' doesn't exist")
 
 		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
@@ -84,7 +84,6 @@ func TestProtocol(t *testing.T) {
 		require.NoError(errXrc)
 
 		_, errA = p.GetActiveAccount(1)
-		require.Error(errA)
 		require.EqualError(errA, "not exist in DB")
 
 		_, errXrc = p.GetXrc20("", 1, 1)
@@ -93,7 +92,7 @@ func TestProtocol(t *testing.T) {
 	})
 
 	// Populate ActionHistory
-	type testdataA struct {
+	type testDataA struct {
 		input    int
 		listSize int
 		hList    []uint64
@@ -101,13 +100,13 @@ func TestProtocol(t *testing.T) {
 		output   []string
 	}
 
-	var testsituationsA = []testdataA{
+	var testSituationsA = []testDataA{
 		{2, 3, []uint64{1, 2, 3}, []string{"a", "b", "c"}, []string{"c", "b"}},
 		{2, 3, []uint64{1, 2, 2}, []string{"a", "b", "b"}, []string{"b", "a"}},
 		{2, 3, []uint64{3, 2, 1}, []string{"a", "b", "c"}, []string{"a", "b"}},
 	}
 
-	for _, tCase := range testsituationsA {
+	for _, tCase := range testSituationsA {
 		valStrs := make([]string, 0, tCase.listSize)
 		valArgs := make([]interface{}, 0, tCase.listSize*2)
 		for i := 0; i < tCase.listSize; i++ {
@@ -120,7 +119,7 @@ func TestProtocol(t *testing.T) {
 		_, errA = store.GetDB().Exec(insertQuery, valArgs...)
 		require.NoError(errA)
 
-		t.Run("Testing data cases", func(t *testing.T) {
+		t.Run("Testing Active Account data cases", func(t *testing.T) {
 			test, errA := p.GetActiveAccount(tCase.input)
 			require.NoError(errA)
 			require.ElementsMatch(test, tCase.output)
@@ -139,10 +138,10 @@ func TestProtocol(t *testing.T) {
 	}
 
 	// Populate Xrc20History
-	type testdataXrc struct {
-		inputa          string
-		inputnpp        uint64
-		inputp          uint64
+	type testDataXrc struct {
+		inputA          string
+		inputNPP        uint64
+		inputP          uint64
 		listSize        int
 		actionHashList  []string
 		receiptHashList []string
@@ -156,7 +155,7 @@ func TestProtocol(t *testing.T) {
 		output          []*Xrc20
 	}
 
-	contract1 := []*Xrc20{
+	contract := []*Xrc20{
 		{
 			"0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5",
 			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",
@@ -180,7 +179,7 @@ func TestProtocol(t *testing.T) {
 		},
 	}
 
-	var testsituation = testdataXrc{
+	var testSituation = testDataXrc{
 		"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw",
 		3,
 		1,
@@ -194,14 +193,14 @@ func TestProtocol(t *testing.T) {
 		[]uint64{0, 0, 0},
 		[]uint64{1565391390, 1565825770, 1565729760},
 		[]string{"success", "success", "success"},
-		contract1,
+		contract,
 	}
 
-	valStrs := make([]string, 0, 3)
-	valArgs := make([]interface{}, 0, 3*2)
-	for i := 0; i < 3; i++ {
+	valStrs := make([]string, 0, testSituation.listSize)
+	valArgs := make([]interface{}, 0, testSituation.listSize*2)
+	for i := 0; i < testSituation.listSize; i++ {
 		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, testsituation.actionHashList[i], testsituation.receiptHashList[i], testsituation.addressList[i], testsituation.topicsList[i], testsituation.dataList[i], testsituation.blockHeightList[i], testsituation.indexList[i], testsituation.timestampList[i], testsituation.statusList[i])
+		valArgs = append(valArgs, testSituation.actionHashList[i], testSituation.receiptHashList[i], testSituation.addressList[i], testSituation.topicsList[i], testSituation.dataList[i], testSituation.blockHeightList[i], testSituation.indexList[i], testSituation.timestampList[i], testSituation.statusList[i])
 	}
 
 	_, errXrc = store.GetDB().Exec("SET AUTOCOMMIT = 1")
@@ -210,14 +209,14 @@ func TestProtocol(t *testing.T) {
 	require.NoError(errXrc)
 
 	t.Run("Testing data cases", func(t *testing.T) {
-		test, errXrc := p.GetXrc20(testsituation.inputa, testsituation.inputnpp, testsituation.inputp)
+		test, errXrc := p.GetXrc20(testSituation.inputA, testSituation.inputNPP, testSituation.inputP)
 		require.NoError(errXrc)
-		for k := 0; k < 3; k++ {
-			require.Equal(test[k].Hash, testsituation.output[k].Hash)
-			require.Equal(test[k].From, testsituation.output[k].From)
-			require.Equal(test[k].To, testsituation.output[k].To)
-			require.Equal(test[k].Quantity, testsituation.output[k].Quantity)
-			require.Equal(test[k].Timestamp, testsituation.output[k].Timestamp)
+		for k := 0; k < testSituation.listSize; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
 		}
 	})
 
