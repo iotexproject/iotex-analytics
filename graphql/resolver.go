@@ -112,6 +112,9 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byDates") {
 		g.Go(func() error { return r.getActionsByDates(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "evmTransfers") {
+		g.Go(func() error { return r.getEvmTransfers(ctx, actionResponse) })
+	}
 	return actionResponse, g.Wait()
 }
 
@@ -553,6 +556,21 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 			Quantity:  c.Quantity,
 		})
 	}
+	return nil
+}
+
+func (r *queryResolver) getEvmTransfers(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "evmTransfers", "actions")
+	val, ok := argsMap["actHash"]
+	if !ok {
+		return errors.New("failed to get action hash")
+	}
+
+	evmTransferList, err := r.AP.GetEvmTransfers(val.Raw)
+	if err != nil {
+		return errors.Wrap(err, "failed to get evm transfers")
+	}
+	actionResponse.EvmTransfers = evmTransferList
 	return nil
 }
 

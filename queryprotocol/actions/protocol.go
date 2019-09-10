@@ -14,6 +14,7 @@ import (
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/graphql"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
@@ -137,6 +138,42 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 		addrs = append(addrs, acc.From)
 	}
 	return addrs, nil
+}
+
+// GetEvmTransfers gets evm transfers by action hash
+func (p *Protocol) GetEvmTransfers(actHash string) ([]*graphql.EvmTransfer, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(actHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &graphql.EvmTransfer{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	evmTransferList := make([]*graphql.EvmTransfer, 0)
+	for _, parsedRow := range parsedRows {
+		evmTransferList = append(evmTransferList, parsedRow.(*graphql.EvmTransfer))
+	}
+	return evmTransferList, nil
 }
 
 // GetXrc20 get xrc20 transfer info

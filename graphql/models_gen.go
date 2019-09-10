@@ -9,7 +9,8 @@ type Account struct {
 }
 
 type Action struct {
-	ByDates *ActionList `json:"byDates"`
+	ByDates      *ActionList    `json:"byDates"`
+	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
 }
 
 type ActionInfo struct {
@@ -86,6 +87,12 @@ type DelegateAmount struct {
 type EpochRange struct {
 	StartEpoch int `json:"startEpoch"`
 	EpochCount int `json:"epochCount"`
+}
+
+type EvmTransfer struct {
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Quantity string `json:"quantity"`
 }
 
 type Hermes struct {
