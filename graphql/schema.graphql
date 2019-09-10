@@ -4,16 +4,22 @@ type Query {
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
-    xrc20(address:String!,numPerPage:Int!,page:Int!):[Xrc20]
+    xrc20: Xrc20
     action: Action
 }
 
-type Xrc20{
+type Xrc20Info{
     hash:String!
     timestamp:String!
     from:String!
     to:String!
     quantity:String!
+}
+
+type Xrc20 {
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byRecipientAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byPage(numPerPage:Int!,page:Int!): Xrc20List
 }
 
 type Account {
@@ -77,6 +83,12 @@ type RewardSources {
 type ActionList {
     exist: Boolean!
     actions(pagination: Pagination): [ActionInfo]!
+    count: Int!
+}
+
+type Xrc20List {
+    exist: Boolean!
+    xrc20(pagination: Pagination): [Xrc20Info]!
     count: Int!
 }
 

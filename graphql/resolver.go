@@ -220,25 +220,21 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 }
 
 // Xrc20 handles Xrc20 requests
-func (r *queryResolver) Xrc20(ctx context.Context, address string, numPerPage int, page int) ([]*Xrc20, error) {
-	Cons, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
-	switch {
-	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		return nil, nil
-	case err != nil:
-		return nil, errors.Wrap(err, "failed to get contract information")
+func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	actionResponse := &Xrc20{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "byContractAddress") {
+		g.Go(func() error { return r.getXrc20ByContractAddress(ctx, actionResponse) })
 	}
-	can := make([]*Xrc20, 0)
-	for _, c := range Cons {
-		can = append(can, &Xrc20{
-			Hash:      c.Hash,
-			Timestamp: c.Timestamp,
-			From:      c.From,
-			To:        c.To,
-			Quantity:  c.Quantity,
-		})
+	if containField(requestedFields, "byRecipientAddress") {
+		g.Go(func() error { return r.getXrc20ByRecipientAddress(ctx, actionResponse) })
 	}
-	return can, nil
+	if containField(requestedFields, "byPage") {
+		g.Go(func() error { return r.getXrc20ByPage(ctx, actionResponse) })
+	}
+	return actionResponse, g.Wait()
 }
 
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
@@ -451,7 +447,122 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	actionResponse.ByDates = actionOutput
 	return nil
 }
+func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byContractAddress", "xrc20")
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	xrc20InfoList, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
 
+	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+
+	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
+	if len(xrc20InfoRet) == 0 {
+		output.Exist = false
+	}
+	actionResponse.ByContractAddress = output
+	return nil
+}
+func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byRecipientAddress", "xrc20")
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	xrc20InfoList, err := r.AP.GetXrc20ByRecipient(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	fmt.Println("len(xrc20InfoList)", len(xrc20InfoList))
+	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+
+	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
+	if len(xrc20InfoRet) == 0 {
+		output.Exist = false
+	}
+	actionResponse.ByRecipientAddress = output
+	return nil
+}
+func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	xrc20InfoList, err := r.AP.GetXrc20ByPage(uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+
+	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+
+	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
+	if len(xrc20InfoRet) == 0 {
+		output.Exist = false
+	}
+	actionResponse.ByPage = output
+	return nil
+}
 func (r *queryResolver) getLastEpochAndHeight(chainResponse *Chain) error {
 	epoch, tipHeight, err := r.CP.GetLastEpochAndHeight()
 	if err != nil {
@@ -680,7 +791,13 @@ func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
 	}
 	return intVal, nil
 }
-
+func getStringArg(argsMap map[string]*ast.Value, argName string) (string, error) {
+	val, ok := argsMap[argName]
+	if !ok {
+		return "", fmt.Errorf("%s is required", argName)
+	}
+	return string(val.Raw), nil
+}
 func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
 	val, ok := argsMap[argName]
 	if !ok {
