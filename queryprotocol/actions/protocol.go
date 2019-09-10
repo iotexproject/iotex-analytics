@@ -238,7 +238,7 @@ func (p *Protocol) GetXrc20ByRecipient(addr string, numPerPage, page uint64) (co
 	return
 }
 
-// GetXrc20 get xrc20 transfer info
+// GetXrc20ByPage get xrc20 transfer info
 func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
