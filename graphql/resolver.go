@@ -112,8 +112,8 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byDates") {
 		g.Go(func() error { return r.getActionsByDates(ctx, actionResponse) })
 	}
-	if containField(requestedFields, "evmTransfers") {
-		g.Go(func() error { return r.getEvmTransfers(ctx, actionResponse) })
+	if containField(requestedFields, "byHash") {
+		g.Go(func() error { return r.getActionByHash(ctx, actionResponse) })
 	}
 	return actionResponse, g.Wait()
 }
@@ -559,18 +559,31 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	return nil
 }
 
-func (r *queryResolver) getEvmTransfers(ctx context.Context, actionResponse *Action) error {
-	argsMap := parseFieldArguments(ctx, "evmTransfers", "actions")
+func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byHash", "")
 	val, ok := argsMap["actHash"]
 	if !ok {
 		return errors.New("failed to get action hash")
 	}
 
-	evmTransferList, err := r.AP.GetEvmTransfers(val.Raw)
+	actDetail, err := r.AP.GetActionDetailByHash(val.Raw)
 	if err != nil {
 		return errors.Wrap(err, "failed to get evm transfers")
 	}
-	actionResponse.EvmTransfers = evmTransferList
+	actionOutput := &ActionDetail{
+		ActHash:      actDetail.ActHash,
+		BlkHash:      actDetail.BlkHash,
+		TimeStamp:    int(actDetail.TimeStamp),
+		ActType:      actDetail.ActType,
+		Sender:       actDetail.Sender,
+		Recipient:    actDetail.Recipient,
+		Amount:       actDetail.Amount,
+		EvmTransfers: make([]*EvmTransfer, 0),
+	}
+	for _, evmTransfer := range actDetail.EvmTransfers {
+		actDetail.EvmTransfers = append(actDetail.EvmTransfers, evmTransfer)
+	}
+	actionResponse.ByHash = actionOutput
 	return nil
 }
 

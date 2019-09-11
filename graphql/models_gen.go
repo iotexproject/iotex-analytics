@@ -9,7 +9,18 @@ type Account struct {
 }
 
 type Action struct {
-	ByDates      *ActionList    `json:"byDates"`
+	ByDates *ActionList   `json:"byDates"`
+	ByHash  *ActionDetail `json:"byHash"`
+}
+
+type ActionDetail struct {
+	ActHash      string         `json:"actHash"`
+	BlkHash      string         `json:"blkHash"`
+	TimeStamp    int            `json:"timeStamp"`
+	ActType      string         `json:"actType"`
+	Sender       string         `json:"sender"`
+	Recipient    string         `json:"recipient"`
+	Amount       string         `json:"amount"`
 	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
 }
 

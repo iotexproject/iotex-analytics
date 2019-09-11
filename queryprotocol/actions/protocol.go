@@ -11,10 +11,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-analytics/graphql"
+	"github.com/iotexproject/iotex-address/address"
+
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
@@ -43,6 +43,25 @@ type ActionInfo struct {
 	Sender    string
 	Recipient string
 	Amount    string
+}
+
+// ActionDetail defines action detail information
+type ActionDetail struct {
+	ActHash      string
+	BlkHash      string
+	TimeStamp    uint64
+	ActType      string
+	Sender       string
+	Recipient    string
+	Amount       string
+	EvmTransfers []*EvmTransfer
+}
+
+// EvmTransfer defines evm transfer information
+type EvmTransfer struct {
+	From     string
+	To       string
+	Quantity string
 }
 
 // Xrc20Info defines xrc20 transfer info
@@ -102,6 +121,78 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, 
 	return actionInfoList, nil
 }
 
+// GetEvmTransfers gets evm transfers by action hash
+func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hasn = ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(actHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &ActionInfo{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	actInfo := parsedRows[0].(*ActionInfo)
+
+	actionDetail := &ActionDetail{
+		ActHash:   actInfo.ActHash,
+		BlkHash:   actInfo.BlkHash,
+		TimeStamp: actInfo.TimeStamp,
+		ActType:   actInfo.ActType,
+		Sender:    actInfo.Sender,
+		Recipient: actInfo.Recipient,
+		Amount:    actInfo.Amount,
+	}
+
+	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
+
+	stmt, err = db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	defer stmt.Close()
+
+	parsedRows, err = s.ParseSQLRows(rows, &EvmTransfer{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	evmTransferList := make([]*EvmTransfer, 0)
+	for _, parsedRow := range parsedRows {
+		evmTransferList = append(evmTransferList, parsedRow.(*EvmTransfer))
+	}
+
+	actionDetail.EvmTransfers = evmTransferList
+	return actionDetail, nil
+}
+
 // GetActiveAccount gets active account address
 func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
@@ -138,42 +229,6 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 		addrs = append(addrs, acc.From)
 	}
 	return addrs, nil
-}
-
-// GetEvmTransfers gets evm transfers by action hash
-func (p *Protocol) GetEvmTransfers(actHash string) ([]*graphql.EvmTransfer, error) {
-	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
-		return nil, errors.New("actions protocol is unregistered")
-	}
-
-	db := p.indexer.Store.GetDB()
-
-	getQuery := fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(actHash)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute get query")
-	}
-
-	parsedRows, err := s.ParseSQLRows(rows, &graphql.EvmTransfer{})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse results")
-	}
-	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return nil, err
-	}
-
-	evmTransferList := make([]*graphql.EvmTransfer, 0)
-	for _, parsedRow := range parsedRows {
-		evmTransferList = append(evmTransferList, parsedRow.(*graphql.EvmTransfer))
-	}
-	return evmTransferList, nil
 }
 
 // GetXrc20 get xrc20 transfer info
