@@ -220,34 +220,30 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 }
 
 // Xrc20 handles Xrc20 requests
-func (r *queryResolver) Xrc20(ctx context.Context, address string, numPerPage int, page int) ([]*Xrc20, error) {
-	Cons, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
-	switch {
-	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		return nil, nil
-	case err != nil:
-		return nil, errors.Wrap(err, "failed to get contract information")
+func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	actionResponse := &Xrc20{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "byContractAddress") {
+		g.Go(func() error { return r.getXrc20ByContractAddress(ctx, actionResponse) })
 	}
-	can := make([]*Xrc20, 0)
-	for _, c := range Cons {
-		can = append(can, &Xrc20{
-			Hash:      c.Hash,
-			Timestamp: c.Timestamp,
-			From:      c.From,
-			To:        c.To,
-			Quantity:  c.Quantity,
-		})
+	if containField(requestedFields, "byRecipientAddress") {
+		g.Go(func() error { return r.getXrc20ByRecipientAddress(ctx, actionResponse) })
 	}
-	return can, nil
+	if containField(requestedFields, "byPage") {
+		g.Go(func() error { return r.getXrc20ByPage(ctx, actionResponse) })
+	}
+	return actionResponse, g.Wait()
 }
 
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
-	val, ok := argsMap["aliasName"]
-	if !ok {
-		return fmt.Errorf("aliasName is required")
+	val, err := getStringArg(argsMap, "aliasName")
+	if err != nil {
+		return errors.Wrap(err, "aliasName is required")
 	}
-	aName, err := EncodeDelegateName(val.Raw)
+	aName, err := EncodeDelegateName(val)
 	if err != nil {
 		return err
 	}
@@ -268,11 +264,10 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 
 func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "alias", "")
-	val, ok := argsMap["operatorAddress"]
-	if !ok {
-		return fmt.Errorf("operatorAddress is required")
+	opAddress, err := getStringArg(argsMap, "operatorAddress")
+	if err != nil {
+		return errors.Wrap(err, "operatorAddress is required")
 	}
-	opAddress := val.Raw
 	aliasName, err := r.VP.GetAlias(opAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -319,11 +314,10 @@ func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, ep
 
 func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Voting, startEpoch int, epochCount int) error {
 	argsMap := parseFieldArguments(ctx, "rewardSources", "")
-	val, ok := argsMap["voterIotexAddress"]
-	if !ok {
-		return fmt.Errorf("voter's IoTeX address is requried")
+	voterIotexAddress, err := getStringArg(argsMap, "voterIotexAddress")
+	if err != nil {
+		return errors.Wrap(err, "voter's IoTeX address is requried")
 	}
-	voterIotexAddress := val.Raw
 	delegateDistributions, err := r.RP.GetRewardSources(uint64(startEpoch), uint64(epochCount), voterIotexAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -449,6 +443,116 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 		actionOutput.Actions = actInfoList[skip : skip+first]
 	}
 	actionResponse.ByDates = actionOutput
+	return nil
+}
+
+func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byContractAddress", "xrc20")
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByContractAddress = output
+	xrc20InfoList, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+	return nil
+}
+
+func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byRecipientAddress", "xrc20")
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByRecipientAddress = output
+	xrc20InfoList, err := r.AP.GetXrc20ByRecipient(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
+	return nil
+}
+
+func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByPage = output
+	xrc20InfoList, err := r.AP.GetXrc20ByPage(uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+		})
+	}
 	return nil
 }
 
@@ -670,23 +774,31 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 }
 
 func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
-	val, ok := argsMap[argName]
-	if !ok {
-		return 0, fmt.Errorf("%s is required", argName)
+	getStr, err := getStringArg(argsMap, argName)
+	if err != nil {
+		return 0, err
 	}
-	intVal, err := strconv.Atoi(val.Raw)
+	intVal, err := strconv.Atoi(getStr)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer", argName)
 	}
 	return intVal, nil
 }
 
-func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
+func getStringArg(argsMap map[string]*ast.Value, argName string) (string, error) {
 	val, ok := argsMap[argName]
 	if !ok {
-		return false, fmt.Errorf("%s is required", argName)
+		return "", fmt.Errorf("%s is required", argName)
 	}
-	boolVal, err := strconv.ParseBool(val.Raw)
+	return string(val.Raw), nil
+}
+
+func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
+	getStr, err := getStringArg(argsMap, argName)
+	if err != nil {
+		return false, err
+	}
+	boolVal, err := strconv.ParseBool(getStr)
 	if err != nil {
 		return false, fmt.Errorf("%s must be a boolean value", argName)
 	}

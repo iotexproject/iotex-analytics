@@ -163,9 +163,21 @@ type VotingMeta struct {
 }
 
 type Xrc20 struct {
+	ByContractAddress  *Xrc20List `json:"byContractAddress"`
+	ByRecipientAddress *Xrc20List `json:"byRecipientAddress"`
+	ByPage             *Xrc20List `json:"byPage"`
+}
+
+type Xrc20Info struct {
 	Hash      string `json:"hash"`
 	Timestamp string `json:"timestamp"`
 	From      string `json:"from"`
 	To        string `json:"to"`
 	Quantity  string `json:"quantity"`
+}
+
+type Xrc20List struct {
+	Exist bool         `json:"exist"`
+	Xrc20 []*Xrc20Info `json:"xrc20"`
+	Count int          `json:"count"`
 }

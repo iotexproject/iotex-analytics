@@ -152,10 +152,10 @@ func TestProtocol(t *testing.T) {
 		indexList       []uint64
 		timestampList   []uint64
 		statusList      []string
-		output          []*Xrc20
+		output          []*Xrc20Info
 	}
 
-	contract := []*Xrc20{
+	contract := []*Xrc20Info{
 		{
 			"0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5",
 			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",

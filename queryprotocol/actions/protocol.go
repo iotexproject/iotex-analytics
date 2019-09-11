@@ -44,8 +44,8 @@ type ActionInfo struct {
 	Amount    string
 }
 
-// Xrc20 defines xrc20 transfer info
-type Xrc20 struct {
+// Xrc20Info defines xrc20 transfer info
+type Xrc20Info struct {
 	Hash      string
 	From      string
 	To        string
@@ -140,7 +140,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 }
 
 // GetXrc20 get xrc20 transfer info
-func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xrc20, err error) {
+func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -172,7 +172,106 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 		return nil, err
 	}
 	for _, parsedRow := range parsedRows {
-		con := &Xrc20{}
+		con := &Xrc20Info{}
+		r := parsedRow.(*actions.Xrc20History)
+		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
+		if err != nil {
+			return
+		}
+		con.Hash = r.ActionHash
+		con.Timestamp = r.Timestamp
+		cons = append(cons, con)
+	}
+	return
+}
+
+// GetXrc20ByRecipient get xrc20 transfer info
+func (p *Protocol) GetXrc20ByRecipient(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	a, err := address.FromString(addr)
+	if err != nil {
+		return nil, errors.New("address is invalid")
+	}
+
+	db := p.indexer.Store.GetDB()
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * numPerPage
+	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, offset, numPerPage)
+	fmt.Println(getQuery)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:]
+	fmt.Println(like)
+	rows, err := stmt.Query(like)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret actions.Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	fmt.Println(len(parsedRows))
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	for _, parsedRow := range parsedRows {
+		con := &Xrc20Info{}
+		r := parsedRow.(*actions.Xrc20History)
+		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
+		if err != nil {
+			return
+		}
+		con.Hash = r.ActionHash
+		con.Timestamp = r.Timestamp
+		cons = append(cons, con)
+	}
+	return
+}
+
+// GetXrc20ByPage get xrc20 transfer info
+func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * numPerPage
+	getQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, offset, numPerPage)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret actions.Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	for _, parsedRow := range parsedRows {
+		con := &Xrc20Info{}
 		r := parsedRow.(*actions.Xrc20History)
 		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
 		if err != nil {
