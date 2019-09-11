@@ -239,11 +239,11 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 
 func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "operatorAddress", "")
-	val, ok := argsMap["aliasName"]
-	if !ok {
-		return fmt.Errorf("aliasName is required")
+	val, err := getStringArg(argsMap, "aliasName")
+	if err != nil {
+		return errors.Wrap(err, "aliasName is required")
 	}
-	aName, err := EncodeDelegateName(val.Raw)
+	aName, err := EncodeDelegateName(val)
 	if err != nil {
 		return err
 	}
@@ -264,11 +264,10 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 
 func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) error {
 	argsMap := parseFieldArguments(ctx, "alias", "")
-	val, ok := argsMap["operatorAddress"]
-	if !ok {
-		return fmt.Errorf("operatorAddress is required")
+	opAddress, err := getStringArg(argsMap, "operatorAddress")
+	if err != nil {
+		return errors.Wrap(err, "operatorAddress is required")
 	}
-	opAddress := val.Raw
 	aliasName, err := r.VP.GetAlias(opAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -315,11 +314,10 @@ func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, ep
 
 func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Voting, startEpoch int, epochCount int) error {
 	argsMap := parseFieldArguments(ctx, "rewardSources", "")
-	val, ok := argsMap["voterIotexAddress"]
-	if !ok {
-		return fmt.Errorf("voter's IoTeX address is requried")
+	voterIotexAddress, err := getStringArg(argsMap, "voterIotexAddress")
+	if err != nil {
+		return errors.Wrap(err, "voter's IoTeX address is requried")
 	}
-	voterIotexAddress := val.Raw
 	delegateDistributions, err := r.RP.GetRewardSources(uint64(startEpoch), uint64(epochCount), voterIotexAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -461,6 +459,8 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByContractAddress = output
 	xrc20InfoList, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -468,10 +468,11 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 	case err != nil:
 		return errors.Wrap(err, "failed to get contract information")
 	}
-
-	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -479,12 +480,6 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 			Quantity:  c.Quantity,
 		})
 	}
-
-	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
-	if len(xrc20InfoRet) == 0 {
-		output.Exist = false
-	}
-	actionResponse.ByContractAddress = output
 	return nil
 }
 func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionResponse *Xrc20) error {
@@ -501,6 +496,8 @@ func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionRe
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByRecipientAddress = output
 	xrc20InfoList, err := r.AP.GetXrc20ByRecipient(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -508,10 +505,11 @@ func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionRe
 	case err != nil:
 		return errors.Wrap(err, "failed to get contract information")
 	}
-	fmt.Println("len(xrc20InfoList)", len(xrc20InfoList))
-	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -519,12 +517,6 @@ func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionRe
 			Quantity:  c.Quantity,
 		})
 	}
-
-	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
-	if len(xrc20InfoRet) == 0 {
-		output.Exist = false
-	}
-	actionResponse.ByRecipientAddress = output
 	return nil
 }
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
@@ -537,6 +529,8 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
+	output := &Xrc20List{Exist: false}
+	actionResponse.ByPage = output
 	xrc20InfoList, err := r.AP.GetXrc20ByPage(uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -544,10 +538,11 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	case err != nil:
 		return errors.Wrap(err, "failed to get contract information")
 	}
-
-	xrc20InfoRet := make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		xrc20InfoRet = append(xrc20InfoRet, &Xrc20Info{
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -555,12 +550,6 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 			Quantity:  c.Quantity,
 		})
 	}
-
-	output := &Xrc20List{Exist: true, Count: len(xrc20InfoRet), Xrc20: xrc20InfoRet}
-	if len(xrc20InfoRet) == 0 {
-		output.Exist = false
-	}
-	actionResponse.ByPage = output
 	return nil
 }
 func (r *queryResolver) getLastEpochAndHeight(chainResponse *Chain) error {
@@ -781,16 +770,17 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 }
 
 func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
-	val, ok := argsMap[argName]
-	if !ok {
-		return 0, fmt.Errorf("%s is required", argName)
+	getStr, err := getStringArg(argsMap, argName)
+	if err != nil {
+		return 0, err
 	}
-	intVal, err := strconv.Atoi(val.Raw)
+	intVal, err := strconv.Atoi(getStr)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer", argName)
 	}
 	return intVal, nil
 }
+
 func getStringArg(argsMap map[string]*ast.Value, argName string) (string, error) {
 	val, ok := argsMap[argName]
 	if !ok {
@@ -798,12 +788,13 @@ func getStringArg(argsMap map[string]*ast.Value, argName string) (string, error)
 	}
 	return string(val.Raw), nil
 }
+
 func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
-	val, ok := argsMap[argName]
-	if !ok {
-		return false, fmt.Errorf("%s is required", argName)
+	getStr, err := getStringArg(argsMap, argName)
+	if err != nil {
+		return false, err
 	}
-	boolVal, err := strconv.ParseBool(val.Raw)
+	boolVal, err := strconv.ParseBool(getStr)
 	if err != nil {
 		return false, fmt.Errorf("%s must be a boolean value", argName)
 	}
