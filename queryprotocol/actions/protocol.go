@@ -164,17 +164,11 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
-	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return nil, err
-	}
 
-	evmTransferList := make([]*EvmTransfer, 0)
 	for _, parsedRow := range parsedRows {
-		evmTransferList = append(evmTransferList, parsedRow.(*EvmTransfer))
+		actionDetail.EvmTransfers = append(actionDetail.EvmTransfers, parsedRow.(*EvmTransfer))
 	}
 
-	actionDetail.EvmTransfers = evmTransferList
 	return actionDetail, nil
 }
 
