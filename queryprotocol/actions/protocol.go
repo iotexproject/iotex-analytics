@@ -47,10 +47,10 @@ type ActionInfo struct {
 // Xrc20Info defines xrc20 transfer info
 type Xrc20Info struct {
 	Hash      string
-	Timestamp string
 	From      string
 	To        string
 	Quantity  string
+	Timestamp string
 }
 
 // Protocol defines the protocol of querying tables
