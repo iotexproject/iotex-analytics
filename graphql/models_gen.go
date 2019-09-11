@@ -14,13 +14,7 @@ type Action struct {
 }
 
 type ActionDetail struct {
-	ActHash      string         `json:"actHash"`
-	BlkHash      string         `json:"blkHash"`
-	TimeStamp    int            `json:"timeStamp"`
-	ActType      string         `json:"actType"`
-	Sender       string         `json:"sender"`
-	Recipient    string         `json:"recipient"`
-	Amount       string         `json:"amount"`
+	ActionInfo   *ActionInfo    `json:"actionInfo"`
 	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
 }
 

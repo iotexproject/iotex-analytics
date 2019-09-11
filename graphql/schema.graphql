@@ -180,13 +180,7 @@ type CandidateMeta{
 }
 
 type ActionDetail{
-    actHash: String!
-    blkHash: String!
-    timeStamp: Int!
-    actType: String!
-    sender: String!
-    recipient: String!
-    amount: String!
+    actionInfo: ActionInfo
     evmTransfers: [EvmTransfer]!
 }
 

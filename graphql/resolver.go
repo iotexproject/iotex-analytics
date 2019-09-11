@@ -570,14 +570,15 @@ func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Act
 	if err != nil {
 		return errors.Wrap(err, "failed to get evm transfers")
 	}
-	actionOutput := &ActionDetail{
-		ActHash:      actDetail.ActHash,
-		BlkHash:      actDetail.BlkHash,
-		TimeStamp:    int(actDetail.TimeStamp),
-		ActType:      actDetail.ActType,
-		Sender:       actDetail.Sender,
-		Recipient:    actDetail.Recipient,
-		Amount:       actDetail.Amount,
+	actionOutput := &ActionDetail{ActionInfo: &ActionInfo{
+		ActHash:   actDetail.ActionInfo.ActHash,
+		BlkHash:   actDetail.ActionInfo.BlkHash,
+		TimeStamp: int(actDetail.ActionInfo.TimeStamp),
+		ActType:   actDetail.ActionInfo.ActType,
+		Sender:    actDetail.ActionInfo.Sender,
+		Recipient: actDetail.ActionInfo.Recipient,
+		Amount:    actDetail.ActionInfo.Amount,
+	},
 		EvmTransfers: make([]*EvmTransfer, 0),
 	}
 	for _, evmTransfer := range actDetail.EvmTransfers {

@@ -47,13 +47,7 @@ type ActionInfo struct {
 
 // ActionDetail defines action detail information
 type ActionDetail struct {
-	ActHash      string
-	BlkHash      string
-	TimeStamp    uint64
-	ActType      string
-	Sender       string
-	Recipient    string
-	Amount       string
+	ActionInfo   *ActionInfo
 	EvmTransfers []*EvmTransfer
 }
 
@@ -154,17 +148,8 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 		err = indexprotocol.ErrNotExist
 		return nil, err
 	}
-	actInfo := parsedRows[0].(*ActionInfo)
 
-	actionDetail := &ActionDetail{
-		ActHash:   actInfo.ActHash,
-		BlkHash:   actInfo.BlkHash,
-		TimeStamp: actInfo.TimeStamp,
-		ActType:   actInfo.ActType,
-		Sender:    actInfo.Sender,
-		Recipient: actInfo.Recipient,
-		Amount:    actInfo.Amount,
-	}
+	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
 
 	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
 
