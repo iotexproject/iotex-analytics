@@ -445,6 +445,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	actionResponse.ByDates = actionOutput
 	return nil
 }
+
 func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byContractAddress", "xrc20")
 	address, err := getStringArg(argsMap, "address")
@@ -482,6 +483,7 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 	}
 	return nil
 }
+
 func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byRecipientAddress", "xrc20")
 	address, err := getStringArg(argsMap, "address")
@@ -519,6 +521,7 @@ func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionRe
 	}
 	return nil
 }
+
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
 	numPerPage, err := getIntArg(argsMap, "numPerPage")
@@ -552,6 +555,7 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	}
 	return nil
 }
+
 func (r *queryResolver) getLastEpochAndHeight(chainResponse *Chain) error {
 	epoch, tipHeight, err := r.CP.GetLastEpochAndHeight()
 	if err != nil {
