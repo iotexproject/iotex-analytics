@@ -121,7 +121,7 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, 
 	return actionInfoList, nil
 }
 
-// GetEvmTransfers gets evm transfers by action hash
+// GetActionDetailByHash gets action detail information by action hash
 func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
