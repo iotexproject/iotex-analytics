@@ -30,6 +30,7 @@ type Account {
 
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
+    byHash(actHash: String!): ActionDetail
 }
 
 type Delegate {
@@ -176,6 +177,17 @@ type CandidateMeta{
     consensusDelegates: Int!
     totalWeightedVotes: String!
     votedTokens: String!
+}
+
+type ActionDetail{
+    actionInfo: ActionInfo
+    evmTransfers: [EvmTransfer]!
+}
+
+type EvmTransfer{
+    from: String!
+    to: String!
+    quantity: String!
 }
 
 input Pagination{

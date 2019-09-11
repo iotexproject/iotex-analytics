@@ -48,6 +48,12 @@ type ComplexityRoot struct {
 
 	Action struct {
 		ByDates func(childComplexity int, startDate int, endDate int) int
+		ByHash  func(childComplexity int, actHash string) int
+	}
+
+	ActionDetail struct {
+		ActionInfo   func(childComplexity int) int
+		EvmTransfers func(childComplexity int) int
 	}
 
 	ActionInfo struct {
@@ -119,6 +125,12 @@ type ComplexityRoot struct {
 	DelegateAmount struct {
 		Amount       func(childComplexity int) int
 		DelegateName func(childComplexity int) int
+	}
+
+	EvmTransfer struct {
+		From     func(childComplexity int) int
+		Quantity func(childComplexity int) int
+		To       func(childComplexity int) int
 	}
 
 	Hermes struct {
@@ -293,6 +305,32 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Action.ByDates(childComplexity, args["startDate"].(int), args["endDate"].(int)), true
+
+	case "Action.ByHash":
+		if e.complexity.Action.ByHash == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byHash_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByHash(childComplexity, args["actHash"].(string)), true
+
+	case "ActionDetail.ActionInfo":
+		if e.complexity.ActionDetail.ActionInfo == nil {
+			break
+		}
+
+		return e.complexity.ActionDetail.ActionInfo(childComplexity), true
+
+	case "ActionDetail.EvmTransfers":
+		if e.complexity.ActionDetail.EvmTransfers == nil {
+			break
+		}
+
+		return e.complexity.ActionDetail.EvmTransfers(childComplexity), true
 
 	case "ActionInfo.ActHash":
 		if e.complexity.ActionInfo.ActHash == nil {
@@ -584,6 +622,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.DelegateAmount.DelegateName(childComplexity), true
+
+	case "EvmTransfer.From":
+		if e.complexity.EvmTransfer.From == nil {
+			break
+		}
+
+		return e.complexity.EvmTransfer.From(childComplexity), true
+
+	case "EvmTransfer.Quantity":
+		if e.complexity.EvmTransfer.Quantity == nil {
+			break
+		}
+
+		return e.complexity.EvmTransfer.Quantity(childComplexity), true
+
+	case "EvmTransfer.To":
+		if e.complexity.EvmTransfer.To == nil {
+			break
+		}
+
+		return e.complexity.EvmTransfer.To(childComplexity), true
 
 	case "Hermes.Exist":
 		if e.complexity.Hermes.Exist == nil {
@@ -1078,6 +1137,7 @@ type Account {
 
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
+    byHash(actHash: String!): ActionDetail
 }
 
 type Delegate {
@@ -1226,6 +1286,17 @@ type CandidateMeta{
     votedTokens: String!
 }
 
+type ActionDetail{
+    actionInfo: ActionInfo
+    evmTransfers: [EvmTransfer]!
+}
+
+type EvmTransfer{
+    from: String!
+    to: String!
+    quantity: String!
+}
+
 input Pagination{
     skip: Int!
     first: Int!
@@ -1316,6 +1387,20 @@ func (ec *executionContext) field_Action_byDates_args(ctx context.Context, rawAr
 		}
 	}
 	args["endDate"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Action_byHash_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["actHash"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["actHash"] = arg0
 	return args, nil
 }
 
@@ -1751,6 +1836,88 @@ func (ec *executionContext) _Action_byDates(ctx context.Context, field graphql.C
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Action_byHash(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byHash_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByHash, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionDetail)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionDetail2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionDetail_actionInfo(ctx context.Context, field graphql.CollectedField, obj *ActionDetail) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionDetail",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ActionInfo, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionDetail_evmTransfers(ctx context.Context, field graphql.CollectedField, obj *ActionDetail) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionDetail",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EvmTransfers, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*EvmTransfer)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNEvmTransfer2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ActionInfo_actHash(ctx context.Context, field graphql.CollectedField, obj *ActionInfo) graphql.Marshaler {
@@ -2783,6 +2950,87 @@ func (ec *executionContext) _DelegateAmount_amount(ctx context.Context, field gr
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Amount, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _EvmTransfer_from(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "EvmTransfer",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.From, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _EvmTransfer_to(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "EvmTransfer",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.To, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _EvmTransfer_quantity(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "EvmTransfer",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -5176,6 +5424,37 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Action")
 		case "byDates":
 			out.Values[i] = ec._Action_byDates(ctx, field, obj)
+		case "byHash":
+			out.Values[i] = ec._Action_byHash(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var actionDetailImplementors = []string{"ActionDetail"}
+
+func (ec *executionContext) _ActionDetail(ctx context.Context, sel ast.SelectionSet, obj *ActionDetail) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, actionDetailImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActionDetail")
+		case "actionInfo":
+			out.Values[i] = ec._ActionDetail_actionInfo(ctx, field, obj)
+		case "evmTransfers":
+			out.Values[i] = ec._ActionDetail_evmTransfers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5587,6 +5866,43 @@ func (ec *executionContext) _DelegateAmount(ctx context.Context, sel ast.Selecti
 			}
 		case "amount":
 			out.Values[i] = ec._DelegateAmount_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var evmTransferImplementors = []string{"EvmTransfer"}
+
+func (ec *executionContext) _EvmTransfer(ctx context.Context, sel ast.SelectionSet, obj *EvmTransfer) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, evmTransferImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EvmTransfer")
+		case "from":
+			out.Values[i] = ec._EvmTransfer_from(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "to":
+			out.Values[i] = ec._EvmTransfer_to(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "quantity":
+			out.Values[i] = ec._EvmTransfer_quantity(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -6681,6 +6997,43 @@ func (ec *executionContext) marshalNDelegateAmount2ᚕᚖgithubᚗcomᚋiotexpro
 	return ret
 }
 
+func (ec *executionContext) marshalNEvmTransfer2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx context.Context, sel ast.SelectionSet, v []*EvmTransfer) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOEvmTransfer2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v []*HermesDistribution) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -7081,6 +7434,17 @@ func (ec *executionContext) marshalOAction2ᚖgithubᚗcomᚋiotexprojectᚋiote
 	return ec._Action(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOActionDetail2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx context.Context, sel ast.SelectionSet, v ActionDetail) graphql.Marshaler {
+	return ec._ActionDetail(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOActionDetail2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx context.Context, sel ast.SelectionSet, v *ActionDetail) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ActionDetail(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOActionInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx context.Context, sel ast.SelectionSet, v ActionInfo) graphql.Marshaler {
 	return ec._ActionInfo(ctx, sel, &v)
 }
@@ -7235,6 +7599,17 @@ func (ec *executionContext) unmarshalOEpochRange2ᚖgithubᚗcomᚋiotexproject�
 	}
 	res, err := ec.unmarshalOEpochRange2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEpochRange(ctx, v)
 	return &res, err
+}
+
+func (ec *executionContext) marshalOEvmTransfer2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx context.Context, sel ast.SelectionSet, v EvmTransfer) graphql.Marshaler {
+	return ec._EvmTransfer(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOEvmTransfer2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx context.Context, sel ast.SelectionSet, v *EvmTransfer) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EvmTransfer(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOHermes2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes(ctx context.Context, sel ast.SelectionSet, v Hermes) graphql.Marshaler {

@@ -11,8 +11,9 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
+
+	"github.com/iotexproject/iotex-address/address"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
@@ -42,6 +43,19 @@ type ActionInfo struct {
 	Sender    string
 	Recipient string
 	Amount    string
+}
+
+// ActionDetail defines action detail information
+type ActionDetail struct {
+	ActionInfo   *ActionInfo
+	EvmTransfers []*EvmTransfer
+}
+
+// EvmTransfer defines evm transfer information
+type EvmTransfer struct {
+	From     string
+	To       string
+	Quantity string
 }
 
 // Xrc20Info defines xrc20 transfer info
@@ -99,6 +113,63 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, 
 		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
 	}
 	return actionInfoList, nil
+}
+
+// GetActionDetailByHash gets action detail information by action hash
+func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hasn = ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(actHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &ActionInfo{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
+
+	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
+
+	stmt, err = db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	defer stmt.Close()
+
+	parsedRows, err = s.ParseSQLRows(rows, &EvmTransfer{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	for _, parsedRow := range parsedRows {
+		actionDetail.EvmTransfers = append(actionDetail.EvmTransfers, parsedRow.(*EvmTransfer))
+	}
+
+	return actionDetail, nil
 }
 
 // GetActiveAccount gets active account address
