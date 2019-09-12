@@ -272,7 +272,6 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 	}
 	offset := (page - 1) * numPerPage
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, offset, numPerPage)
-	fmt.Println(getQuery)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -289,7 +288,6 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
-	fmt.Println(len(parsedRows))
 	if len(parsedRows) == 0 {
 		err = indexprotocol.ErrNotExist
 		return nil, err
