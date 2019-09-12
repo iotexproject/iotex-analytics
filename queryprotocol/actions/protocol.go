@@ -256,8 +256,8 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 	return
 }
 
-// GetXrc20ByRecipient get xrc20 transfer info
-func (p *Protocol) GetXrc20ByRecipient(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+// GetXrc20ByAddress get xrc20 transfer info
+func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -278,8 +278,7 @@ func (p *Protocol) GetXrc20ByRecipient(addr string, numPerPage, page uint64) (co
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
-	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:]
-	fmt.Println(like)
+	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:] + "%"
 	rows, err := stmt.Query(like)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")

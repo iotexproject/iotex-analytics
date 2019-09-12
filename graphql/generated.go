@@ -213,9 +213,9 @@ type ComplexityRoot struct {
 	}
 
 	Xrc20 struct {
-		ByContractAddress  func(childComplexity int, address string, numPerPage int, page int) int
-		ByPage             func(childComplexity int, numPerPage int, page int) int
-		ByRecipientAddress func(childComplexity int, address string, numPerPage int, page int) int
+		ByAddress         func(childComplexity int, address string, numPerPage int, page int) int
+		ByContractAddress func(childComplexity int, address string, numPerPage int, page int) int
+		ByPage            func(childComplexity int, numPerPage int, page int) int
 	}
 
 	Xrc20Info struct {
@@ -944,6 +944,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VotingMeta.Exist(childComplexity), true
 
+	case "Xrc20.ByAddress":
+		if e.complexity.Xrc20.ByAddress == nil {
+			break
+		}
+
+		args, err := ec.field_Xrc20_byAddress_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Xrc20.ByAddress(childComplexity, args["address"].(string), args["numPerPage"].(int), args["page"].(int)), true
+
 	case "Xrc20.ByContractAddress":
 		if e.complexity.Xrc20.ByContractAddress == nil {
 			break
@@ -967,18 +979,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Xrc20.ByPage(childComplexity, args["numPerPage"].(int), args["page"].(int)), true
-
-	case "Xrc20.ByRecipientAddress":
-		if e.complexity.Xrc20.ByRecipientAddress == nil {
-			break
-		}
-
-		args, err := ec.field_Xrc20_byRecipientAddress_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Xrc20.ByRecipientAddress(childComplexity, args["address"].(string), args["numPerPage"].(int), args["page"].(int)), true
 
 	case "Xrc20Info.From":
 		if e.complexity.Xrc20Info.From == nil {
@@ -1125,7 +1125,7 @@ type Xrc20Info{
 
 type Xrc20 {
     byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byRecipientAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byPage(numPerPage:Int!,page:Int!): Xrc20List
 }
 
@@ -1600,6 +1600,36 @@ func (ec *executionContext) field_Xrc20List_xrc20_args(ctx context.Context, rawA
 	return args, nil
 }
 
+func (ec *executionContext) field_Xrc20_byAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["numPerPage"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["numPerPage"] = arg1
+	var arg2 int
+	if tmp, ok := rawArgs["page"]; ok {
+		arg2, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Xrc20_byContractAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1649,36 +1679,6 @@ func (ec *executionContext) field_Xrc20_byPage_args(ctx context.Context, rawArgs
 		}
 	}
 	args["page"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Xrc20_byRecipientAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["address"]; ok {
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["address"] = arg0
-	var arg1 int
-	if tmp, ok := rawArgs["numPerPage"]; ok {
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["numPerPage"] = arg1
-	var arg2 int
-	if tmp, ok := rawArgs["page"]; ok {
-		arg2, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["page"] = arg2
 	return args, nil
 }
 
@@ -4211,7 +4211,7 @@ func (ec *executionContext) _Xrc20_byContractAddress(ctx context.Context, field 
 	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Xrc20_byRecipientAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
+func (ec *executionContext) _Xrc20_byAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -4222,7 +4222,7 @@ func (ec *executionContext) _Xrc20_byRecipientAddress(ctx context.Context, field
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Xrc20_byRecipientAddress_args(ctx, rawArgs)
+	args, err := ec.field_Xrc20_byAddress_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -4231,7 +4231,7 @@ func (ec *executionContext) _Xrc20_byRecipientAddress(ctx context.Context, field
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ByRecipientAddress, nil
+		return obj.ByAddress, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -6460,8 +6460,8 @@ func (ec *executionContext) _Xrc20(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = graphql.MarshalString("Xrc20")
 		case "byContractAddress":
 			out.Values[i] = ec._Xrc20_byContractAddress(ctx, field, obj)
-		case "byRecipientAddress":
-			out.Values[i] = ec._Xrc20_byRecipientAddress(ctx, field, obj)
+		case "byAddress":
+			out.Values[i] = ec._Xrc20_byAddress(ctx, field, obj)
 		case "byPage":
 			out.Values[i] = ec._Xrc20_byPage(ctx, field, obj)
 		default:
