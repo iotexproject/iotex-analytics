@@ -11,11 +11,11 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-address/address"
-
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
@@ -120,6 +120,9 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
+	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
+		return nil, errors.New("accounts protocol is unregistered")
+	}
 
 	db := p.indexer.Store.GetDB()
 
@@ -151,14 +154,21 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 
 	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
 
-	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", "balance_history")
+	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", accounts.BalanceHistoryTableName)
 
 	stmt, err = db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	defer stmt.Close()
+	rows, err = stmt.Query(actHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
 
 	parsedRows, err = s.ParseSQLRows(rows, &EvmTransfer{})
 	if err != nil {
