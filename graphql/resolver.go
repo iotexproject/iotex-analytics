@@ -561,14 +561,14 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 
 func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Action) error {
 	argsMap := parseFieldArguments(ctx, "byHash", "")
-	val, ok := argsMap["actHash"]
-	if !ok {
-		return errors.New("failed to get action hash")
+	hash, err := getStringArg(argsMap, "actHash")
+	if err != nil {
+		return errors.Wrap(err, "failed to get hash")
 	}
 
-	actDetail, err := r.AP.GetActionDetailByHash(val.Raw)
+	actDetail, err := r.AP.GetActionDetailByHash(hash)
 	if err != nil {
-		return errors.Wrap(err, "failed to get evm transfers")
+		return errors.Wrap(err, "failed to get action details by hash")
 	}
 	actionOutput := &ActionDetail{ActionInfo: &ActionInfo{
 		ActHash:   actDetail.ActionInfo.ActHash,

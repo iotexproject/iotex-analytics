@@ -124,7 +124,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 	db := p.indexer.Store.GetDB()
 
 	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hasn = ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
 
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
