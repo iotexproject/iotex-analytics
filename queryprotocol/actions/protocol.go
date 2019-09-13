@@ -210,7 +210,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 	return addrs, nil
 }
 
-// GetXrc20 get xrc20 transfer info
+// GetXrc20 get xrc20 transfer info by contract address
 func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
@@ -256,7 +256,7 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 	return
 }
 
-// GetXrc20ByAddress get xrc20 transfer info
+// GetXrc20ByAddress get xrc20 transfer info by sender or receiptor address
 func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
@@ -306,7 +306,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 	return
 }
 
-// GetXrc20ByPage get xrc20 transfer info
+// GetXrc20ByPage get xrc20 transfer info by page
 func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
