@@ -228,8 +228,8 @@ func TestProtocol(t *testing.T) {
 		}
 	})
 
-	// test case for get xrc20 info by sender or receiptor address
-	t.Run("Testing GetXrc20 by sender or receiptor address", func(t *testing.T) {
+	// test case for get xrc20 info by sender or recipient address
+	t.Run("Testing GetXrc20 by sender or recipient address", func(t *testing.T) {
 		test, errXrc := p.GetXrc20ByAddress("io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7", 4, 1)
 		require.NoError(errXrc)
 		for k := 0; k < 3; k++ {
@@ -240,7 +240,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
 		}
 	})
-	t.Run("Testing GetXrc20 by sender or receiptor address", func(t *testing.T) {
+	t.Run("Testing GetXrc20 by sender or recipient address", func(t *testing.T) {
 		test, errXrc := p.GetXrc20ByAddress("io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg", 4, 1)
 		require.NoError(errXrc)
 		for k := 0; k < 2; k++ {
