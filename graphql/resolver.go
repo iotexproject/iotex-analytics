@@ -231,8 +231,8 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	if containField(requestedFields, "byContractAddress") {
 		g.Go(func() error { return r.getXrc20ByContractAddress(ctx, actionResponse) })
 	}
-	if containField(requestedFields, "byRecipientAddress") {
-		g.Go(func() error { return r.getXrc20ByRecipientAddress(ctx, actionResponse) })
+	if containField(requestedFields, "byAddress") {
+		g.Go(func() error { return r.getXrc20ByAddress(ctx, actionResponse) })
 	}
 	if containField(requestedFields, "byPage") {
 		g.Go(func() error { return r.getXrc20ByPage(ctx, actionResponse) })
@@ -487,8 +487,8 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 	return nil
 }
 
-func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "byRecipientAddress", "xrc20")
+func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byAddress", "xrc20")
 	address, err := getStringArg(argsMap, "address")
 	if err != nil {
 		return errors.Wrap(err, "failed to get address")
@@ -502,8 +502,8 @@ func (r *queryResolver) getXrc20ByRecipientAddress(ctx context.Context, actionRe
 		return errors.Wrap(err, "failed to get page")
 	}
 	output := &Xrc20List{Exist: false}
-	actionResponse.ByRecipientAddress = output
-	xrc20InfoList, err := r.AP.GetXrc20ByRecipient(address, uint64(numPerPage), uint64(page))
+	actionResponse.ByAddress = output
+	xrc20InfoList, err := r.AP.GetXrc20ByAddress(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil

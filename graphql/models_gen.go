@@ -175,9 +175,9 @@ type VotingMeta struct {
 }
 
 type Xrc20 struct {
-	ByContractAddress  *Xrc20List `json:"byContractAddress"`
-	ByRecipientAddress *Xrc20List `json:"byRecipientAddress"`
-	ByPage             *Xrc20List `json:"byPage"`
+	ByContractAddress *Xrc20List `json:"byContractAddress"`
+	ByAddress         *Xrc20List `json:"byAddress"`
+	ByPage            *Xrc20List `json:"byPage"`
 }
 
 type Xrc20Info struct {

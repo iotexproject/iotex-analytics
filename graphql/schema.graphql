@@ -18,7 +18,7 @@ type Xrc20Info{
 
 type Xrc20 {
     byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byRecipientAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byPage(numPerPage:Int!,page:Int!): Xrc20List
 }
 

@@ -177,22 +177,30 @@ func TestProtocol(t *testing.T) {
 			"227184383802042044417",
 			"1565391390",
 		},
+		{
+			"e740ce8ee6f5419497461453d4613fbaa676f493791026dc60417f489222959a",
+			"io1rxwu5wd24y2nf5t836uu7yky85p5f0pda2xpcf",
+			"io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg",
+			"227184383802042044417",
+			"1565291380",
+		},
 	}
 
 	var testSituation = testDataXrc{
 		"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw",
 		3,
 		1,
-		3,
-		[]string{"0029638f5f82b1d23a4bf8f059e2a2bffe5c07733de681afea41b1cf931b1580", "0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5", "003c40bb33f7bd682ae77d8fdd7f63d719a468f6eabd3163773602f5b5ce683b"},
-		[]string{"4840ac38e3bb1dbcbcb69132947a536a6cc3730b329b20b72cca02e8ec7ddab0", "fd7ce9ba41b0caf8dc79e10d09a7b06fe4c28ff59ef62c224ba5bd0bd894ade5", "ae268c123a5123f7c7bcbadbea1356fc8ccea62a632598cdcc1c1d29c55a6591"},
-		[]string{"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw", "io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw", "io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw"},
-		[]string{"ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef00000000000000000000000000000000000000000000000000000000000000000000000000000000000000008dbcbd5a3936091bd881d3c52edb14fe689633a1", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056fbced35085a1e318161039bb8d05de8711ff7c", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007bc49488bef14b79070d534d90b9a36751e6f92"},
-		[]string{"00000000000000000000000000000000000000000000000c50d11164bcb95001", "000000000000000000000000000000000000000000000029a8b37761092dfa1a", "000000000000000000000000000000000000000000000d789ca5e74b7db3c473"},
-		[]uint64{941871, 985114, 975627},
-		[]uint64{0, 0, 0},
-		[]uint64{1565391390, 1565825770, 1565729760},
-		[]string{"success", "success", "success"},
+		4,
+		[]string{"0029638f5f82b1d23a4bf8f059e2a2bffe5c07733de681afea41b1cf931b1580", "0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5", "003c40bb33f7bd682ae77d8fdd7f63d719a468f6eabd3163773602f5b5ce683b",
+			"e740ce8ee6f5419497461453d4613fbaa676f493791026dc60417f489222959a"},
+		[]string{"4840ac38e3bb1dbcbcb69132947a536a6cc3730b329b20b72cca02e8ec7ddab0", "fd7ce9ba41b0caf8dc79e10d09a7b06fe4c28ff59ef62c224ba5bd0bd894ade5", "ae268c123a5123f7c7bcbadbea1356fc8ccea62a632598cdcc1c1d29c55a6591", "e740ce8ee6f5419497461453d4613fbaa676f493791026dc60417f4892229590"},
+		[]string{"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw", "io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw", "io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw", "io14j96vg9pkx28htpgt2jx0tf3v9etpg4j9h384m"},
+		[]string{"ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef00000000000000000000000000000000000000000000000000000000000000000000000000000000000000008dbcbd5a3936091bd881d3c52edb14fe689633a1", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056fbced35085a1e318161039bb8d05de8711ff7c", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007bc49488bef14b79070d534d90b9a36751e6f92", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef000000000000000000000000199dca39aaa91534d1678eb9cf12c43d0344bc2d0000000000000000000000008dbcbd5a3936091bd881d3c52edb14fe689633a1"},
+		[]string{"00000000000000000000000000000000000000000000000c50d11164bcb95001", "000000000000000000000000000000000000000000000029a8b37761092dfa1a", "000000000000000000000000000000000000000000000d789ca5e74b7db3c473", "00000000000000000000000000000000000000000000000c50d11164bcb95001"},
+		[]uint64{941871, 985114, 975627, 930000},
+		[]uint64{0, 0, 0, 0},
+		[]uint64{1565391390, 1565825770, 1565729760, 1565291380},
+		[]string{"success", "success", "success", "success"},
 		contract,
 	}
 
@@ -208,10 +216,10 @@ func TestProtocol(t *testing.T) {
 	_, errXrc = store.GetDB().Exec(insertQuery, valArgs...)
 	require.NoError(errXrc)
 
-	t.Run("Testing data cases", func(t *testing.T) {
+	t.Run("Testing GetXrc20 by contract address", func(t *testing.T) {
 		test, errXrc := p.GetXrc20(testSituation.inputA, testSituation.inputNPP, testSituation.inputP)
 		require.NoError(errXrc)
-		for k := 0; k < testSituation.listSize; k++ {
+		for k := 0; k < 3; k++ {
 			require.Equal(test[k].Hash, testSituation.output[k].Hash)
 			require.Equal(test[k].From, testSituation.output[k].From)
 			require.Equal(test[k].To, testSituation.output[k].To)
@@ -220,4 +228,61 @@ func TestProtocol(t *testing.T) {
 		}
 	})
 
+	// test case for get xrc20 info by sender or recipient address
+	t.Run("Testing GetXrc20 by sender or recipient address", func(t *testing.T) {
+		test, errXrc := p.GetXrc20ByAddress("io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7", 4, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 3; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+		}
+	})
+	t.Run("Testing GetXrc20 by sender or recipient address", func(t *testing.T) {
+		test, errXrc := p.GetXrc20ByAddress("io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg", 4, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k+2].Hash)
+			require.Equal(test[k].From, testSituation.output[k+2].From)
+			require.Equal(test[k].To, testSituation.output[k+2].To)
+			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+		}
+	})
+	// test case for get xrc20 info by page
+	t.Run("Testing GetXrc20 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc20ByPage(4, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 4; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+		}
+	})
+	t.Run("Testing GetXrc20 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc20ByPage(2, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+		}
+	})
+	t.Run("Testing GetXrc20 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc20ByPage(2, 2)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k+2].Hash)
+			require.Equal(test[k].From, testSituation.output[k+2].From)
+			require.Equal(test[k].To, testSituation.output[k+2].To)
+			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+		}
+	})
 }
