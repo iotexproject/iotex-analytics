@@ -162,6 +162,7 @@ func TestProtocol(t *testing.T) {
 			"io12maua56ssks7xxqkzqumhrg9m6r3rlmu2mcgr7",
 			"768472698099944258074",
 			"1565825770",
+			"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw",
 		},
 		{
 			"003c40bb33f7bd682ae77d8fdd7f63d719a468f6eabd3163773602f5b5ce683b",
@@ -169,6 +170,7 @@ func TestProtocol(t *testing.T) {
 			"io1q77yjjytau2t0yrs656djzu6xe63umuj9afq6j",
 			"63615661248503025484915",
 			"1565729760",
+			"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw",
 		},
 		{
 			"0029638f5f82b1d23a4bf8f059e2a2bffe5c07733de681afea41b1cf931b1580",
@@ -176,6 +178,7 @@ func TestProtocol(t *testing.T) {
 			"io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg",
 			"227184383802042044417",
 			"1565391390",
+			"io1hp6y4eqr90j7tmul4w2wa8pm7wx462hq0mg4tw",
 		},
 		{
 			"e740ce8ee6f5419497461453d4613fbaa676f493791026dc60417f489222959a",
@@ -183,6 +186,7 @@ func TestProtocol(t *testing.T) {
 			"io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg",
 			"227184383802042044417",
 			"1565291380",
+			"io14j96vg9pkx28htpgt2jx0tf3v9etpg4j9h384m",
 		},
 	}
 
@@ -225,6 +229,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k].To)
 			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
 		}
 	})
 
@@ -238,6 +243,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k].To)
 			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
 		}
 	})
 	t.Run("Testing GetXrc20 by sender or recipient address", func(t *testing.T) {
@@ -249,6 +255,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k+2].To)
 			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k+2].Contract)
 		}
 	})
 	// test case for get xrc20 info by page
@@ -261,6 +268,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k].To)
 			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
 		}
 	})
 	t.Run("Testing GetXrc20 by page", func(t *testing.T) {
@@ -272,6 +280,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k].To)
 			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
 		}
 	})
 	t.Run("Testing GetXrc20 by page", func(t *testing.T) {
@@ -283,6 +292,7 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].To, testSituation.output[k+2].To)
 			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
 			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k+2].Contract)
 		}
 	})
 }

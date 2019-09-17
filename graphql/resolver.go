@@ -482,6 +482,7 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 			From:      c.From,
 			To:        c.To,
 			Quantity:  c.Quantity,
+			Contract:  c.Contract,
 		})
 	}
 	return nil
@@ -520,6 +521,7 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 			From:      c.From,
 			To:        c.To,
 			Quantity:  c.Quantity,
+			Contract:  c.Contract,
 		})
 	}
 	return nil
@@ -554,6 +556,7 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 			From:      c.From,
 			To:        c.To,
 			Quantity:  c.Quantity,
+			Contract:  c.Contract,
 		})
 	}
 	return nil

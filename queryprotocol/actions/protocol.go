@@ -65,6 +65,7 @@ type Xrc20Info struct {
 	To        string
 	Quantity  string
 	Timestamp string
+	Contract  string
 }
 
 // Protocol defines the protocol of querying tables
@@ -261,6 +262,7 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 		}
 		con.Hash = r.ActionHash
 		con.Timestamp = r.Timestamp
+		con.Contract = r.Address
 		cons = append(cons, con)
 	}
 	return
@@ -311,6 +313,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 		}
 		con.Hash = r.ActionHash
 		con.Timestamp = r.Timestamp
+		con.Contract = r.Address
 		cons = append(cons, con)
 	}
 	return
@@ -357,6 +360,7 @@ func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, e
 		}
 		con.Hash = r.ActionHash
 		con.Timestamp = r.Timestamp
+		con.Contract = r.Address
 		cons = append(cons, con)
 	}
 	return

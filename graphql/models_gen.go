@@ -181,6 +181,7 @@ type Xrc20 struct {
 }
 
 type Xrc20Info struct {
+	Contract  string `json:"contract"`
 	Hash      string `json:"hash"`
 	Timestamp string `json:"timestamp"`
 	From      string `json:"from"`

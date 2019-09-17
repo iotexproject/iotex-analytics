@@ -9,6 +9,7 @@ type Query {
 }
 
 type Xrc20Info{
+    contract:String!
     hash:String!
     timestamp:String!
     from:String!
