@@ -34,20 +34,32 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(24), uint64(15))
+	p := NewProtocol(store, uint64(1), uint64(1))
 
 	require.NoError(p.CreateTables(ctx))
 
-	blk, err := testutil.BuildCompleteBlock(uint64(180), uint64(361))
+	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	// get account history
-	accountHistory, err := p.getBalanceHistory(testutil.Addr1)
+	blk2, err := testutil.BuildEmptyBlock(2)
 	require.NoError(err)
-	require.Equal(2, len(accountHistory))
-	require.Equal("2", accountHistory[1].Amount)
+
+	require.NoError(store.Transact(func(tx *sql.Tx) error {
+		return p.HandleBlock(ctx, tx, blk2)
+	}))
+
+	// get balance history
+	balanceHistory, err := p.getBalanceHistory(testutil.Addr1)
+	require.NoError(err)
+	require.Equal(2, len(balanceHistory))
+	require.Equal("2", balanceHistory[1].Amount)
+
+	// get account income
+	accountIncome, err := p.getAccountIncome(uint64(1), testutil.Addr1)
+	require.NoError(err)
+	require.Equal("-2", accountIncome.Income)
 }
