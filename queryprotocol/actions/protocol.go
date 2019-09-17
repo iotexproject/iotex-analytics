@@ -372,6 +372,7 @@ func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, e
 	return
 }
 
+// GetTopHolders gets top holders
 func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holders []*TopHolders, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
