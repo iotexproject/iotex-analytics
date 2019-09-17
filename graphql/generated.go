@@ -219,6 +219,7 @@ type ComplexityRoot struct {
 	}
 
 	Xrc20Info struct {
+		Contract  func(childComplexity int) int
 		From      func(childComplexity int) int
 		Hash      func(childComplexity int) int
 		Quantity  func(childComplexity int) int
@@ -980,6 +981,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Xrc20.ByPage(childComplexity, args["numPerPage"].(int), args["page"].(int)), true
 
+	case "Xrc20Info.Contract":
+		if e.complexity.Xrc20Info.Contract == nil {
+			break
+		}
+
+		return e.complexity.Xrc20Info.Contract(childComplexity), true
+
 	case "Xrc20Info.From":
 		if e.complexity.Xrc20Info.From == nil {
 			break
@@ -1116,6 +1124,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
 }
 
 type Xrc20Info{
+    contract:String!
     hash:String!
     timestamp:String!
     from:String!
@@ -4273,6 +4282,33 @@ func (ec *executionContext) _Xrc20_byPage(ctx context.Context, field graphql.Col
 	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Xrc20Info_contract(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Xrc20Info",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Contract, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Xrc20Info_hash(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6486,6 +6522,11 @@ func (ec *executionContext) _Xrc20Info(ctx context.Context, sel ast.SelectionSet
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Xrc20Info")
+		case "contract":
+			out.Values[i] = ec._Xrc20Info_contract(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "hash":
 			out.Values[i] = ec._Xrc20Info_hash(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
