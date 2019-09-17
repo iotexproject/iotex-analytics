@@ -581,8 +581,8 @@ func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Act
 	}}
 	for _, evmTransfer := range actDetail.EvmTransfers {
 		actionOutput.EvmTransfers = append(actionOutput.EvmTransfers, &EvmTransfer{
-			From: evmTransfer.From,
-			To: evmTransfer.To,
+			From:     evmTransfer.From,
+			To:       evmTransfer.To,
 			Quantity: evmTransfer.Quantity,
 		})
 	}
