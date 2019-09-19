@@ -381,7 +381,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holder
 	if numberOfHolders < 1 {
 		numberOfHolders = 1
 	}
-	getQuery := fmt.Sprintf("SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d GROUP BY address ORDER BY balance DESC LIMIT %d", accounts.AccountIncomeTableName, endEpochNumber, numberOfHolders)
+	getQuery := fmt.Sprintf("SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d", accounts.AccountIncomeTableName, endEpochNumber, numberOfHolders)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
