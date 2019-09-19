@@ -68,8 +68,8 @@ type Xrc20Info struct {
 	Contract  string
 }
 
-// TopHolders defines top holders
-type TopHolders struct {
+// TopHolder defines top holder
+type TopHolder struct {
 	Address string
 	Balance string
 }
@@ -373,7 +373,7 @@ func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, e
 }
 
 // GetTopHolders gets top holders
-func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holders []*TopHolders, err error) {
+func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holders []*TopHolder, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -393,7 +393,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holder
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var ret TopHolders
+	var ret TopHolder
 	parsedRows, err := s.ParseSQLRows(rows, &ret)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
@@ -403,12 +403,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holder
 		return nil, err
 	}
 	for _, parsedRow := range parsedRows {
-		r := parsedRow.(*TopHolders)
-		holder := &TopHolders{
-			Address: r.Address,
-			Balance: r.Balance,
-		}
-		holders = append(holders, holder)
+		holders = append(holders, parsedRow.(*TopHolder))
 	}
 	return
 }
