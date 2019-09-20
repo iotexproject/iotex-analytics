@@ -164,7 +164,7 @@ type StakingOutput struct {
 	StakingInfo []*StakingInformation `json:"stakingInfo"`
 }
 
-type TopHolders struct {
+type TopHolder struct {
 	Address string `json:"address"`
 	Balance string `json:"balance"`
 }

@@ -203,7 +203,7 @@ type ComplexityRoot struct {
 		StakingInfo func(childComplexity int) int
 	}
 
-	TopHolders struct {
+	TopHolder struct {
 		Address func(childComplexity int) int
 		Balance func(childComplexity int) int
 	}
@@ -248,7 +248,7 @@ type QueryResolver interface {
 	Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) (*Hermes, error)
 	Xrc20(ctx context.Context) (*Xrc20, error)
 	Action(ctx context.Context) (*Action, error)
-	TopHolders(ctx context.Context, endEpochNumber int, numberOfHolders int) ([]*TopHolders, error)
+	TopHolders(ctx context.Context, endEpochNumber int, numberOfHolders int) ([]*TopHolder, error)
 }
 
 type executableSchema struct {
@@ -931,19 +931,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.StakingOutput.StakingInfo(childComplexity), true
 
-	case "TopHolders.Address":
-		if e.complexity.TopHolders.Address == nil {
+	case "TopHolder.Address":
+		if e.complexity.TopHolder.Address == nil {
 			break
 		}
 
-		return e.complexity.TopHolders.Address(childComplexity), true
+		return e.complexity.TopHolder.Address(childComplexity), true
 
-	case "TopHolders.Balance":
-		if e.complexity.TopHolders.Balance == nil {
+	case "TopHolder.Balance":
+		if e.complexity.TopHolder.Balance == nil {
 			break
 		}
 
-		return e.complexity.TopHolders.Balance(childComplexity), true
+		return e.complexity.TopHolder.Balance(childComplexity), true
 
 	case "Voting.RewardSources":
 		if e.complexity.Voting.RewardSources == nil {
@@ -1154,12 +1154,14 @@ var parsedSchema = gqlparser.MustLoadSchema(
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
     xrc20: Xrc20
     action: Action
-    topHolders(endEpochNumber: Int!, numberOfHolders: Int!):[TopHolders]!
+    topHolders(endEpochNumber: Int!, numberOfHolders: Int!):[TopHolder]!
 }
-type TopHolders{
+
+type TopHolder{
     address:String!
     balance:String!
 }
+
 type Xrc20Info{
     contract:String!
     hash:String!
@@ -3734,10 +3736,10 @@ func (ec *executionContext) _Query_topHolders(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*TopHolders)
+	res := resTmp.([]*TopHolder)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNTopHolders2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolders(ctx, field.Selections, res)
+	return ec.marshalNTopHolder2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -4173,11 +4175,11 @@ func (ec *executionContext) _StakingOutput_stakingInfo(ctx context.Context, fiel
 	return ec.marshalNStakingInformation2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingInformation(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _TopHolders_address(ctx context.Context, field graphql.CollectedField, obj *TopHolders) graphql.Marshaler {
+func (ec *executionContext) _TopHolder_address(ctx context.Context, field graphql.CollectedField, obj *TopHolder) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "TopHolders",
+		Object:   "TopHolder",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4200,11 +4202,11 @@ func (ec *executionContext) _TopHolders_address(ctx context.Context, field graph
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _TopHolders_balance(ctx context.Context, field graphql.CollectedField, obj *TopHolders) graphql.Marshaler {
+func (ec *executionContext) _TopHolder_balance(ctx context.Context, field graphql.CollectedField, obj *TopHolder) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "TopHolders",
+		Object:   "TopHolder",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -6586,24 +6588,24 @@ func (ec *executionContext) _StakingOutput(ctx context.Context, sel ast.Selectio
 	return out
 }
 
-var topHoldersImplementors = []string{"TopHolders"}
+var topHolderImplementors = []string{"TopHolder"}
 
-func (ec *executionContext) _TopHolders(ctx context.Context, sel ast.SelectionSet, obj *TopHolders) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, topHoldersImplementors)
+func (ec *executionContext) _TopHolder(ctx context.Context, sel ast.SelectionSet, obj *TopHolder) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, topHolderImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	invalid := false
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("TopHolders")
+			out.Values[i] = graphql.MarshalString("TopHolder")
 		case "address":
-			out.Values[i] = ec._TopHolders_address(ctx, field, obj)
+			out.Values[i] = ec._TopHolder_address(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
 		case "balance":
-			out.Values[i] = ec._TopHolders_balance(ctx, field, obj)
+			out.Values[i] = ec._TopHolder_balance(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -7395,7 +7397,7 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return graphql.MarshalString(v)
 }
 
-func (ec *executionContext) marshalNTopHolders2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolders(ctx context.Context, sel ast.SelectionSet, v []*TopHolders) graphql.Marshaler {
+func (ec *executionContext) marshalNTopHolder2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx context.Context, sel ast.SelectionSet, v []*TopHolder) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -7419,7 +7421,7 @@ func (ec *executionContext) marshalNTopHolders2ᚕᚖgithubᚗcomᚋiotexproject
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOTopHolders2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolders(ctx, sel, v[i])
+			ret[i] = ec.marshalOTopHolder2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -8060,15 +8062,15 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return ec.marshalOString2string(ctx, sel, *v)
 }
 
-func (ec *executionContext) marshalOTopHolders2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolders(ctx context.Context, sel ast.SelectionSet, v TopHolders) graphql.Marshaler {
-	return ec._TopHolders(ctx, sel, &v)
+func (ec *executionContext) marshalOTopHolder2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx context.Context, sel ast.SelectionSet, v TopHolder) graphql.Marshaler {
+	return ec._TopHolder(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalOTopHolders2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolders(ctx context.Context, sel ast.SelectionSet, v *TopHolders) graphql.Marshaler {
+func (ec *executionContext) marshalOTopHolder2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx context.Context, sel ast.SelectionSet, v *TopHolder) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return ec._TopHolders(ctx, sel, v)
+	return ec._TopHolder(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOVoting2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoting(ctx context.Context, sel ast.SelectionSet, v Voting) graphql.Marshaler {

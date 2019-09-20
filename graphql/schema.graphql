@@ -6,10 +6,10 @@ type Query {
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
     xrc20: Xrc20
     action: Action
-    topHolders(endEpochNumber: Int!, numberOfHolders: Int!):[TopHolders]!
+    topHolders(endEpochNumber: Int!, numberOfHolders: Int!):[TopHolder]!
 }
 
-type TopHolders{
+type TopHolder{
     address:String!
     balance:String!
 }
