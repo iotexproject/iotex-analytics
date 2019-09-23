@@ -72,7 +72,7 @@ type CandidateMeta struct {
 type Chain struct {
 	MostRecentEpoch       int              `json:"mostRecentEpoch"`
 	MostRecentBlockHeight int              `json:"mostRecentBlockHeight"`
-	MostRecentTps         int              `json:"mostRecentTPS"`
+	MostRecentTps         float64          `json:"mostRecentTPS"`
 	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
 }
 
