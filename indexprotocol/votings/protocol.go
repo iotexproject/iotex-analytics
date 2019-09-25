@@ -327,43 +327,71 @@ func (p *Protocol) getCandidates(
 	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
 }
 
-func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string][]*api.Bucket, epochNumber uint64) error {
-	valStrs := make([]string, 0)
-	valArgs := make([]interface{}, 0)
+func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string][]*api.Bucket, epochNumber uint64) (err error) {
+	var voteHistoryStmt *sql.Stmt
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, candidate_name, voter_address, votes, weighted_votes, "+
+		"remaining_duration) VALUES (?, ?, ?, ?, ?, ?)", 
+		VotingHistoryTableName)
+	if voteHistoryStmt, err = tx.Prepare(insertQuery); err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := voteHistoryStmt.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	for candidateName, buckets := range candidateToBuckets {
 		for _, bucket := range buckets {
-			valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
-			valArgs = append(valArgs, epochNumber, candidateName, bucket.Voter, bucket.Votes, bucket.WeightedVotes, bucket.RemainingDuration)
+			if _, err = voteHistoryStmt.Exec(
+				epochNumber,
+				candidateName,
+				bucket.Voter,
+				bucket.Votes,
+				bucket.WeightedVotes,
+				bucket.RemainingDuration,
+			); err != nil {
+				return err
+			}
 		}
-	}
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,candidate_name,voter_address,votes,weighted_votes,"+
-		"remaining_duration) VALUES %s", VotingHistoryTableName, strings.Join(valStrs, ","))
-
-	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
-		return err
 	}
 	return nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64, gravityHeight uint64) error {
-	valStrs := make([]string, 0, len(candidates))
-	valArgs := make([]interface{}, 0, len(candidates)*10)
+func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
+	var voteResultStmt *sql.Stmt
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name,operator_address, reward_address, "+
+		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		VotingResultTableName)
+	if voteResultStmt, err = tx.Prepare(insertQuery); err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := voteResultStmt.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	for _, candidate := range candidates {
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		stakingAddress := common.HexToAddress(candidate.Address)
 		blockRewardPortion, epochRewardPortion, foundationBonusPortion, err := p.getDelegateRewardPortions(stakingAddress, gravityHeight)
 		if err != nil {
 			return err
 		}
-		valArgs = append(valArgs, epochNumber, candidate.Name, candidate.OperatorAddress, candidate.RewardAddress,
-			candidate.TotalWeightedVotes, candidate.SelfStakingTokens, blockRewardPortion, epochRewardPortion, foundationBonusPortion, candidate.Address)
-	}
-
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number,delegate_name,operator_address,reward_address,"+
-		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES %s", VotingResultTableName, strings.Join(valStrs, ","))
-
-	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
-		return err
+		if _, err = voteResultStmt.Exec(
+			epochNumber,
+			candidate.Name,
+			candidate.OperatorAddress,
+			candidate.RewardAddress,
+			candidate.TotalWeightedVotes,
+			candidate.SelfStakingTokens,
+			blockRewardPortion,
+			epochRewardPortion,
+			foundationBonusPortion,
+			candidate.Address,
+		); err != nil {
+			return err
+		}
 	}
 	return nil
 }
