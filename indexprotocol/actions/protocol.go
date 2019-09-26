@@ -29,6 +29,14 @@ const (
 	ProtocolID = "actions"
 	// ActionHistoryTableName is the table name of action history
 	ActionHistoryTableName = "action_history"
+
+	createActionHistory = "CREATE TABLE IF NOT EXISTS %s " +
+		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
+		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, " +
+		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))"
+	selectActionHistory = "SELECT * FROM %s WHERE action_hash=?"
+	insertActionHistory = "INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, " +
+		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s"
 )
 
 type (
@@ -80,10 +88,7 @@ func NewProtocol(store s.Store) *Protocol {
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, "+
-		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, "+
-		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistory,
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
@@ -174,7 +179,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 func (p *Protocol) getActionHistory(actionHash string) (*ActionHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
+	getQuery := fmt.Sprintf(selectActionHistory,
 		ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -226,8 +231,7 @@ func (p *Protocol) updateActionHistory(
 			actionInfo.From, actionInfo.To, actionInfo.GasPrice, receiptInfo.GasConsumed, actionInfo.Nonce,
 			actionInfo.Amount, receiptInfo.ReceiptStatus)
 	}
-	insertQuery := fmt.Sprintf("INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, "+
-		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s", ActionHistoryTableName, strings.Join(valStrs, ","))
+	insertQuery := fmt.Sprintf(insertActionHistory, ActionHistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err

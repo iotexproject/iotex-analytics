@@ -23,10 +23,20 @@ import (
 )
 
 const (
-	topicsPlusDataLen = 256
-	sha3Len           = 64
-	contractParamsLen = 64
-	addressLen        = 40
+	topicsPlusDataLen              = 256
+	sha3Len                        = 64
+	contractParamsLen              = 64
+	addressLen                     = 40
+	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE timestamp >= ? AND timestamp <= ?"
+	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
+	selectBalanceHistory       = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
+	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
+	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
+	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
 )
 
 type activeAccout struct {
@@ -92,8 +102,7 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, 
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE timestamp >= ? AND timestamp <= ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectActionHistoryByTimestamp, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -133,8 +142,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount FROM %s "+
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?", actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectActionHistoryByHash, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
 
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -161,7 +169,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 
 	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
 
-	getQuery = fmt.Sprintf("SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?", accounts.BalanceHistoryTableName)
+	getQuery = fmt.Sprintf(selectBalanceHistory, accounts.BalanceHistoryTableName)
 
 	stmt, err = db.Prepare(getQuery)
 	if err != nil {
@@ -197,7 +205,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d", actions.ActionHistoryTableName, count)
+	getQuery := fmt.Sprintf(selectActionHistory, actions.ActionHistoryTableName, count)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -238,7 +246,7 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, address, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20History, actions.Xrc20HistoryTableName, address, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -289,7 +297,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20HistoryByTopics, actions.Xrc20HistoryTableName, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -336,7 +344,7 @@ func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, e
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d", actions.Xrc20HistoryTableName, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20HistoryByPage, actions.Xrc20HistoryTableName, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -381,7 +389,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holder
 	if numberOfHolders < 1 {
 		numberOfHolders = 1
 	}
-	getQuery := fmt.Sprintf("SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d", accounts.AccountIncomeTableName, endEpochNumber, numberOfHolders)
+	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, numberOfHolders)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

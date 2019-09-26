@@ -29,8 +29,29 @@ const (
 	AccountOutflowTableName = "account_outflow"
 	// AccountIncomeTableName is the table name of account income
 	AccountIncomeTableName = "account_income"
-	// EpochAddressIndexName is the index name of epoch number and account address
-	EpochAddressIndexName = "epoch_address_index"
+
+	createBalanceHistory = "CREATE TABLE IF NOT EXISTS balance_history " +
+		"(epoch_number DECIMAL(65, 0) NOT NULL, block_height DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
+		"action_type TEXT NOT NULL, `from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, amount DECIMAL(65, 0) NOT NULL)"
+	createAccountInflow = "CREATE TABLE IF NOT EXISTS account_inflow (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"address VARCHAR(41) NOT NULL, inflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY epoch_address_index (epoch_number, address))"
+	createAccountOutflow = "CREATE TABLE IF NOT EXISTS account_outflow (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"address VARCHAR(41) NOT NULL, outflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY epoch_address_index (epoch_number, address))"
+	createAccountIncome = "CREATE TABLE IF NOT EXISTS account_income (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"address VARCHAR(41) NOT NULL, income DECIMAL(65, 0) NOT NULL, UNIQUE KEY epoch_address_index (epoch_number, address))"
+	rowExists            = "SELECT * FROM %s WHERE action_hash = ?"
+	insertBalanceHistory = "INSERT INTO %s (epoch_number, block_height, action_hash, action_type, `from`, `to`, amount) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	selectBalanceHistory = "SELECT * FROM %s WHERE `from`=? OR `to`=?"
+	selectAccountIncome  = "SELECT * FROM %s WHERE epoch_number = ? AND address = ?"
+	insertAccountInflow  = "INSERT IGNORE INTO %s SELECT epoch_number, `to` AS address, " +
+		"SUM(amount) AS inflow FROM %s GROUP BY epoch_number, `to`"
+	insertAccountOutflow = "INSERT IGNORE INTO %s SELECT epoch_number, `from` AS address, " +
+		"SUM(amount) AS outflow FROM %s GROUP BY epoch_number, `from`"
+	insertAccountIncome = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.address, " +
+		"CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income " +
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address UNION " +
+		"SELECT t2.epoch_number, t2.address, CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income " +
+		"FROM %s AS t1 RIGHT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address"
 )
 
 var specialActionHash = hash.ZeroHash256
@@ -74,21 +95,16 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Proto
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(epoch_number DECIMAL(65, 0) NOT NULL, block_height DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, "+
-		"action_type TEXT NOT NULL, `from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, amount DECIMAL(65, 0) NOT NULL)", BalanceHistoryTableName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(createBalanceHistory); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"address VARCHAR(41) NOT NULL, inflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))", AccountInflowTableName, EpochAddressIndexName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(createAccountInflow); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"address VARCHAR(41) NOT NULL, outflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))", AccountOutflowTableName, EpochAddressIndexName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(createAccountOutflow); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"address VARCHAR(41) NOT NULL, income DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))", AccountIncomeTableName, EpochAddressIndexName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(createAccountIncome); err != nil {
 		return err
 	}
 	return nil
@@ -98,7 +114,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexprotocol.Genesis) error {
 	db := p.Store.GetDB()
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE action_hash = ?",
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(rowExists,
 		BalanceHistoryTableName), hex.EncodeToString(specialActionHash[:]))
 	if err != nil {
 		return errors.Wrap(err, "failed to check if the row exists")
@@ -107,7 +123,7 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexpro
 		return nil
 	}
 	for addr, amount := range genesis.InitBalanceMap {
-		insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, action_type, `from`, `to`, amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		insertQuery := fmt.Sprintf(insertBalanceHistory,
 			BalanceHistoryTableName)
 		if _, err := tx.Exec(insertQuery, uint64(0), uint64(0), hex.EncodeToString(specialActionHash[:]), "genesis", "", addr, amount); err != nil {
 			return errors.Wrapf(err, "failed to update balance history for address %s", addr)
@@ -184,7 +200,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 func (p *Protocol) getBalanceHistory(address string) ([]*BalanceHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE `from`=? OR `to`=?",
+	getQuery := fmt.Sprintf(selectBalanceHistory,
 		BalanceHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -218,7 +234,7 @@ func (p *Protocol) getBalanceHistory(address string) ([]*BalanceHistory, error) 
 func (p *Protocol) getAccountIncome(epochNumber uint64, address string) (*AccountIncome, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ? AND address = ?",
+	getQuery := fmt.Sprintf(selectAccountIncome,
 		AccountIncomeTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -258,7 +274,7 @@ func (p *Protocol) updateBalanceHistory(
 	from string,
 	amount string,
 ) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, action_hash, action_type, `from`, `to`, amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	insertQuery := fmt.Sprintf(insertBalanceHistory,
 		BalanceHistoryTableName)
 	if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), actionType, from, to, amount); err != nil {
 		return errors.Wrap(err, "failed to update balance history")
@@ -267,21 +283,15 @@ func (p *Protocol) updateBalanceHistory(
 }
 
 func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, `to` AS address, "+
-		"SUM(amount) AS inflow FROM %s GROUP BY epoch_number, `to`", AccountInflowTableName, BalanceHistoryTableName)); err != nil {
+	if _, err := tx.Exec(fmt.Sprintf(insertAccountInflow, AccountInflowTableName, BalanceHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, `from` AS address, "+
-		"SUM(amount) AS outflow FROM %s GROUP BY epoch_number, `from`", AccountOutflowTableName, BalanceHistoryTableName)); err != nil {
+	if _, err := tx.Exec(fmt.Sprintf(insertAccountOutflow, AccountOutflowTableName, BalanceHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.address, "+
-		"CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income "+
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address UNION "+
-		"SELECT t2.epoch_number, t2.address, CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income "+
-		"FROM %s AS t1 RIGHT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address", AccountIncomeTableName,
+	if _, err := tx.Exec(fmt.Sprintf(insertAccountIncome, AccountIncomeTableName,
 		AccountInflowTableName, AccountOutflowTableName, AccountInflowTableName, AccountOutflowTableName)); err != nil {
 		return err
 	}
