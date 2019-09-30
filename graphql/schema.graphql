@@ -108,6 +108,7 @@ type ActionInfo {
     sender: String!
     recipient: String!
     amount: String!
+    gasFee: String!
 }
 
 type Alias {
