@@ -48,6 +48,7 @@ type Config struct {
 	Genesis               indexprotocol.Genesis      `yaml:"genesis"`
 	GravityChain          indexprotocol.GravityChain `yaml:"gravityChain"`
 	Rewarding             indexprotocol.Rewarding    `yaml:"rewarding"`
+	Poll 				  indexprotocol.Poll 		 `yaml:"poll"`
 }
 
 // NewIndexer creates a new indexer
@@ -162,7 +163,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.Rewarding)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain)
+	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain, idx.Config.Poll)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")

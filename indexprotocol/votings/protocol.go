@@ -14,7 +14,13 @@ import (
 	"math"
 	"math/big"
 	"strconv"
-	"strings"
+	"time"
+
+	// require sqlite 3
+	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
+
+	"github.com/golang/protobuf/ptypes"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,8 +28,11 @@ import (
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/pb/api"
+	"github.com/iotexproject/iotex-election/types"
+	electiondb "github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
@@ -59,16 +68,6 @@ const (
 )
 
 type (
-	// VotingHistory defines the schema of "voting history" table
-	VotingHistory struct {
-		EpochNumber       uint64
-		CandidateName     string
-		VoterAddress      string
-		Votes             string
-		WeightedVotes     string
-		RemainingDuration string
-	}
-
 	// VotingResult defines the schema of "voting result" table
 	VotingResult struct {
 		EpochNumber               uint64
@@ -90,61 +89,87 @@ type (
 		VoterAddress   string
 		AggregateVotes string
 	}
+
+	// VotingInfo defines voting info
+	VotingInfo struct {
+		EpochNumber   uint64
+		VoterAddress  string
+		WeightedVotes string
+	}
+
+	rawData struct {
+		mintTime          time.Time
+		buckets           []*types.Bucket
+		registrations     []*types.Registration
+	}
+	aggregateKey struct {
+		epochNumber 		uint64
+		candidateName 		string
+		voterAddress 		string
+	}
+
 )
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store           s.Store
-	NumDelegates    uint64
-	NumSubEpochs    uint64
-	GravityChainCfg indexprotocol.GravityChain
+	Store           		s.Store
+	PollArchive				committee.PollArchive
+	NumDelegates    		uint64
+	NumSubEpochs    		uint64
+	GravityChainCfg 		indexprotocol.GravityChain
+	SkipManifiedCandidate 	bool
+	VoteThreshold         	*big.Int
+	ScoreThreshold        	*big.Int
+	SelfStakingThreshold  	*big.Int
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain) *Protocol {
-	return &Protocol{Store: store, NumDelegates: numDelegates, NumSubEpochs: numSubEpochs, GravityChainCfg: gravityChainCfg}
+func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
+	sqldb, err := sql.Open("sqlite3", "sqlite.db")
+	if err != nil {
+		zap.L().Error("failed to make sqliteDB")
+		return nil
+	}
+	pollArchive, err := committee.NewArchive(sqldb, 0, 0, nil)
+	if err != nil {
+		zap.L().Error("failed to make pollArchive")
+		return nil
+	}
+	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
+	if !ok {
+		zap.L().Error("Invalid vote threshold")
+		return nil
+	}
+	scoreThreshold, ok := new(big.Int).SetString(pollCfg.ScoreThreshold, 10)
+	if !ok {
+		zap.L().Error("Invalid score threshold")
+		return nil
+	}
+	selfStakingThreshold, ok := new(big.Int).SetString(pollCfg.SelfStakingThreshold, 10)
+	if !ok {
+		zap.L().Error("Invalid self staking threshold")
+		return nil
+	}
+	return &Protocol{
+		Store: 					store, 
+		PollArchive: 			pollArchive, 
+		NumDelegates: 			numDelegates, 
+		NumSubEpochs: 			numSubEpochs, 
+		GravityChainCfg: 		gravityChainCfg,
+		VoteThreshold:			voteThreshold,
+		ScoreThreshold:			scoreThreshold,
+		SelfStakingThreshold:	selfStakingThreshold,
+		SkipManifiedCandidate:	pollCfg.SkipManifiedCandidate,
+	}
 }
 
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
-	// create voting history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(epoch_number DECIMAL(65, 0) NOT NULL, candidate_name VARCHAR(24) NOT NULL, voter_address VARCHAR(40) NOT NULL, votes DECIMAL(65, 0) NOT NULL, "+
-		"weighted_votes DECIMAL(65, 0) NOT NULL, remaining_duration TEXT NOT NULL)",
-		VotingHistoryTableName)); err != nil {
-		return err
+	if err := p.PollArchive.Start(ctx); err != nil{
+		return errors.Wrap(err, "failed to start pollArchive")
 	}
-
-	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
-		return err
-	}
-	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, candidate_name)", EpochCandidateIndexName, VotingHistoryTableName)); err != nil {
-			return err
-		}
-	}
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, EpochVoterIndexName)).Scan(&exist); err != nil {
-		return err
-	}
-	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, voter_address)", EpochVoterIndexName, VotingHistoryTableName)); err != nil {
-			return err
-		}
-	}
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingHistoryTableName, CandidateVoterIndexName)).Scan(&exist); err != nil {
-		return err
-	}
-	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (candidate_name, voter_address)", CandidateVoterIndexName, VotingHistoryTableName)); err != nil {
-			return err
-		}
-	}
-
 	// create voting result table
+	var exist uint64
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
 		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, "+
@@ -187,7 +212,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
-		if err := p.rebuildAggregateVotingTable(tx); err != nil {
+		if err := p.rebuildAggregateVotingTable(tx, epochNumber - 1); err != nil {
 			return errors.Wrap(err, "failed to rebuild aggregate voting table")
 		}
 
@@ -199,29 +224,38 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get candidates from election service in epoch %d", epochNumber)
 		}
+		//getRawData from iotex-election
+		getRawDataRequest := &api.GetRawDataRequest{
+			Height: strconv.Itoa(int(gravityHeight)),
+		}
+		getRawDataResponse, err := electionClient.GetRawData(context.Background(), getRawDataRequest)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get rawdata from iotex-election in epoch %d", epochNumber)
+		}
+		var buckets []*types.Bucket
+		var regs []*types.Registration
 
-		candidateToBuckets := make(map[string][]*api.Bucket)
-		for _, candidate := range candidates {
-			getBucketsRequest := &api.GetBucketsByCandidateRequest{
-				Name:   candidate.Name,
-				Height: strconv.Itoa(int(gravityHeight)),
-				Offset: uint32(0),
-				Limit:  math.MaxUint32,
-			}
-			getBucketsResponse, err := electionClient.GetBucketsByCandidate(ctx, getBucketsRequest)
-			if err != nil {
-				// TODO: Need a better way to handle the case that a candidate has no votes (len(voters) == 0)
-				if strings.Contains(err.Error(), "offset is out of range") {
-					continue
-				}
-				return errors.Wrapf(err, "failed to get buckets by candidate in epoch %d", epochNumber)
-			}
-			buckets := getBucketsResponse.Buckets
-			candidateToBuckets[candidate.Name] = buckets
+		for _, bucketPb := range getRawDataResponse.Buckets {
+			var bucket *types.Bucket
+			bucket.FromProtoMsg(bucketPb)
+			buckets = append(buckets, bucket)
 		}
-		if err := p.updateVotingHistory(tx, candidateToBuckets, epochNumber); err != nil {
-			return errors.Wrapf(err, "failed to update voting history in epoch %d", epochNumber)
+
+		for _, regPb := range getRawDataResponse.Registrations {
+			var reg *types.Registration
+			reg.FromProtoMsg(regPb)
+			regs = append(regs, reg)
 		}
+
+		mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
+		if err != nil {
+			return err
+		}
+
+		if err := p.PollArchive.PutPoll(height, mintTime, regs, buckets); err != nil { // iotex-height
+			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
+		}
+
 		if err := p.updateVotingResult(tx, candidates, epochNumber, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
 		}
@@ -229,39 +263,78 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-// getVotingHistory gets voting history
-func (p *Protocol) getVotingHistory(epochNumber uint64, candidateName string) ([]*VotingHistory, error) {
-	db := p.Store.GetDB()
+func (p *Protocol) bucketFilter(v *types.Bucket) bool {
+	return p.VoteThreshold.Cmp(v.Amount()) > 0
+}
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
-		VotingHistoryTableName)
-	stmt, err := db.Prepare(getQuery)
+func (p *Protocol) candidateFilter(c *types.Candidate) bool {
+	return p.SelfStakingThreshold.Cmp(c.SelfStakingTokens()) > 0 ||
+		p.ScoreThreshold.Cmp(c.Score()) > 0
+} 
+
+func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
+	if now.Before(v.StartTime()) {
+		return big.NewInt(0)
+	}
+	remainingTime := v.RemainingTime(now).Seconds()
+	weight := float64(1)
+	if remainingTime > 0 {
+		weight += math.Log(math.Ceil(remainingTime/86400)) / math.Log(1.2) / 100
+	}
+	amount := new(big.Float).SetInt(v.Amount())
+	weightedAmount, _ := amount.Mul(amount, big.NewFloat(weight)).Int(nil)
+
+	return weightedAmount
+}
+
+func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) {
+	timestamp, err := p.PollArchive.MintTime(height)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare get query")
+		return nil, err
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(epochNumber, candidateName)
+	calculator := types.NewResultCalculator(timestamp,
+		p.SkipManifiedCandidate,
+		p.bucketFilter,
+		p.calcWeightedVotes,
+		p.candidateFilter,
+	)
+	regs, err := p.PollArchive.Registrations(height)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute get query")
+		return nil, err
 	}
-
-	var votingHistory VotingHistory
-	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
+	if err := calculator.AddRegistrations(regs); err != nil {
+		return nil, err
+	}
+	buckets, err := p.PollArchive.Buckets(height)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse results")
+		return nil, err
 	}
+	if err := calculator.AddBuckets(buckets); err != nil {
+		return nil, err
+	}
+	result, err := calculator.Calculate()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil 
+}
 
-	if len(parsedRows) == 0 {
-		return nil, indexprotocol.ErrNotExist
+func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
+	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
+	result, err := p.resultByHeight(height)
+	if err != nil {
+		return nil, err
 	}
-
-	var votingHistoryList []*VotingHistory
-	for _, parsedRow := range parsedRows {
-		voting := parsedRow.(*VotingHistory)
-		votingHistoryList = append(votingHistoryList, voting)
+	votes := result.VotesByDelegate([]byte(delegateName))
+	votinginfoList := make([]*VotingInfo, len(votes))
+	for i, vote := range votes {
+		votinginfoList[i] = &VotingInfo {
+			EpochNumber: epochNum,
+			VoterAddress: hex.EncodeToString(vote.Voter()),
+			WeightedVotes: vote.WeightedAmount().Text(10),
+		}
 	}
-	return votingHistoryList, nil
+	return votinginfoList, nil
 }
 
 // getVotingResult gets voting result
@@ -327,37 +400,6 @@ func (p *Protocol) getCandidates(
 	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
 }
 
-func (p *Protocol) updateVotingHistory(tx *sql.Tx, candidateToBuckets map[string][]*api.Bucket, epochNumber uint64) (err error) {
-	var voteHistoryStmt *sql.Stmt
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, candidate_name, voter_address, votes, weighted_votes, "+
-		"remaining_duration) VALUES (?, ?, ?, ?, ?, ?)", 
-		VotingHistoryTableName)
-	if voteHistoryStmt, err = tx.Prepare(insertQuery); err != nil {
-		return err
-	}
-	defer func() {
-		closeErr := voteHistoryStmt.Close()
-		if err == nil && closeErr != nil {
-			err = closeErr
-		}
-	}()
-	for candidateName, buckets := range candidateToBuckets {
-		for _, bucket := range buckets {
-			if _, err = voteHistoryStmt.Exec(
-				epochNumber,
-				candidateName,
-				bucket.Voter,
-				bucket.Votes,
-				bucket.WeightedVotes,
-				bucket.RemainingDuration,
-			); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
 	var voteResultStmt *sql.Stmt
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name,operator_address, reward_address, "+
@@ -396,18 +438,64 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 	return nil
 }
 
-func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, candidate_name, "+
-		"voter_address, SUM(weighted_votes) FROM %s GROUP BY epoch_number, candidate_name, voter_address",
-		AggregateVotingTable, VotingHistoryTableName)); err != nil {
+func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (err error) {
+	if lastEpoch == 0 {
+		return nil
+	}
+	height := indexprotocol.GetEpochHeight(lastEpoch, p.NumDelegates, p.NumSubEpochs)
+	result, err := p.resultByHeight(height)
+	if err != nil {
+		if errors.Cause(err) == electiondb.ErrNotExist {
+			return nil
+		}
 		return err
 	}
+	delegates := result.Delegates()
+	votes := result.Votes()
+	total_weighted := result.TotalVotes()
+	var sumOfVotes *big.Int
+	var sumOfWeightedVotes map[aggregateKey] *big.Int
 
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT history_t.epoch_number, voted_token, "+
-		"delegate_count, total_weighted FROM (SELECT epoch_number,SUM(votes) AS voted_token FROM %s GROUP BY epoch_number) AS history_t INNER JOIN (SELECT epoch_number,COUNT(delegate_name) AS delegate_count,SUM(total_weighted_votes) AS total_weighted FROM %s GROUP BY epoch_number) AS result_t ON history_t.epoch_number=result_t.epoch_number ",
-		VotingMetaTableName, VotingHistoryTableName, VotingResultTableName)); err != nil {
+	for _, vote := range votes {
+		//for sumOfWeightedVotes
+		key := aggregateKey {
+			epochNumber:	lastEpoch,
+			candidateName:	string(vote.Candidate()),
+			voterAddress:	hex.EncodeToString(vote.Voter()),
+		}
+		if val, ok := sumOfWeightedVotes[key]; ok {
+			val.Add(val, vote.WeightedAmount())
+		} else {
+			sumOfWeightedVotes[key] = vote.WeightedAmount()
+		}
+		//for SumOfVotes
+		sumOfVotes.Add(sumOfVotes, vote.Amount())
+	}
+	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)", AggregateVotingTable)
+	var aggregateStmt *sql.Stmt
+	if aggregateStmt, err = tx.Prepare(insertQuery); err != nil {
 		return err
 	}
+	defer func() {
+		closeErr := aggregateStmt.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
+	for key, val := range sumOfWeightedVotes {
+		if _, err = aggregateStmt.Exec(
+			key.epochNumber,
+			key.candidateName,
+			key.voterAddress,
+			val.Text(10),
+		); err != nil {
+			return err
+		}
+	}
+	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName), 
+		lastEpoch, sumOfVotes.Text(10), len(delegates), total_weighted.Text(10)); err != nil {
+	 	return err
+	 }
 	return nil
 }
 

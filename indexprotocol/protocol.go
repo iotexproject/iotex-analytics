@@ -34,6 +34,13 @@ type (
 		// InitBalanceMap is the address and initial balance mapping before the first block.
 		InitBalanceMap map[string]string `yaml:"initBalances"`
 	}
+	//Poll contains the configs for voting protocol
+	Poll struct {
+		SkipManifiedCandidate      bool     `yaml:"skipManifiedCandidate"`
+		VoteThreshold              string   `yaml:"voteThreshold"`
+		ScoreThreshold             string   `yaml:"scoreThreshold"`
+		SelfStakingThreshold       string   `yaml:"selfStakingThreshold"`
+	}
 	// GravityChain contains the configs for gravity chain
 	GravityChain struct {
 		GravityChainAPIs            []string `yaml:"gravityChainAPIs"`

@@ -33,6 +33,10 @@ genesis:
       io15flratm0nhh5xpxz2lznrrpmnwteyd86hxdtj0: "100000000000000000000000000"
       io1eq4ehs6xx6zj9gcsax7h3qydwlxut9xcfcjras: "100000000000000000000000000"
       io10a298zmzvrt4guq79a9f4x7qedj59y7ery84he: "100000000000000000000000000"
+poll:
+  voteThreshold: "100000000000000000000"
+  scoreThreshold: "0"
+  selfStakingThreshold: "0"
 gravityChain:
   gravityChainAPIs:
     - https://mainnet.infura.io/v3/b355cae6fafc4302b106b937ee6c15af

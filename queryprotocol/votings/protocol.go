@@ -24,13 +24,6 @@ type Protocol struct {
 	indexer *indexservice.Indexer
 }
 
-// VotingInfo defines voting info
-type VotingInfo struct {
-	EpochNumber   uint64
-	VoterAddress  string
-	WeightedVotes string
-}
-
 // CandidateMeta defines candidate mata data
 type CandidateMeta struct {
 	EpochNumber        uint64
@@ -52,9 +45,15 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // GetBucketInformation gets voting infos
-func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, delegateName string) (map[uint64][]*VotingInfo, error) {
-	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, delegateName string) (map[uint64][]*votings.VotingInfo, error) {
+	var protocol indexprotocol.Protocol
+	var votingProtocol *votings.Protocol
+	var ok bool
+	if protocol, ok = p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("votings protocol is unregistered")
+	}
+	if votingProtocol, ok = protocol.(*votings.Protocol); !ok {
+		return nil, errors.New("failed to cast to voting protocol")
 	}
 
 	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
@@ -65,40 +64,16 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 	if endEpoch > currentEpoch {
 		endEpoch = currentEpoch
 	}
-
-	db := p.indexer.Store.GetDB()
-
-	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name = ?",
-		votings.VotingHistoryTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(startEpoch, endEpoch, delegateName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute get query")
-	}
-
-	var votingHistory VotingInfo
-	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse results")
-	}
-	if len(parsedRows) == 0 {
-		return nil, indexprotocol.ErrNotExist
-	}
-
-	bucketInfoMap := make(map[uint64][]*VotingInfo)
-	for _, parsedRow := range parsedRows {
-		voting := parsedRow.(*VotingInfo)
-		if _, ok := bucketInfoMap[voting.EpochNumber]; !ok {
-			bucketInfoMap[voting.EpochNumber] = make([]*VotingInfo, 0)
+	
+	bucketInfoMap := make(map[uint64][]*votings.VotingInfo)
+	for i := startEpoch; i <= endEpoch; i++ {
+		voteInfoList, err := votingProtocol.GetBucketInfoByEpoch(i, delegateName)
+		if err != nil {
+			return nil, err
 		}
-		bucketInfoMap[voting.EpochNumber] = append(bucketInfoMap[voting.EpochNumber], voting)
+		bucketInfoMap[i] = voteInfoList
 	}
-	return bucketInfoMap, nil
+	return bucketInfoMap, nil 
 }
 
 //GetStaking get staked information
