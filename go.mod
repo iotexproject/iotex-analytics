@@ -19,7 +19,7 @@ require (
 	github.com/iotexproject/iotex-address v0.2.1
 	github.com/iotexproject/iotex-antenna-go v0.0.0-20190522194402-4d96cae2af68 // indirect
 	github.com/iotexproject/iotex-core v0.7.1
-	github.com/iotexproject/iotex-election v0.2.3-0.20190930201348-0ad101e17fbe
+	github.com/iotexproject/iotex-election v0.2.5-0.20191002002927-73cae5870a7d
 	github.com/iotexproject/iotex-proto v0.2.1-0.20190814190638-f74c55ffedf5
 	github.com/ipfs/go-ds-badger v0.0.4 // indirect
 	github.com/ipfs/go-ds-leveldb v0.0.2 // indirect

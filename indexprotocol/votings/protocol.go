@@ -16,8 +16,6 @@ import (
 	"strconv"
 	"time"
 
-	// require sqlite 3
-	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 
 	"github.com/golang/protobuf/ptypes"
@@ -31,8 +29,8 @@ import (
 	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/pb/api"
+	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-election/types"
-	electiondb "github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
@@ -125,12 +123,7 @@ type Protocol struct {
 
 // NewProtocol creates a new protocol
 func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
-	sqldb, err := sql.Open("sqlite3", "sqlite.db")
-	if err != nil {
-		zap.L().Error("failed to make sqliteDB")
-		return nil
-	}
-	pollArchive, err := committee.NewArchive(sqldb, 0, 0, nil)
+	pollArchive, err := committee.NewArchive("sqlite.db", 0, 0, 0)
 	if err != nil {
 		zap.L().Error("failed to make pollArchive")
 		return nil
@@ -209,8 +202,9 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
+	fmt.Println("voting handle block, height:", height)
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
-
+	fmt.Println("voting handle block, epochNum:", epochNumber)
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
 		if err := p.rebuildAggregateVotingTable(tx, epochNumber - 1); err != nil {
 			return errors.Wrap(err, "failed to rebuild aggregate voting table")
@@ -236,17 +230,20 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		var regs []*types.Registration
 
 		for _, bucketPb := range getRawDataResponse.Buckets {
-			var bucket *types.Bucket
-			bucket.FromProtoMsg(bucketPb)
+			bucket := &types.Bucket{}
+			if err := bucket.FromProtoMsg(bucketPb); err != nil {
+				return err
+			}
 			buckets = append(buckets, bucket)
-		}
 
+		}
 		for _, regPb := range getRawDataResponse.Registrations {
-			var reg *types.Registration
-			reg.FromProtoMsg(regPb)
+			reg := &types.Registration{}
+			if err := reg.FromProtoMsg(regPb); err != nil {
+				return err
+			}
 			regs = append(regs, reg)
 		}
-
 		mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
 		if err != nil {
 			return err
@@ -392,11 +389,13 @@ func (p *Protocol) getCandidates(
 		Offset: uint32(0),
 		Limit:  math.MaxUint32,
 	}
+	log.S().Infof("gravityHeight: %d",gravityChainStartHeight)
 
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
 		return nil, uint64(0), errors.Wrap(err, "failed to get candidates from election service")
 	}
+	log.S().Infof("len of result: %d",len(getCandidatesResponse.Candidates))
 	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
 }
 
@@ -445,16 +444,13 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 	height := indexprotocol.GetEpochHeight(lastEpoch, p.NumDelegates, p.NumSubEpochs)
 	result, err := p.resultByHeight(height)
 	if err != nil {
-		if errors.Cause(err) == electiondb.ErrNotExist {
-			return nil
-		}
 		return err
 	}
 	delegates := result.Delegates()
 	votes := result.Votes()
 	total_weighted := result.TotalVotes()
-	var sumOfVotes *big.Int
-	var sumOfWeightedVotes map[aggregateKey] *big.Int
+	sumOfVotes := big.NewInt(0)
+	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 
 	for _, vote := range votes {
 		//for sumOfWeightedVotes
