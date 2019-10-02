@@ -120,7 +120,7 @@ type Protocol struct {
 
 // NewProtocol creates a new protocol
 func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
-	pollArchive, err := committee.NewArchive("sqlite.db", 0, 0, 0)
+	pollArchive, err := committee.NewArchive("poll.db", 0, 0, 0)
 	if err != nil {
 		zap.L().Error("failed to make pollArchive")
 		return nil
@@ -178,11 +178,13 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
+	// create AggregateVotingTable
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
 		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
 		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
 		return err
 	}
+	// create VotingMetaTableName
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
 		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
@@ -213,38 +215,12 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get candidates from election service in epoch %d", epochNumber)
 		}
-		//getRawData from iotex-election
-		getRawDataRequest := &api.GetRawDataRequest{
-			Height: strconv.Itoa(int(gravityHeight)),
-		}
-		getRawDataResponse, err := electionClient.GetRawData(context.Background(), getRawDataRequest)
+		buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get rawdata from iotex-election in epoch %d", epochNumber)
-		}
-		var buckets []*types.Bucket
-		var regs []*types.Registration
-
-		for _, bucketPb := range getRawDataResponse.Buckets {
-			bucket := &types.Bucket{}
-			if err := bucket.FromProtoMsg(bucketPb); err != nil {
-				return err
-			}
-			buckets = append(buckets, bucket)
-
-		}
-		for _, regPb := range getRawDataResponse.Registrations {
-			reg := &types.Registration{}
-			if err := reg.FromProtoMsg(regPb); err != nil {
-				return err
-			}
-			regs = append(regs, reg)
-		}
-		mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
-		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
 
-		if err := p.PollArchive.PutPoll(height, mintTime, regs, buckets); err != nil { // iotex-height
+		if err := p.PollArchive.PutPoll(height, mintTime, regs, buckets); err != nil { 
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
 
@@ -362,6 +338,41 @@ func (p *Protocol) getVotingResult(epochNumber uint64, delegateName string) (*Vo
 
 	return parsedRows[0].(*VotingResult), nil
 }
+
+func (p *Protocol) getRawData(
+	electionClient api.APIServiceClient,
+	gravityHeight uint64,
+) ([]*types.Bucket, []*types.Registration, time.Time, error) {
+	getRawDataRequest := &api.GetRawDataRequest{
+		Height: strconv.Itoa(int(gravityHeight)),
+	}
+	getRawDataResponse, err := electionClient.GetRawData(context.Background(), getRawDataRequest)
+	if err != nil {
+		return nil, nil, time.Time{}, errors.Wrapf(err, "failed to get rawdata")
+	}
+	var buckets []*types.Bucket
+	var regs []*types.Registration
+	for _, bucketPb := range getRawDataResponse.Buckets {
+		bucket := &types.Bucket{}
+		if err := bucket.FromProtoMsg(bucketPb); err != nil {
+			return nil, nil, time.Time{}, err
+		}
+		buckets = append(buckets, bucket)
+	}
+	for _, regPb := range getRawDataResponse.Registrations {
+		reg := &types.Registration{}
+		if err := reg.FromProtoMsg(regPb); err != nil {
+			return nil, nil, time.Time{}, err
+		}
+		regs = append(regs, reg)
+		}
+	mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
+	if err != nil {
+		return nil, nil, time.Time{}, err
+	}
+	return buckets, regs, mintTime, nil 
+}
+
 
 func (p *Protocol) getCandidates(
 	chainClient iotexapi.APIServiceClient,
