@@ -29,7 +29,6 @@ import (
 	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/pb/api"
-	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
@@ -43,8 +42,6 @@ import (
 const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "voting"
-	// VotingHistoryTableName is the table name of voting history
-	VotingHistoryTableName = "voting_history"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
 	//VotingMetaTableName is the voting meta table
@@ -202,9 +199,7 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	fmt.Println("voting handle block, height:", height)
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
-	fmt.Println("voting handle block, epochNum:", epochNumber)
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
 		if err := p.rebuildAggregateVotingTable(tx, epochNumber - 1); err != nil {
 			return errors.Wrap(err, "failed to rebuild aggregate voting table")
@@ -389,13 +384,11 @@ func (p *Protocol) getCandidates(
 		Offset: uint32(0),
 		Limit:  math.MaxUint32,
 	}
-	log.S().Infof("gravityHeight: %d",gravityChainStartHeight)
 
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
 		return nil, uint64(0), errors.Wrap(err, "failed to get candidates from election service")
 	}
-	log.S().Infof("len of result: %d",len(getCandidatesResponse.Candidates))
 	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
 }
 
