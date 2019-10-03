@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -107,22 +108,29 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store           		s.Store
-	PollArchive				committee.PollArchive
-	NumDelegates    		uint64
-	NumSubEpochs    		uint64
-	GravityChainCfg 		indexprotocol.GravityChain
-	SkipManifiedCandidate 	bool
-	VoteThreshold         	*big.Int
-	ScoreThreshold        	*big.Int
-	SelfStakingThreshold  	*big.Int
+	Store           			s.Store
+	bucketTableOperator			committee.Operator
+	registrationTableOperator 	committee.Operator
+	timeTableOperator        	*committee.TimeTableOperator
+	NumDelegates    			uint64
+	NumSubEpochs    			uint64
+	GravityChainCfg 			indexprotocol.GravityChain
+	SkipManifiedCandidate 		bool
+	VoteThreshold         		*big.Int
+	ScoreThreshold        		*big.Int
+	SelfStakingThreshold  		*big.Int
 }
 
 // NewProtocol creates a new protocol
 func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
-	pollArchive, err := committee.NewArchive("poll.db", 0, 0, 0)
+	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", false)
 	if err != nil {
-		zap.L().Error("failed to make pollArchive")
+		zap.L().Error("Failed to make new bucket table operator")
+		return nil
+	}
+	registrationTableOperator, err := committee.NewRegistrationTableOperator("registrations", false)
+	if err != nil {
+		zap.L().Error("Failed to make new registration table operator")
 		return nil
 	}
 	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
@@ -141,26 +149,39 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 		return nil
 	}
 	return &Protocol{
-		Store: 					store, 
-		PollArchive: 			pollArchive, 
-		NumDelegates: 			numDelegates, 
-		NumSubEpochs: 			numSubEpochs, 
-		GravityChainCfg: 		gravityChainCfg,
-		VoteThreshold:			voteThreshold,
-		ScoreThreshold:			scoreThreshold,
-		SelfStakingThreshold:	selfStakingThreshold,
-		SkipManifiedCandidate:	pollCfg.SkipManifiedCandidate,
+		Store: 						store, 
+		bucketTableOperator:		bucketTableOperator,
+		registrationTableOperator:	registrationTableOperator,
+		timeTableOperator:         	committee.NewTimeTableOperator("mint_time", false),
+		NumDelegates: 				numDelegates, 
+		NumSubEpochs: 				numSubEpochs, 
+		GravityChainCfg: 			gravityChainCfg,
+		VoteThreshold:				voteThreshold,
+		ScoreThreshold:				scoreThreshold,
+		SelfStakingThreshold:		selfStakingThreshold,
+		SkipManifiedCandidate:		pollCfg.SkipManifiedCandidate,
 	}
 }
 
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
-	if err := p.PollArchive.Start(ctx); err != nil{
-		return errors.Wrap(err, "failed to start pollArchive")
+	var exist uint64
+	tx, err := p.Store.GetDB().Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = p.bucketTableOperator.CreateTables(tx); err != nil {
+		return err
+	}	
+	if err = p.registrationTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	if err = p.timeTableOperator.CreateTables(tx); err != nil {
+		return err
 	}
 	// create voting result table
-	var exist uint64
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
 		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, "+
 		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100, "+
@@ -169,28 +190,28 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
+	if err := tx.QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingResultTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
 	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
+		if _, err := tx.Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
 			return err
 		}
 	}
 	// create AggregateVotingTable
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
 		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
 		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
 		return err
 	}
 	// create VotingMetaTableName
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
 		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
 		return err
 	}
-	return nil
+	return tx.Commit()
 }
 
 // Initialize initializes votings protocol
@@ -219,14 +240,26 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
-
-		if err := p.PollArchive.PutPoll(height, mintTime, regs, buckets); err != nil { 
+		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
 
 		if err := p.updateVotingResult(tx, candidates, epochNumber, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
 		}
+	}
+	return nil
+}
+
+func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
+	if err := p.registrationTableOperator.Put(height, regs, tx); err != nil {
+		return err
+	}
+	if err := p.bucketTableOperator.Put(height, buckets, tx); err != nil {
+		return err
+	}
+	if err := p.timeTableOperator.Put(height, mintTime, tx); err != nil {
+		return err
 	}
 	return nil
 }
@@ -256,9 +289,15 @@ func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
 }
 
 func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) {
-	timestamp, err := p.PollArchive.MintTime(height)
+	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), nil)
 	if err != nil {
+		fmt.Println("ccc")
+
 		return nil, err
+	}
+	timestamp, ok := valueOfTime.(time.Time)
+	if !ok {
+		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfTime))
 	}
 	calculator := types.NewResultCalculator(timestamp,
 		p.SkipManifiedCandidate,
@@ -266,16 +305,24 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 		p.calcWeightedVotes,
 		p.candidateFilter,
 	)
-	regs, err := p.PollArchive.Registrations(height)
+	valueOfRegs, err := p.registrationTableOperator.Get(height, p.Store.GetDB(), nil)
 	if err != nil {
 		return nil, err
+	}
+	regs, ok := valueOfRegs.([]*types.Registration)
+	if !ok {
+		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfRegs))
 	}
 	if err := calculator.AddRegistrations(regs); err != nil {
 		return nil, err
 	}
-	buckets, err := p.PollArchive.Buckets(height)
+	valueOfBuckets, err := p.bucketTableOperator.Get(height, p.Store.GetDB(), nil)
 	if err != nil {
 		return nil, err
+	}
+	buckets, ok := valueOfBuckets.([]*types.Bucket)
+	if !ok {
+		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfBuckets))
 	}
 	if err := calculator.AddBuckets(buckets); err != nil {
 		return nil, err
@@ -468,7 +515,7 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 		} else {
 			sumOfWeightedVotes[key] = vote.WeightedAmount()
 		}
-		//for SumOfVotes
+		//for sumOfVotes
 		sumOfVotes.Add(sumOfVotes, vote.Amount())
 	}
 	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)", AggregateVotingTable)
