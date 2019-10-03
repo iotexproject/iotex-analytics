@@ -333,7 +333,7 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 	}
 	return result, nil 
 }
-
+// GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
 	result, err := p.resultByHeight(height)
@@ -499,7 +499,7 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 	}
 	delegates := result.Delegates()
 	votes := result.Votes()
-	total_weighted := result.TotalVotes()
+	totalWeighted := result.TotalVotes()
 	sumOfVotes := big.NewInt(0)
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 
@@ -540,7 +540,7 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 		}
 	}
 	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName), 
-		lastEpoch, sumOfVotes.Text(10), len(delegates), total_weighted.Text(10)); err != nil {
+		lastEpoch, sumOfVotes.Text(10), len(delegates), totalWeighted.Text(10)); err != nil {
 	 	return err
 	 }
 	return nil
