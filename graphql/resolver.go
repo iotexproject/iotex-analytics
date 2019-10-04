@@ -441,6 +441,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 			Sender:    act.Sender,
 			Recipient: act.Recipient,
 			Amount:    act.Amount,
+			GasFee:    act.GasFee,
 		})
 	}
 	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp < actInfoList[j].TimeStamp })
@@ -599,6 +600,7 @@ func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Act
 		Sender:    actDetail.ActionInfo.Sender,
 		Recipient: actDetail.ActionInfo.Recipient,
 		Amount:    actDetail.ActionInfo.Amount,
+		GasFee:    actDetail.ActionInfo.GasFee,
 	}}
 	for _, evmTransfer := range actDetail.EvmTransfers {
 		actionOutput.EvmTransfers = append(actionOutput.EvmTransfers, &EvmTransfer{

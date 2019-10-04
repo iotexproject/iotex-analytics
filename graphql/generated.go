@@ -61,6 +61,7 @@ type ComplexityRoot struct {
 		ActType   func(childComplexity int) int
 		Amount    func(childComplexity int) int
 		BlkHash   func(childComplexity int) int
+		GasFee    func(childComplexity int) int
 		Recipient func(childComplexity int) int
 		Sender    func(childComplexity int) int
 		TimeStamp func(childComplexity int) int
@@ -367,6 +368,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ActionInfo.BlkHash(childComplexity), true
+
+	case "ActionInfo.GasFee":
+		if e.complexity.ActionInfo.GasFee == nil {
+			break
+		}
+
+		return e.complexity.ActionInfo.GasFee(childComplexity), true
 
 	case "ActionInfo.Recipient":
 		if e.complexity.ActionInfo.Recipient == nil {
@@ -1256,6 +1264,7 @@ type ActionInfo {
     sender: String!
     recipient: String!
     amount: String!
+    gasFee: String!
 }
 
 type Alias {
@@ -2166,6 +2175,33 @@ func (ec *executionContext) _ActionInfo_amount(ctx context.Context, field graphq
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Amount, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionInfo_gasFee(ctx context.Context, field graphql.CollectedField, obj *ActionInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.GasFee, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -5694,6 +5730,11 @@ func (ec *executionContext) _ActionInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "amount":
 			out.Values[i] = ec._ActionInfo_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "gasFee":
+			out.Values[i] = ec._ActionInfo_gasFee(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
