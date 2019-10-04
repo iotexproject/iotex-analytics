@@ -17,6 +17,11 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+const (
+	selectBlockHistory    = "SELECT epoch_number, block_height FROM %s"
+	selectBlockHistoryMax = "SELECT MAX(epoch_number),MAX(block_height) FROM %s"
+)
+
 // GetCurrentEpochAndHeight gets current epoch number and tip block height
 func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (uint64, uint64, error) {
 	_, ok := registry.Find(blocks.ProtocolID)
@@ -25,7 +30,7 @@ func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (
 	}
 	db := store.GetDB()
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT epoch_number, block_height FROM %s",
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(selectBlockHistory,
 		blocks.BlockHistoryTableName))
 	if err != nil {
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to check if the row exists")
@@ -34,7 +39,7 @@ func GetCurrentEpochAndHeight(registry *indexprotocol.Registry, store s.Store) (
 		return uint64(0), uint64(0), indexprotocol.ErrNotExist
 	}
 
-	getQuery := fmt.Sprintf("SELECT MAX(epoch_number),MAX(block_height) FROM %s", blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectBlockHistoryMax, blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return uint64(0), uint64(0), errors.Wrap(err, "failed to prepare get query")
