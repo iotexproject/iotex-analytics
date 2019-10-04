@@ -123,12 +123,12 @@ type Protocol struct {
 
 // NewProtocol creates a new protocol
 func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
-	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", false)
+	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		zap.L().Error("Failed to make new bucket table operator")
 		return nil
 	}
-	registrationTableOperator, err := committee.NewRegistrationTableOperator("registrations", false)
+	registrationTableOperator, err := committee.NewRegistrationTableOperator("registrations", committee.MYSQL)
 	if err != nil {
 		zap.L().Error("Failed to make new registration table operator")
 		return nil
@@ -152,7 +152,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 		Store: 						store, 
 		bucketTableOperator:		bucketTableOperator,
 		registrationTableOperator:	registrationTableOperator,
-		timeTableOperator:         	committee.NewTimeTableOperator("mint_time", false),
+		timeTableOperator:         	committee.NewTimeTableOperator("mint_time", committee.MYSQL),
 		NumDelegates: 				numDelegates, 
 		NumSubEpochs: 				numSubEpochs, 
 		GravityChainCfg: 			gravityChainCfg,
@@ -507,7 +507,7 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 		//for sumOfWeightedVotes
 		key := aggregateKey {
 			epochNumber:	lastEpoch,
-			candidateName:	string(vote.Candidate()),
+			candidateName:	hex.EncodeToString(vote.Candidate()),
 			voterAddress:	hex.EncodeToString(vote.Voter()),
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
