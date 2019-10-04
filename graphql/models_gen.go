@@ -26,6 +26,7 @@ type ActionInfo struct {
 	Sender    string `json:"sender"`
 	Recipient string `json:"recipient"`
 	Amount    string `json:"amount"`
+	GasFee    string `json:"gasFee"`
 }
 
 type ActionList struct {
