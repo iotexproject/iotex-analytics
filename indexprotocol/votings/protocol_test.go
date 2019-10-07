@@ -9,15 +9,17 @@ package votings
 import (
 	"context"
 	"database/sql"
-	"math"
 	"math/big"
-	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes"
+
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
+	"github.com/iotexproject/iotex-election/pb/election"
 	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
@@ -50,7 +52,11 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(24), uint64(15), indexprotocol.GravityChain{})
+	p := NewProtocol(store, uint64(24), uint64(15), indexprotocol.GravityChain{}, indexprotocol.Poll{
+		VoteThreshold:"100000000000000000000",
+		ScoreThreshold:"0",
+		SelfStakingThreshold:"0",
+	})
 
 	require.NoError(p.CreateTables(ctx))
 
@@ -87,51 +93,36 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 
-	request1 := &api.GetBucketsByCandidateRequest{
-		Name:   "616c6661",
-		Height: strconv.Itoa(1000),
-		Offset: uint32(0),
-		Limit:  math.MaxUint32,
-	}
-	electionClient.EXPECT().GetBucketsByCandidate(gomock.Any(), request1).Times(1).Return(
-		&api.BucketResponse{
-			Buckets: []*api.Bucket{
+	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
+	require.NoError(err)
+
+	electionClient.EXPECT().GetRawData(gomock.Any(), gomock.Any()).Times(1).Return(
+		&api.RawDataResponse{
+			Timestamp: timestamp,
+			Buckets: []*election.Bucket{
 				{
-					Voter:             "voter1",
-					Votes:             "300",
-					WeightedVotes:     "500",
-					RemainingDuration: "1day",
-				},
-				{
-					Voter:             "voter2",
-					Votes:             "400",
-					WeightedVotes:     "500",
-					RemainingDuration: "2days",
+					Voter: []byte("14234"),
+					Candidate: []byte("616c6661"),
+					StartTime: timestamp,
+					Duration: ptypes.DurationProto(time.Duration(10*24)),
+					Decay: true,
+					Amount: []byte("100"),
 				},
 			},
-		}, nil,
-	)
-
-	request2 := &api.GetBucketsByCandidateRequest{
-		Name:   "627261766f",
-		Height: strconv.Itoa(1000),
-		Offset: uint32(0),
-		Limit:  math.MaxUint32,
-	}
-	electionClient.EXPECT().GetBucketsByCandidate(gomock.Any(), request2).Times(1).Return(
-		&api.BucketResponse{
-			Buckets: []*api.Bucket{
+			Registrations: []*election.Registration{
 				{
-					Voter:             "voter3",
-					Votes:             "200",
-					WeightedVotes:     "300",
-					RemainingDuration: "3days",
+					Name:               []byte("616c6661"),
+					Address:			[]byte("112233"),
+					OperatorAddress:    []byte(testutil.Addr1),
+					RewardAddress:      []byte(testutil.RewardAddr1),
+					SelfStakingWeight:  100,
 				},
 				{
-					Voter:             "voter4",
-					Votes:             "150",
-					WeightedVotes:     "200",
-					RemainingDuration: "4days",
+					Name:               []byte("627261766f"),
+					Address:			[]byte("445566"),
+					OperatorAddress:    []byte(testutil.Addr2),
+					RewardAddress:      []byte(testutil.RewardAddr2),
+					SelfStakingWeight:  102,
 				},
 			},
 		}, nil,
@@ -140,14 +131,6 @@ func TestProtocol(t *testing.T) {
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
-
-	votingHistoryList, err := p.getVotingHistory(uint64(1), "616c6661")
-	require.NoError(err)
-	require.Equal(2, len(votingHistoryList))
-	require.Equal("voter1", votingHistoryList[0].VoterAddress)
-	require.Equal("300", votingHistoryList[0].Votes)
-	require.Equal("500", votingHistoryList[0].WeightedVotes)
-	require.Equal("1day", votingHistoryList[0].RemainingDuration)
 
 	votingResult, err := p.getVotingResult(uint64(1), "627261766f")
 	require.NoError(err)

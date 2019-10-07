@@ -5,10 +5,12 @@ go 1.12
 require (
 	cloud.google.com/go v0.39.0 // indirect
 	github.com/99designs/gqlgen v0.8.3
+	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/agnivade/levenshtein v1.0.2 // indirect
 	github.com/btcsuite/goleveldb v1.0.0 // indirect
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
+	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b // indirect
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/go-sql-driver/mysql v1.4.1
@@ -18,13 +20,14 @@ require (
 	github.com/iotexproject/go-pkgs v0.1.1
 	github.com/iotexproject/iotex-address v0.2.1
 	github.com/iotexproject/iotex-antenna-go v0.0.0-20190522194402-4d96cae2af68 // indirect
-	github.com/iotexproject/iotex-core v0.7.1
+	github.com/iotexproject/iotex-core v0.8.1-0.20191007232750-b79fb5c7ebaa
 	github.com/iotexproject/iotex-election v0.2.6-0.20191004182259-42d3422ec039
-	github.com/iotexproject/iotex-proto v0.2.1-0.20190814190638-f74c55ffedf5
+	github.com/iotexproject/iotex-proto v0.2.5
 	github.com/ipfs/go-ds-badger v0.0.4 // indirect
 	github.com/ipfs/go-ds-leveldb v0.0.2 // indirect
 	github.com/ipfs/go-ipfs-delay v0.0.1 // indirect
 	github.com/jessevdk/go-flags v1.4.0 // indirect
+	github.com/karalabe/hid v1.0.0 // indirect
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/kkdai/bstream v1.0.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
@@ -39,7 +42,6 @@ require (
 	github.com/russross/blackfriday v2.0.0+incompatible // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
-	github.com/spf13/cobra v0.0.4 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
