@@ -427,7 +427,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 		actionResponse.ByDates = &ActionList{Exist: false}
 		return nil
 	case err != nil:
-		return errors.Wrap(err, "failed to get bookkeeping information")
+		return errors.Wrap(err, "failed to get actions' information")
 	}
 
 	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
@@ -650,7 +650,7 @@ func (r *queryResolver) getNumberOfActions(ctx context.Context, chainResponse *C
 			return errors.Wrapf(err, "failed to get number of actions")
 		}
 	case err != nil:
-		return errors.Wrap(err, "failed to get pagination arguments for bookkeeping")
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
 	default:
 		startEpoch := paginationMap["startEpoch"]
 		epochCount := paginationMap["epochCount"]
