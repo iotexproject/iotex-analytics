@@ -36,10 +36,10 @@ type (
 	}
 	//Poll contains the configs for voting protocol
 	Poll struct {
-		SkipManifiedCandidate      bool     `yaml:"skipManifiedCandidate"`
-		VoteThreshold              string   `yaml:"voteThreshold"`
-		ScoreThreshold             string   `yaml:"scoreThreshold"`
-		SelfStakingThreshold       string   `yaml:"selfStakingThreshold"`
+		SkipManifiedCandidate bool   `yaml:"skipManifiedCandidate"`
+		VoteThreshold         string `yaml:"voteThreshold"`
+		ScoreThreshold        string `yaml:"scoreThreshold"`
+		SelfStakingThreshold  string `yaml:"selfStakingThreshold"`
 	}
 	// GravityChain contains the configs for gravity chain
 	GravityChain struct {

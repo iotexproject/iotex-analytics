@@ -64,7 +64,7 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 	if endEpoch > currentEpoch {
 		endEpoch = currentEpoch
 	}
-	
+
 	bucketInfoMap := make(map[uint64][]*votings.VotingInfo)
 	for i := startEpoch; i <= endEpoch; i++ {
 		voteInfoList, err := votingProtocol.GetBucketInfoByEpoch(i, delegateName)
@@ -73,7 +73,7 @@ func (p *Protocol) GetBucketInformation(startEpoch uint64, epochCount uint64, de
 		}
 		bucketInfoMap[i] = voteInfoList
 	}
-	return bucketInfoMap, nil 
+	return bucketInfoMap, nil
 }
 
 //GetStaking get staked information

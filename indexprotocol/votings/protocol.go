@@ -17,18 +17,15 @@ import (
 	"strconv"
 	"time"
 
-	"go.uber.org/zap"
-
-	"github.com/golang/protobuf/ptypes"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
-	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/carrier"
+	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
@@ -94,73 +91,67 @@ type (
 	}
 
 	rawData struct {
-		mintTime          time.Time
-		buckets           []*types.Bucket
-		registrations     []*types.Registration
+		mintTime      time.Time
+		buckets       []*types.Bucket
+		registrations []*types.Registration
 	}
 	aggregateKey struct {
-		epochNumber 		uint64
-		candidateName 		string
-		voterAddress 		string
+		epochNumber   uint64
+		candidateName string
+		voterAddress  string
 	}
-
 )
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store           			s.Store
-	bucketTableOperator			committee.Operator
-	registrationTableOperator 	committee.Operator
-	timeTableOperator        	*committee.TimeTableOperator
-	NumDelegates    			uint64
-	NumSubEpochs    			uint64
-	GravityChainCfg 			indexprotocol.GravityChain
-	SkipManifiedCandidate 		bool
-	VoteThreshold         		*big.Int
-	ScoreThreshold        		*big.Int
-	SelfStakingThreshold  		*big.Int
+	Store                     s.Store
+	bucketTableOperator       committee.Operator
+	registrationTableOperator committee.Operator
+	timeTableOperator         *committee.TimeTableOperator
+	NumDelegates              uint64
+	NumSubEpochs              uint64
+	GravityChainCfg           indexprotocol.GravityChain
+	SkipManifiedCandidate     bool
+	VoteThreshold             *big.Int
+	ScoreThreshold            *big.Int
+	SelfStakingThreshold      *big.Int
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) *Protocol {
+func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
-		zap.L().Error("Failed to make new bucket table operator")
-		return nil
+		return nil, err
 	}
 	registrationTableOperator, err := committee.NewRegistrationTableOperator("registrations", committee.MYSQL)
 	if err != nil {
-		zap.L().Error("Failed to make new registration table operator")
-		return nil
+		return nil, err
 	}
 	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
 	if !ok {
-		zap.L().Error("Invalid vote threshold")
-		return nil
+		return nil, errors.New("Invalid vote threshold")
 	}
 	scoreThreshold, ok := new(big.Int).SetString(pollCfg.ScoreThreshold, 10)
 	if !ok {
-		zap.L().Error("Invalid score threshold")
-		return nil
+		return nil, errors.New("Invalid score threshold")
 	}
 	selfStakingThreshold, ok := new(big.Int).SetString(pollCfg.SelfStakingThreshold, 10)
 	if !ok {
-		zap.L().Error("Invalid self staking threshold")
-		return nil
+		return nil, errors.New("Invalid self staking threshold")
 	}
 	return &Protocol{
-		Store: 						store, 
-		bucketTableOperator:		bucketTableOperator,
-		registrationTableOperator:	registrationTableOperator,
-		timeTableOperator:         	committee.NewTimeTableOperator("mint_time", committee.MYSQL),
-		NumDelegates: 				numDelegates, 
-		NumSubEpochs: 				numSubEpochs, 
-		GravityChainCfg: 			gravityChainCfg,
-		VoteThreshold:				voteThreshold,
-		ScoreThreshold:				scoreThreshold,
-		SelfStakingThreshold:		selfStakingThreshold,
-		SkipManifiedCandidate:		pollCfg.SkipManifiedCandidate,
-	}
+		Store:                     store,
+		bucketTableOperator:       bucketTableOperator,
+		registrationTableOperator: registrationTableOperator,
+		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
+		NumDelegates:              numDelegates,
+		NumSubEpochs:              numSubEpochs,
+		GravityChainCfg:           gravityChainCfg,
+		VoteThreshold:             voteThreshold,
+		ScoreThreshold:            scoreThreshold,
+		SelfStakingThreshold:      selfStakingThreshold,
+		SkipManifiedCandidate:     pollCfg.SkipManifiedCandidate,
+	}, nil
 }
 
 // CreateTables creates tables
@@ -173,7 +164,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	defer tx.Rollback()
 	if err = p.bucketTableOperator.CreateTables(tx); err != nil {
 		return err
-	}	
+	}
 	if err = p.registrationTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
@@ -224,7 +215,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	height := blk.Height()
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
-		if err := p.rebuildAggregateVotingTable(tx, epochNumber - 1); err != nil {
+		if err := p.rebuildAggregateVotingTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild aggregate voting table")
 		}
 
@@ -271,7 +262,7 @@ func (p *Protocol) bucketFilter(v *types.Bucket) bool {
 func (p *Protocol) candidateFilter(c *types.Candidate) bool {
 	return p.SelfStakingThreshold.Cmp(c.SelfStakingTokens()) > 0 ||
 		p.ScoreThreshold.Cmp(c.Score()) > 0
-} 
+}
 
 func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
 	if now.Before(v.StartTime()) {
@@ -291,8 +282,6 @@ func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
 func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) {
 	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), nil)
 	if err != nil {
-		fmt.Println("ccc")
-
 		return nil, err
 	}
 	timestamp, ok := valueOfTime.(time.Time)
@@ -331,8 +320,9 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 	if err != nil {
 		return nil, err
 	}
-	return result, nil 
+	return result, nil
 }
+
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
@@ -343,9 +333,9 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	votes := result.VotesByDelegate([]byte(delegateName))
 	votinginfoList := make([]*VotingInfo, len(votes))
 	for i, vote := range votes {
-		votinginfoList[i] = &VotingInfo {
-			EpochNumber: epochNum,
-			VoterAddress: hex.EncodeToString(vote.Voter()),
+		votinginfoList[i] = &VotingInfo{
+			EpochNumber:   epochNum,
+			VoterAddress:  hex.EncodeToString(vote.Voter()),
 			WeightedVotes: vote.WeightedAmount().Text(10),
 		}
 	}
@@ -412,14 +402,13 @@ func (p *Protocol) getRawData(
 			return nil, nil, time.Time{}, err
 		}
 		regs = append(regs, reg)
-		}
+	}
 	mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
 	if err != nil {
 		return nil, nil, time.Time{}, err
 	}
-	return buckets, regs, mintTime, nil 
+	return buckets, regs, mintTime, nil
 }
-
 
 func (p *Protocol) getCandidates(
 	chainClient iotexapi.APIServiceClient,
@@ -505,10 +494,10 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 
 	for _, vote := range votes {
 		//for sumOfWeightedVotes
-		key := aggregateKey {
-			epochNumber:	lastEpoch,
-			candidateName:	hex.EncodeToString(vote.Candidate()),
-			voterAddress:	hex.EncodeToString(vote.Voter()),
+		key := aggregateKey{
+			epochNumber:   lastEpoch,
+			candidateName: hex.EncodeToString(vote.Candidate()),
+			voterAddress:  hex.EncodeToString(vote.Voter()),
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, vote.WeightedAmount())
@@ -539,10 +528,10 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 			return err
 		}
 	}
-	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName), 
+	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName),
 		lastEpoch, sumOfVotes.Text(10), len(delegates), totalWeighted.Text(10)); err != nil {
-	 	return err
-	 }
+		return err
+	}
 	return nil
 }
 

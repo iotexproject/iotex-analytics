@@ -48,7 +48,7 @@ type Config struct {
 	Genesis               indexprotocol.Genesis      `yaml:"genesis"`
 	GravityChain          indexprotocol.GravityChain `yaml:"gravityChain"`
 	Rewarding             indexprotocol.Rewarding    `yaml:"rewarding"`
-	Poll 				  indexprotocol.Poll 		 `yaml:"poll"`
+	Poll                  indexprotocol.Poll         `yaml:"poll"`
 }
 
 // NewIndexer creates a new indexer
@@ -158,13 +158,16 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 	return nil
 }
 
-// RegisterDefaultProtocols registers default protocols to hte indexer
+// RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.Rewarding)
-	votingsProtocol := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain, idx.Config.Poll)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
+	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain, idx.Config.Poll)
+	if err != nil {
+		log.L().Error("failed to make new voting protocol", zap.Error(err))
+	}
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")
 	}
