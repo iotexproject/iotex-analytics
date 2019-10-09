@@ -104,6 +104,7 @@ type Protocol struct {
 	Store                     s.Store
 	bucketTableOperator       committee.Operator
 	registrationTableOperator committee.Operator
+	nativeBucketTableOperator committee.Operator
 	timeTableOperator         *committee.TimeTableOperator
 	NumDelegates              uint64
 	NumSubEpochs              uint64
@@ -124,6 +125,10 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 	if err != nil {
 		return nil, err
 	}
+	nativeBucketTableOperator, err := committee.NewBucketTableOperator("native_buckets", committee.MYSQL)
+	if err != nil {
+		return nil, err
+	}
 	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
 	if !ok {
 		return nil, errors.New("Invalid vote threshold")
@@ -140,6 +145,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 		Store:                     store,
 		bucketTableOperator:       bucketTableOperator,
 		registrationTableOperator: registrationTableOperator,
+		nativeBucketTableOperator: nativeBucketTableOperator,
 		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
 		NumDelegates:              numDelegates,
 		NumSubEpochs:              numSubEpochs,
@@ -160,6 +166,9 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 	defer tx.Rollback()
 	if err = p.bucketTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	if err = p.nativeBucketTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
 	if err = p.registrationTableOperator.CreateTables(tx); err != nil {
@@ -224,8 +233,15 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
+		nativeBuckets, err := p.getNativeBucket(chainClient, epochNumber)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get native buckets from chain service in epoch %d", epochNumber)
+		}
 		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
+		}
+		if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
+			return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
 		}
 		if err := p.updateVotingTables(tx, epochNumber, height, gravityHeight); err != nil {
 			return errors.Wrap(err, "failed to update voting tables")
@@ -234,17 +250,24 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
-	if err := p.registrationTableOperator.Put(height, regs, tx); err != nil {
-		return err
-	}
-	if err := p.bucketTableOperator.Put(height, buckets, tx); err != nil {
-		return err
-	}
-	if err := p.timeTableOperator.Put(height, mintTime, tx); err != nil {
+func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
+	if err = p.nativeBucketTableOperator.Put(height, nativeBuckets, tx); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
+	if err = p.registrationTableOperator.Put(height, regs, tx); err != nil {
+		return err
+	}
+	if err = p.bucketTableOperator.Put(height, buckets, tx); err != nil {
+		return err
+	}
+	if err = p.timeTableOperator.Put(height, mintTime, tx); err != nil {
+		return err
+	}
+	return
 }
 
 func (p *Protocol) bucketFilter(v *types.Bucket) bool {
@@ -308,6 +331,19 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) (*types.ElectionRes
 	if err := calculator.AddBuckets(buckets); err != nil {
 		return nil, err
 	}
+
+	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	if err != nil {
+		return nil, err
+	}
+	nativeBuckets, ok := valueOfNativeBuckets.([]*types.Bucket)
+	if !ok {
+		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
+	}
+	if err := calculator.AddBuckets(nativeBuckets); err != nil {
+		return nil, err
+	}
+
 	result, err := calculator.Calculate()
 	if err != nil {
 		return nil, err
@@ -418,6 +454,42 @@ func (p *Protocol) getGravityChainStartHeight(
 	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
 
 	return gravityChainStartHeight, nil
+}
+
+func (p *Protocol) getNativeBucket(
+	chainClient iotexapi.APIServiceClient,
+	epochNumber uint64,
+) ([]*types.Bucket, error) {
+	getNativeBucketRequest := &iotexapi.GetElectionBucketsRequest{
+		EpochNum: epochNumber,
+	}
+	getNativeBucketRes, err := chainClient.GetElectionBuckets(context.Background(), getNativeBucketRequest)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get native buckets")
+	}
+	var buckets []*types.Bucket
+	for _, bucketPb := range getNativeBucketRes.Buckets {
+		voter := make([]byte, len(bucketPb.Voter))
+		copy(voter, bucketPb.Voter)
+		candidate := make([]byte, len(bucketPb.Candidate))
+		copy(candidate, bucketPb.Candidate)
+		amount := big.NewInt(0).SetBytes(bucketPb.Amount)
+		startTime, err := ptypes.Timestamp(bucketPb.StartTime)
+		if err != nil {
+			return nil, err
+		}
+		duration, err := ptypes.Duration(bucketPb.Duration)
+		if err != nil {
+			return nil, err
+		}
+		decay := bucketPb.Decay
+		bucket, err := types.NewBucket(startTime, duration, amount, voter, candidate, decay)
+		if err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, bucket)
+	}
+	return buckets, nil
 }
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64, gravityHeight uint64) (err error) {
@@ -546,6 +618,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 	}
 	return
 }
+
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
 	if p.GravityChainCfg.GravityChainAPIs == nil || gravityChainHeight < p.GravityChainCfg.RewardPercentageStartHeight {
 		blockRewardPercentage = 100
