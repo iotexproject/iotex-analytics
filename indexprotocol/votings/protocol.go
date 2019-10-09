@@ -28,6 +28,7 @@ import (
 	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-election/types"
+	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
@@ -40,6 +41,8 @@ import (
 const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "voting"
+	// NativeToGravityHeightTableName is the table name of mapping from native to gravity height
+	NativeToGravityHeightTableName = "native_to_gravity_height"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
 	//VotingMetaTableName is the voting meta table
@@ -167,6 +170,12 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
+	// create native to gravity height table
+	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
+		"(native_height DECIMAL(65, 0) UNIQUE, gravity_height DECIMAL(65, 0) NOT NULL)",
+		NativeToGravityHeightTableName)); err != nil {
+		return err
+	}
 	// create voting result table
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
@@ -211,29 +220,44 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	height := blk.Height()
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
-		if err := p.rebuildAggregateVotingTable(tx, epochNumber-1); err != nil {
-			return errors.Wrap(err, "failed to rebuild aggregate voting table")
+		if err := p.rebuildVotingTables(tx, epochNumber-1); err != nil {
+			return errors.Wrap(err, "failed to rebuild voting tables")
 		}
-
 		indexCtx := indexcontext.MustGetIndexCtx(ctx)
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
 
-		candidates, gravityHeight, err := p.getCandidates(chainClient, electionClient, height)
+		gravityHeight, err := p.getGravityChainStartHeight(chainClient, height)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get candidates from election service in epoch %d", epochNumber)
+			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 		}
 		buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
+		if err := p.putGravityHeight(tx, height, gravityHeight); err != nil {
+			return errors.Wrapf(err, "failed to put gravityHeight in epoch %d", epochNumber)
+		}
 		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
+	}
+	return nil
+}
 
-		if err := p.updateVotingResult(tx, candidates, epochNumber, gravityHeight); err != nil {
-			return errors.Wrapf(err, "failed to update voting result in epoch %d", epochNumber)
-		}
+func (p *Protocol) gravityHeight(tx *sql.Tx, height uint64) (uint64, error) {
+	var gravityHeight uint64
+	gravitHeightQuery := fmt.Sprintf("SELECT gravity_height FROM %s WHERE native_height = ?", NativeToGravityHeightTableName)
+	if err := tx.QueryRow(gravitHeightQuery, height).Scan(&gravityHeight); err != nil {
+		return uint64(0), err
+	}
+	return gravityHeight, nil
+}
+
+func (p *Protocol) putGravityHeight(tx *sql.Tx, height uint64, gravityHeight uint64) (err error) {
+	insertQuery := fmt.Sprintf("INSERT INTO %s (native_height, gravity_height) VALUES (?, ?)", NativeToGravityHeightTableName)
+	if _, err := tx.Exec(insertQuery, height, gravityHeight); err != nil {
+		return err
 	}
 	return nil
 }
@@ -406,11 +430,10 @@ func (p *Protocol) getRawData(
 	return buckets, regs, mintTime, nil
 }
 
-func (p *Protocol) getCandidates(
+func (p *Protocol) getGravityChainStartHeight(
 	chainClient iotexapi.APIServiceClient,
-	electionClient api.APIServiceClient,
 	height uint64,
-) ([]*api.Candidate, uint64, error) {
+) (uint64, error) {
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
@@ -418,24 +441,14 @@ func (p *Protocol) getCandidates(
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
-		return nil, uint64(0), errors.Wrap(err, "failed to get gravity chain start height")
+		return uint64(0), errors.Wrap(err, "failed to get gravity chain start height")
 	}
 	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
 
-	getCandidatesRequest := &api.GetCandidatesRequest{
-		Height: strconv.Itoa(int(gravityChainStartHeight)),
-		Offset: uint32(0),
-		Limit:  math.MaxUint32,
-	}
-
-	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
-	if err != nil {
-		return nil, uint64(0), errors.Wrap(err, "failed to get candidates from election service")
-	}
-	return getCandidatesResponse.Candidates, gravityChainStartHeight, nil
+	return gravityChainStartHeight, nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
+func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64, gravityHeight uint64) (err error) {
 	var voteResultStmt *sql.Stmt
 	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name,operator_address, reward_address, "+
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -449,23 +462,40 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 			err = closeErr
 		}
 	}()
+	candidates := result.Delegates()
 	for _, candidate := range candidates {
-		stakingAddress := common.HexToAddress(candidate.Address)
+		var ra string
+		var oa string
+		if util.IsAllZeros(candidate.RewardAddress()) {
+			ra = ""
+		} else {
+			ra = string(candidate.RewardAddress())
+		}
+		if util.IsAllZeros(candidate.OperatorAddress()) {
+			oa = ""
+		} else {
+			oa = string(candidate.OperatorAddress())
+		}
+		name := hex.EncodeToString(candidate.Name())
+		address := hex.EncodeToString(candidate.Address())
+		totalWeightedVotes := candidate.Score().Text(10)
+		selfStakingTokens := candidate.SelfStakingTokens().Text(10)
+		stakingAddress := common.HexToAddress(address)
 		blockRewardPortion, epochRewardPortion, foundationBonusPortion, err := p.getDelegateRewardPortions(stakingAddress, gravityHeight)
 		if err != nil {
 			return err
 		}
 		if _, err = voteResultStmt.Exec(
 			epochNumber,
-			candidate.Name,
-			candidate.OperatorAddress,
-			candidate.RewardAddress,
-			candidate.TotalWeightedVotes,
-			candidate.SelfStakingTokens,
+			name,
+			oa,
+			ra,
+			totalWeightedVotes,
+			selfStakingTokens,
 			blockRewardPortion,
 			epochRewardPortion,
 			foundationBonusPortion,
-			candidate.Address,
+			address,
 		); err != nil {
 			return err
 		}
@@ -473,25 +503,39 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, candidates []*api.Candidate, e
 	return nil
 }
 
-func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (err error) {
+func (p *Protocol) rebuildVotingTables(tx *sql.Tx, lastEpoch uint64) error {
 	if lastEpoch == 0 {
 		return nil
 	}
 	height := indexprotocol.GetEpochHeight(lastEpoch, p.NumDelegates, p.NumSubEpochs)
+	gravityHeight, err := p.gravityHeight(tx, height)
+	if err != nil {
+		return errors.Wrap(err, "failed to get gravityHeight from DB")
+	}
 	result, err := p.resultByHeight(height)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get result by height")
 	}
-	delegates := result.Delegates()
+	if err := p.updateAggregateVoting(tx, result, lastEpoch); err != nil {
+		return errors.Wrap(err, "failed to update aggregate_voting")
+	}
+	if err := p.updateVotingMeta(tx, result, lastEpoch); err != nil {
+		return errors.Wrap(err, "failed to update voting meta table")
+	}
+	if err := p.updateVotingResult(tx, result, lastEpoch, gravityHeight); err != nil {
+		return errors.Wrap(err, "failed to update voting result table")
+	}
+	return nil
+}
+
+func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
 	votes := result.Votes()
-	totalWeighted := result.TotalVotes()
-	sumOfVotes := big.NewInt(0)
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 
 	for _, vote := range votes {
 		//for sumOfWeightedVotes
 		key := aggregateKey{
-			epochNumber:   lastEpoch,
+			epochNumber:   epochNumber,
 			candidateName: hex.EncodeToString(vote.Candidate()),
 			voterAddress:  hex.EncodeToString(vote.Voter()),
 		}
@@ -500,8 +544,6 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 		} else {
 			sumOfWeightedVotes[key] = vote.WeightedAmount()
 		}
-		//for sumOfVotes
-		sumOfVotes.Add(sumOfVotes, vote.Amount())
 	}
 	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)", AggregateVotingTable)
 	var aggregateStmt *sql.Stmt
@@ -524,11 +566,27 @@ func (p *Protocol) rebuildAggregateVotingTable(tx *sql.Tx, lastEpoch uint64) (er
 			return err
 		}
 	}
-	if _, err = tx.Exec(fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName),
-		lastEpoch, sumOfVotes.Text(10), len(delegates), totalWeighted.Text(10)); err != nil {
+	return
+}
+
+func (p *Protocol) updateVotingMeta(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
+	delegates := result.Delegates()
+	totalVotedStake := result.TotalVotedStakes()
+	totalWeighted := big.NewInt(0)
+	for _, cand := range delegates {
+		totalWeighted.Add(totalWeighted, cand.Score())
+	}
+
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName)
+	if _, err = tx.Exec(insertQuery,
+		epochNumber,
+		totalVotedStake.Text(10),
+		len(delegates),
+		totalWeighted.Text(10),
+	); err != nil {
 		return err
 	}
-	return nil
+	return
 }
 
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {

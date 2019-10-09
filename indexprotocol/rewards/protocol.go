@@ -158,8 +158,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
 	}
-	if height == epochHeight {
-		if err := p.rebuildAccountRewardTable(tx, epochNumber-1); err != nil {
+	if height == epochHeight && epochNumber >= 3 {
+		if err := p.rebuildAccountRewardTable(tx, epochNumber-2); err != nil {
 			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
 	}
@@ -361,9 +361,6 @@ func (p *Protocol) updateCandidateRewardAddress(
 }
 
 func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error {
-	if lastEpoch == 0 {
-		return nil
-	}
 	// Get voting result from last epoch
 	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(lastEpoch)
 	if err != nil {

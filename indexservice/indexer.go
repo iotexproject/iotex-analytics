@@ -178,7 +178,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 		return errors.Wrap(err, "failed to register rewards protocol")
 	}
 	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register accounts protocol")
+		return errors.Wrap(err, "failed to register votings protocol")
 	}
 	return idx.RegisterProtocol(accounts.ProtocolID, accountsProtocol)
 }
