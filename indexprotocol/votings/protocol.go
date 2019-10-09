@@ -48,11 +48,7 @@ const (
 	AggregateVotingTable = "aggregate_voting"
 	// EpochIndexName is the index name of epoch number on voting meta table
 	EpochIndexName = "epoch_index"
-	// EpochVoterIndexName is the index name of epoch number and voter address on voting history table
-	EpochVoterIndexName = "epoch_voter_index"
-	// CandidateVoterIndexName is the index name of candidate name and voter address on voting history table
-	CandidateVoterIndexName = "candidate_voter_index"
-	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting history/result table
+	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting result table
 	EpochCandidateIndexName = "epoch_candidate_index"
 	// EpochCandidateVoterIndexName is the index name of epoch number, candidate name, and voter address on aggregate voting table
 	EpochCandidateVoterIndexName = "epoch_candidate_voter_index"
