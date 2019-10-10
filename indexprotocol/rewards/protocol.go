@@ -361,8 +361,8 @@ func (p *Protocol) updateCandidateRewardAddress(
 }
 
 func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error {
-	if lastEpoch == 0 {	
-		return nil	
+	if lastEpoch == 0 {
+		return nil
 	}
 	// Get voting result from last epoch
 	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(tx, lastEpoch)

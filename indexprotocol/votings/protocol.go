@@ -23,6 +23,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/committee"
@@ -126,15 +127,15 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 	}
 	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
 	if !ok {
-		return nil, errors.New("Invalid vote threshold")
+		log.L().Error("Invalid vote threshold")
 	}
 	scoreThreshold, ok := new(big.Int).SetString(pollCfg.ScoreThreshold, 10)
 	if !ok {
-		return nil, errors.New("Invalid score threshold")
+		log.L().Error("Invalid score threshold")
 	}
 	selfStakingThreshold, ok := new(big.Int).SetString(pollCfg.SelfStakingThreshold, 10)
 	if !ok {
-		return nil, errors.New("Invalid self staking threshold")
+		log.L().Error("Invalid self staking threshold")
 	}
 	return &Protocol{
 		Store:                     store,
@@ -490,7 +491,7 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uin
 }
 
 func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
-	//update aggregate voting table 
+	//update aggregate voting table
 	votes := result.Votes()
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
@@ -529,7 +530,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 			return err
 		}
 	}
-	//update voting meta table 
+	//update voting meta table
 	delegates := result.Delegates()
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
@@ -542,7 +543,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 		len(delegates),
 		totalWeighted.Text(10),
 	); err != nil {
-		return errors.Wrap(err, "failed to update voting meta table")	
+		return errors.Wrap(err, "failed to update voting meta table")
 	}
 	return
 }
