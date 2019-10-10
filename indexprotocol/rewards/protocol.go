@@ -158,8 +158,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
 	}
-	if height == epochHeight && epochNumber >= 3 {
-		if err := p.rebuildAccountRewardTable(tx, epochNumber-2); err != nil {
+	if height == epochHeight {
+		if err := p.rebuildAccountRewardTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
 	}
@@ -361,8 +361,11 @@ func (p *Protocol) updateCandidateRewardAddress(
 }
 
 func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error {
+	if lastEpoch == 0 {	
+		return nil	
+	}
 	// Get voting result from last epoch
-	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(lastEpoch)
+	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(tx, lastEpoch)
 	if err != nil {
 		return errors.Wrap(err, "failed to get voting info")
 	}
@@ -442,17 +445,10 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 	return nil
 }
 
-func (p *Protocol) getVotingInfo(lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
+func (p *Protocol) getVotingInfo(tx *sql.Tx, lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
 	// get voting results
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ?", votings.VotingResultTableName)
-	db := p.Store.GetDB()
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(lastEpoch)
+	rows, err := tx.Query(getQuery, lastEpoch)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to execute get query")
 	}
