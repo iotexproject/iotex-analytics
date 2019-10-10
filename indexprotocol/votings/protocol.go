@@ -23,7 +23,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/committee"
@@ -127,15 +126,15 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 	}
 	voteThreshold, ok := new(big.Int).SetString(pollCfg.VoteThreshold, 10)
 	if !ok {
-		log.L().Error("Invalid vote threshold")
+		return nil, errors.New("Invalid vote threshold")
 	}
 	scoreThreshold, ok := new(big.Int).SetString(pollCfg.ScoreThreshold, 10)
 	if !ok {
-		log.L().Error("Invalid score threshold")
+		return nil, errors.New("Invalid score threshold")
 	}
 	selfStakingThreshold, ok := new(big.Int).SetString(pollCfg.SelfStakingThreshold, 10)
 	if !ok {
-		log.L().Error("Invalid self staking threshold")
+		return nil, errors.New("Invalid self staking threshold")
 	}
 	return &Protocol{
 		Store:                     store,
