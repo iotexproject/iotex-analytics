@@ -168,10 +168,6 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	if err != nil {
 		log.L().Error("failed to make new voting protocol", zap.Error(err))
 	}
-	// in order of register protocol, voting protocol should be earlier than reward protocol 
-	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
-		return errors.Wrap(err, "failed to register votings protocol")
-	}
 	if err := idx.RegisterProtocol(blocks.ProtocolID, blocksProtocol); err != nil {
 		return errors.Wrap(err, "failed to register blocks protocol")
 	}
@@ -180,6 +176,9 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	}
 	if err := idx.RegisterProtocol(rewards.ProtocolID, rewardsProtocol); err != nil {
 		return errors.Wrap(err, "failed to register rewards protocol")
+	}
+	if err := idx.RegisterProtocol(votings.ProtocolID, votingsProtocol); err != nil {
+		return errors.Wrap(err, "failed to register votings protocol")
 	}
 	return idx.RegisterProtocol(accounts.ProtocolID, accountsProtocol)
 }

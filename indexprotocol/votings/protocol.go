@@ -41,8 +41,6 @@ import (
 const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "voting"
-	// NativeToGravityHeightTableName is the table name of mapping from native to gravity height
-	NativeToGravityHeightTableName = "native_to_gravity_height"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
 	//VotingMetaTableName is the voting meta table
@@ -170,12 +168,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
-	// create native to gravity height table
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(native_height DECIMAL(65, 0) UNIQUE, gravity_height DECIMAL(65, 0) NOT NULL)",
-		NativeToGravityHeightTableName)); err != nil {
-		return err
-	}
 	// create voting result table
 	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
@@ -220,9 +212,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	height := blk.Height()
 	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
-		if err := p.rebuildVotingTables(tx, epochNumber-1); err != nil {
-			return errors.Wrap(err, "failed to rebuild voting tables")
-		}
 		indexCtx := indexcontext.MustGetIndexCtx(ctx)
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
@@ -235,29 +224,12 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
-		if err := p.putGravityHeight(tx, height, gravityHeight); err != nil {
-			return errors.Wrapf(err, "failed to put gravityHeight in epoch %d", epochNumber)
-		}
 		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
-	}
-	return nil
-}
-
-func (p *Protocol) gravityHeight(tx *sql.Tx, height uint64) (uint64, error) {
-	var gravityHeight uint64
-	gravitHeightQuery := fmt.Sprintf("SELECT gravity_height FROM %s WHERE native_height = ?", NativeToGravityHeightTableName)
-	if err := tx.QueryRow(gravitHeightQuery, height).Scan(&gravityHeight); err != nil {
-		return uint64(0), err
-	}
-	return gravityHeight, nil
-}
-
-func (p *Protocol) putGravityHeight(tx *sql.Tx, height uint64, gravityHeight uint64) (err error) {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (native_height, gravity_height) VALUES (?, ?)", NativeToGravityHeightTableName)
-	if _, err := tx.Exec(insertQuery, height, gravityHeight); err != nil {
-		return err
+		if err := p.updateVotingTables(tx, epochNumber, height, gravityHeight); err != nil {
+			return errors.Wrap(err, "failed to update voting tables")
+		}
 	}
 	return nil
 }
@@ -299,8 +271,8 @@ func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
 	return weightedAmount
 }
 
-func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) {
-	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), nil)
+func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) (*types.ElectionResult, error) {
+	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +286,7 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 		p.calcWeightedVotes,
 		p.candidateFilter,
 	)
-	valueOfRegs, err := p.registrationTableOperator.Get(height, p.Store.GetDB(), nil)
+	valueOfRegs, err := p.registrationTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +297,7 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 	if err := calculator.AddRegistrations(regs); err != nil {
 		return nil, err
 	}
-	valueOfBuckets, err := p.bucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	valueOfBuckets, err := p.bucketTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +318,7 @@ func (p *Protocol) resultByHeight(height uint64) (*types.ElectionResult, error) 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
-	result, err := p.resultByHeight(height)
+	result, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -503,26 +475,18 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, 
 	return nil
 }
 
-func (p *Protocol) rebuildVotingTables(tx *sql.Tx, lastEpoch uint64) error {
-	if lastEpoch == 0 {
-		return nil
-	}
-	height := indexprotocol.GetEpochHeight(lastEpoch, p.NumDelegates, p.NumSubEpochs)
-	gravityHeight, err := p.gravityHeight(tx, height)
-	if err != nil {
-		return errors.Wrap(err, "failed to get gravityHeight from DB")
-	}
-	result, err := p.resultByHeight(height)
+func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
+	result, err := p.resultByHeight(height, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
-	if err := p.updateAggregateVoting(tx, result, lastEpoch); err != nil {
+	if err := p.updateAggregateVoting(tx, result, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting")
 	}
-	if err := p.updateVotingMeta(tx, result, lastEpoch); err != nil {
+	if err := p.updateVotingMeta(tx, result, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update voting meta table")
 	}
-	if err := p.updateVotingResult(tx, result, lastEpoch, gravityHeight); err != nil {
+	if err := p.updateVotingResult(tx, result, epochNumber, gravityHeight); err != nil {
 		return errors.Wrap(err, "failed to update voting result table")
 	}
 	return nil
