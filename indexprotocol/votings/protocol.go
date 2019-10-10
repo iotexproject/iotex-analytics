@@ -481,10 +481,7 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uin
 		return errors.Wrap(err, "failed to get result by height")
 	}
 	if err := p.updateAggregateVoting(tx, result, epochNumber); err != nil {
-		return errors.Wrap(err, "failed to update aggregate_voting")
-	}
-	if err := p.updateVotingMeta(tx, result, epochNumber); err != nil {
-		return errors.Wrap(err, "failed to update voting meta table")
+		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
 	if err := p.updateVotingResult(tx, result, epochNumber, gravityHeight); err != nil {
 		return errors.Wrap(err, "failed to update voting result table")
@@ -493,9 +490,10 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uin
 }
 
 func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
+	//update aggregate voting table 
 	votes := result.Votes()
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
-
+	totalVoted := big.NewInt(0)
 	for _, vote := range votes {
 		//for sumOfWeightedVotes
 		key := aggregateKey{
@@ -508,6 +506,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 		} else {
 			sumOfWeightedVotes[key] = vote.WeightedAmount()
 		}
+		totalVoted.Add(totalVoted, vote.Amount())
 	}
 	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)", AggregateVotingTable)
 	var aggregateStmt *sql.Stmt
@@ -530,29 +529,23 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 			return err
 		}
 	}
-	return
-}
-
-func (p *Protocol) updateVotingMeta(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
+	//update voting meta table 
 	delegates := result.Delegates()
-	totalVotedStake := result.TotalVotedStakes()
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
 		totalWeighted.Add(totalWeighted, cand.Score())
 	}
-
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName)
+	insertQuery = fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName)
 	if _, err = tx.Exec(insertQuery,
 		epochNumber,
-		totalVotedStake.Text(10),
+		totalVoted.Text(10),
 		len(delegates),
 		totalWeighted.Text(10),
 	); err != nil {
-		return err
+		return errors.Wrap(err, "failed to update voting meta table")	
 	}
 	return
 }
-
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
 	if p.GravityChainCfg.GravityChainAPIs == nil || gravityChainHeight < p.GravityChainCfg.RewardPercentageStartHeight {
 		blockRewardPercentage = 100
