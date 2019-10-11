@@ -365,24 +365,16 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		return nil
 	}
 	// Get voting result from last epoch
-	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(lastEpoch)
+	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(tx, lastEpoch)
 	if err != nil {
 		return errors.Wrap(err, "failed to get voting info")
 	}
 	// Get aggregate reward	records from last epoch
 	getQuery := fmt.Sprintf("SELECT epoch_number, reward_address, SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) "+
 		"FROM %s WHERE epoch_number = ? GROUP BY epoch_number, reward_address", RewardHistoryTableName)
-
-	db := p.Store.GetDB()
-	stmt, err := db.Prepare(getQuery)
+	rows, err := tx.Query(getQuery, lastEpoch)
 	if err != nil {
-		return errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(lastEpoch)
-	if err != nil {
-		return errors.Wrap(err, "failed to execute get query")
+		return errors.Wrap(err, "failed to get reward history query")
 	}
 
 	var aggregateReward AggregateReward
@@ -445,19 +437,12 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 	return nil
 }
 
-func (p *Protocol) getVotingInfo(lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
+func (p *Protocol) getVotingInfo(tx *sql.Tx, lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
 	// get voting results
 	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ?", votings.VotingResultTableName)
-	db := p.Store.GetDB()
-	stmt, err := db.Prepare(getQuery)
+	rows, err := tx.Query(getQuery, lastEpoch)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to prepare get query")
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(lastEpoch)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to execute get query")
+		return nil, nil, errors.Wrap(err, "failed to get voting result query")
 	}
 
 	var votingResult votings.VotingResult

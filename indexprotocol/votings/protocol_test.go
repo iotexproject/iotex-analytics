@@ -9,7 +9,6 @@ package votings
 import (
 	"context"
 	"database/sql"
-	"math/big"
 	"testing"
 	"time"
 
@@ -75,25 +74,6 @@ func TestProtocol(t *testing.T) {
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
 
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
-		&api.CandidateResponse{
-			Candidates: []*api.Candidate{
-				{
-					Name:               "616c6661",
-					OperatorAddress:    testutil.Addr1,
-					RewardAddress:      testutil.RewardAddr1,
-					TotalWeightedVotes: big.NewInt(1000).String(),
-				},
-				{
-					Name:               "627261766f",
-					OperatorAddress:    testutil.Addr2,
-					RewardAddress:      testutil.RewardAddr2,
-					TotalWeightedVotes: big.NewInt(500).String(),
-				},
-			},
-		}, nil,
-	)
-
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)
 
@@ -133,9 +113,4 @@ func TestProtocol(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	votingResult, err := p.getVotingResult(uint64(1), "627261766f")
-	require.NoError(err)
-	require.Equal(testutil.Addr2, votingResult.OperatorAddress)
-	require.Equal(testutil.RewardAddr2, votingResult.RewardAddress)
-	require.Equal("500", votingResult.TotalWeightedVotes)
 }
