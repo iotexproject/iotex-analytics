@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -26,6 +27,7 @@ import (
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/committee"
+	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-election/util"
@@ -229,28 +231,40 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 		}
+		fmt.Println("aaa")
 		buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
+		fmt.Println("bbb")
+
 		nativeBuckets, err := p.getNativeBucket(chainClient, epochNumber)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get native buckets from chain service in epoch %d", epochNumber)
 		}
+
+		fmt.Println("cccs")
+
 		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
+				fmt.Println("eee")
+
 		if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
 			return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
 		}
 		if err := p.updateVotingTables(tx, epochNumber, height, gravityHeight); err != nil {
 			return errors.Wrap(err, "failed to update voting tables")
 		}
+			fmt.Println("fff")
 	}
 	return nil
 }
 
 func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
+	if nativeBuckets == nil {
+		return nil
+	}
 	if err = p.nativeBucketTableOperator.Put(height, nativeBuckets, tx); err != nil {
 		return err
 	}
@@ -294,14 +308,14 @@ func (p *Protocol) calcWeightedVotes(v *types.Bucket, now time.Time) *big.Int {
 	return weightedAmount
 }
 
-func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) (*types.ElectionResult, error) {
+func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []*types.Candidate, error) {
 	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	timestamp, ok := valueOfTime.(time.Time)
 	if !ok {
-		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfTime))
+		return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfTime))
 	}
 	calculator := types.NewResultCalculator(timestamp,
 		p.SkipManifiedCandidate,
@@ -311,60 +325,68 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) (*types.ElectionRes
 	)
 	valueOfRegs, err := p.registrationTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	regs, ok := valueOfRegs.([]*types.Registration)
 	if !ok {
-		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfRegs))
+		return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfRegs))
 	}
 	if err := calculator.AddRegistrations(regs); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	valueOfBuckets, err := p.bucketTableOperator.Get(height, p.Store.GetDB(), tx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	buckets, ok := valueOfBuckets.([]*types.Bucket)
 	if !ok {
-		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfBuckets))
+		return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfBuckets))
 	}
 	if err := calculator.AddBuckets(buckets); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), nil)
-	if err != nil {
-		return nil, err
-	}
-	nativeBuckets, ok := valueOfNativeBuckets.([]*types.Bucket)
-	if !ok {
-		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
-	}
-	if err := calculator.AddBuckets(nativeBuckets); err != nil {
-		return nil, err
-	}
-
 	result, err := calculator.Calculate()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return result, nil
+	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	switch err {
+	case db.ErrNotExist:
+	case nil:
+		nativeBuckets, ok := valueOfNativeBuckets.([]*types.Bucket)
+		if !ok {
+			return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
+		}
+		if mergeVotes, mergeDelegates, err := p.mergeResult(result, nativeBuckets); err != nil {
+			return nil, nil, errors.Wrap(err, "failed to merge result with native buckets")
+		} else {
+			return mergeVotes, mergeDelegates, nil
+		}
+		break
+	default:
+		return nil, nil, err
+	}
+	return result.Votes(), result.Delegates(), nil
 }
 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
-	result, err := p.resultByHeight(height, nil)
+	votes, _, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
 	}
-	votes := result.VotesByDelegate([]byte(delegateName))
-	votinginfoList := make([]*VotingInfo, len(votes))
-	for i, vote := range votes {
-		votinginfoList[i] = &VotingInfo{
-			EpochNumber:   epochNum,
-			VoterAddress:  hex.EncodeToString(vote.Voter()),
-			WeightedVotes: vote.WeightedAmount().Text(10),
+	var votinginfoList []*VotingInfo
+
+	for _, vote := range votes {
+		candName := hex.EncodeToString(vote.Candidate())
+		if candName == delegateName {
+			votinginfo := &VotingInfo{
+				EpochNumber:   epochNum,
+				VoterAddress:  hex.EncodeToString(vote.Voter()),
+				WeightedVotes: vote.WeightedAmount().Text(10),
+			}
+			votinginfoList = append(votinginfoList, votinginfo)
 		}
 	}
 	return votinginfoList, nil
@@ -465,7 +487,11 @@ func (p *Protocol) getNativeBucket(
 	}
 	getNativeBucketRes, err := chainClient.GetElectionBuckets(context.Background(), getNativeBucketRequest)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get native buckets")
+		if strings.Contains(err.Error(), db.ErrNotExist.Error()) {
+			fmt.Println("when call GetElectionBuckets, native buckets is empty")
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to get native buckets from API")
 	}
 	var buckets []*types.Bucket
 	for _, bucketPb := range getNativeBucketRes.Buckets {
@@ -492,9 +518,9 @@ func (p *Protocol) getNativeBucket(
 	return buckets, nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64, gravityHeight uint64) (err error) {
+func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
 	var voteResultStmt *sql.Stmt
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name,operator_address, reward_address, "+
+	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, "+
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		VotingResultTableName)
 	if voteResultStmt, err = tx.Prepare(insertQuery); err != nil {
@@ -506,8 +532,7 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, 
 			err = closeErr
 		}
 	}()
-	candidates := result.Delegates()
-	for _, candidate := range candidates {
+	for _, candidate := range delegates {
 		var ra string
 		var oa string
 		if util.IsAllZeros(candidate.RewardAddress()) {
@@ -548,22 +573,21 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, result *types.ElectionResult, 
 }
 
 func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
-	result, err := p.resultByHeight(height, tx)
+	votes, delegates, err := p.resultByHeight(height, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
-	if err := p.updateAggregateVoting(tx, result, epochNumber); err != nil {
+	if err := p.updateAggregateVoting(tx, votes, delegates, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
-	if err := p.updateVotingResult(tx, result, epochNumber, gravityHeight); err != nil {
+	if err := p.updateVotingResult(tx, delegates, epochNumber, gravityHeight); err != nil {
 		return errors.Wrap(err, "failed to update voting result table")
 	}
 	return nil
 }
 
-func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResult, epochNumber uint64) (err error) {
+func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delegates []*types.Candidate, epochNumber uint64) (err error) {
 	//update aggregate voting table
-	votes := result.Votes()
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
 	for _, vote := range votes {
@@ -602,7 +626,6 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 		}
 	}
 	//update voting meta table
-	delegates := result.Delegates()
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
 		totalWeighted.Add(totalWeighted, cand.Score())
@@ -617,6 +640,56 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, result *types.ElectionResul
 		return errors.Wrap(err, "failed to update voting meta table")
 	}
 	return
+}
+
+func (p *Protocol) mergeResult(result *types.ElectionResult, nativeBuckets []*types.Bucket) ([]*types.Vote, []*types.Candidate, error) {
+	mintTime := result.MintTime()
+	mergedVotes := result.Votes()
+	delegates := result.Delegates()
+
+	nativeCandidateScore := make(map[[12]byte]*big.Int) 
+	for _, bucket := range nativeBuckets {
+		weighted := types.CalcWeightedVotes(bucket, mintTime)
+		if big.NewInt(0).Cmp(weighted) == 1 {
+			return nil, nil, errors.Errorf("weighted amount %s cannot be negative", weighted)
+		}
+		//append native vote to existing votes array 
+		vote, err := types.NewVote(bucket, weighted)
+		if err != nil {
+			return nil, nil, err
+		}
+		mergedVotes = append(mergedVotes, vote)
+		//put into the mapping of native bucket for recalculate candidate's score 
+		k := to12Bytes(vote.Candidate())
+		if score, ok := nativeCandidateScore[k]; !ok {
+			nativeCandidateScore[k] = weighted
+		} else {
+			// add up the votes
+			score.Add(score, weighted)
+		}
+	}
+
+	//when we merge, we assumed that there is no selfstaking, so for now, just consider score 
+	totalCandiates := make(map[string]*types.Candidate)
+	totalCandiateScores := make(map[string]*big.Int)
+	for _, cand := range delegates {
+		clone := cand.Clone()
+		name := to12Bytes(clone.Name())
+		if nativeScore, ok := nativeCandidateScore[name]; ok {
+			prev := cand.Score()
+			clone.SetScore(prev.Add(prev, nativeScore))
+		}
+		if clone.Score().Cmp(p.ScoreThreshold) >= 0 {
+			totalCandiates[hex.EncodeToString(name[:])] = clone
+			totalCandiateScores[hex.EncodeToString(name[:])] = clone.Score()
+		}
+	}
+	sorted := util.Sort(totalCandiateScores, uint64(mintTime.Unix()))
+	var mergedDelegates []*types.Candidate
+	for _, name := range sorted {
+		mergedDelegates = append(mergedDelegates, totalCandiates[name])
+	}
+	return mergedVotes, mergedDelegates, nil
 }
 
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
@@ -671,4 +744,14 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 		err = errors.Wrap(err, "failed to get delegate reward portions")
 	}
 	return
+}
+
+
+func to12Bytes(b []byte) [12]byte {
+	var h [12]byte
+	if len(b) != 12 {
+		panic("invalid CanName: abi stipulates CanName must be [12]byte")
+	}
+	copy(h[:], b)
+	return h
 }
