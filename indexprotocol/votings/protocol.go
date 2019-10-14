@@ -25,6 +25,7 @@ import (
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-election/carrier"
 	"github.com/iotexproject/iotex-election/committee"
 	"github.com/iotexproject/iotex-election/db"
@@ -231,24 +232,19 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err != nil {
 			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 		}
-		fmt.Println("aaa")
 		buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
 		}
-		fmt.Println("bbb")
 
 		nativeBuckets, err := p.getNativeBucket(chainClient, epochNumber)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get native buckets from chain service in epoch %d", epochNumber)
 		}
 
-		fmt.Println("cccs")
-
 		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
 			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
 		}
-				fmt.Println("eee")
 
 		if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
 			return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
@@ -256,7 +252,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.updateVotingTables(tx, epochNumber, height, gravityHeight); err != nil {
 			return errors.Wrap(err, "failed to update voting tables")
 		}
-			fmt.Println("fff")
 	}
 	return nil
 }
@@ -349,7 +344,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []*
 	if err != nil {
 		return nil, nil, err
 	}
-	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), tx)
 	switch err {
 	case db.ErrNotExist:
 	case nil:
@@ -357,12 +352,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []*
 		if !ok {
 			return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
 		}
-		if mergeVotes, mergeDelegates, err := p.mergeResult(result, nativeBuckets); err != nil {
-			return nil, nil, errors.Wrap(err, "failed to merge result with native buckets")
-		} else {
-			return mergeVotes, mergeDelegates, nil
-		}
-		break
+		return p.mergeResult(result, nativeBuckets)
 	default:
 		return nil, nil, err
 	}
@@ -488,7 +478,7 @@ func (p *Protocol) getNativeBucket(
 	getNativeBucketRes, err := chainClient.GetElectionBuckets(context.Background(), getNativeBucketRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), db.ErrNotExist.Error()) {
-			fmt.Println("when call GetElectionBuckets, native buckets is empty")
+			log.L().Info("when call GetElectionBuckets, native buckets is empty")
 			return nil, nil
 		}
 		return nil, errors.Wrap(err, "failed to get native buckets from API")
