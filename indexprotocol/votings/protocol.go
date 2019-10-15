@@ -110,7 +110,6 @@ type Protocol struct {
 	bucketTableOperator       committee.Operator
 	registrationTableOperator committee.Operator
 	nativeBucketTableOperator committee.Operator
-	nativeTimeTableOperator   *committee.TimeTableOperator
 	timeTableOperator         *committee.TimeTableOperator
 	NumDelegates              uint64
 	NumSubEpochs              uint64
@@ -152,7 +151,6 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 		bucketTableOperator:       bucketTableOperator,
 		registrationTableOperator: registrationTableOperator,
 		nativeBucketTableOperator: nativeBucketTableOperator,
-		nativeTimeTableOperator:   committee.NewTimeTableOperator("native_mint_time", committee.MYSQL),
 		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
 		NumDelegates:              numDelegates,
 		NumSubEpochs:              numSubEpochs,
@@ -182,9 +180,6 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
-		return err
-	}
-	if err = p.nativeTimeTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
 	// create voting result table
