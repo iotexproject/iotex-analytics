@@ -9,22 +9,28 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
 
+	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
+	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-election/pb/election"
 	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -56,9 +62,14 @@ func TestProtocol(t *testing.T) {
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
 	})
-
 	require.NoError(err)
+
+	ap := actions.NewProtocol(store)
+	bp := blocks.NewProtocol(store, uint64(24), uint64(36), uint64(15))
+
 	require.NoError(p.CreateTables(ctx))
+	require.NoError(bp.CreateTables(ctx))
+	require.NoError(ap.CreateTables(ctx))
 
 	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(361))
 	require.NoError(err)
@@ -69,20 +80,46 @@ func TestProtocol(t *testing.T) {
 		ChainClient:    chainClient,
 		ElectionClient: electionClient,
 	})
+	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("GetGravityChainStartHeight"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(1)},
+	}
 
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(2).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
 
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)
 
+	chainClient.EXPECT().GetElectionBuckets(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.GetElectionBucketsResponse{
+		Buckets: []*iotextypes.ElectionBucket{
+			{
+				Voter:     []byte("2222"),
+				Candidate: []byte("616c6661"),
+				StartTime: timestamp,
+				Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
+				Decay:     true,
+				Amount:    []byte("100"),
+			},
+			{
+				Voter:     []byte("3333"),
+				Candidate: []byte("616c6661"),
+				StartTime: timestamp,
+				Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
+				Decay:     true,
+				Amount:    []byte("100"),
+			},
+		},
+	}, nil)
+
 	electionClient.EXPECT().GetRawData(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.RawDataResponse{
 			Timestamp: timestamp,
 			Buckets: []*election.Bucket{
 				{
-					Voter:     []byte("14234"),
+					Voter:     []byte("1111"),
 					Candidate: []byte("616c6661"),
 					StartTime: timestamp,
 					Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
@@ -109,8 +146,53 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
+		&api.CandidateResponse{
+			Candidates: []*api.Candidate{
+				{
+					Name:            "616c6661",
+					OperatorAddress: testutil.Addr1,
+				},
+				{
+					Name:            "627261766f",
+					OperatorAddress: testutil.Addr2,
+				},
+			},
+		}, nil,
+	)
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("ActiveBlockProducersByEpoch"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
+	}
+	candidateList := state.CandidateList{
+		{
+			Address:       testutil.Addr1,
+			RewardAddress: testutil.RewardAddr1,
+			Votes:         big.NewInt(100),
+		},
+		{
+			Address:       testutil.Addr2,
+			RewardAddress: testutil.RewardAddr2,
+			Votes:         big.NewInt(10),
+		},
+	}
+	data, err := candidateList.Serialize()
+	require.NoError(err)
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: data,
+	}, nil)
+
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
-		return p.HandleBlock(ctx, tx, blk)
+		return bp.HandleBlock(ctx, tx, blk)
 	}))
 
+	require.NoError(store.Transact(func(tx *sql.Tx) error {
+		return ap.HandleBlock(ctx, tx, blk)
+	}))
+
+	//because there is no previous put poll action in the DB, it can't get previous mint time of native staking (sql.norows)
+	require.Error(store.Transact(func(tx *sql.Tx) error {
+		return p.HandleBlock(ctx, tx, blk)
+	}))
 }
