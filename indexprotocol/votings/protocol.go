@@ -646,7 +646,7 @@ func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	if err := stmt.QueryRow("putPollResult", height).Scan(&unixTimeStamp); err != nil {
 		return time.Time{}, err
 	}
-	fmt.Printf("putpollresult timestamp at height %d is %d\n", height, unixTimeStamp)
+	log.S().Debugf("putpollresult block timestamp before height %d is %d\n", height, unixTimeStamp)
 	//change unixTimeStamp to be a time.Time
 	return time.Unix(unixTimeStamp, 0), nil
 }

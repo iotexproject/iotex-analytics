@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff"
+
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
@@ -301,23 +303,32 @@ func (p *Protocol) updateDelegates(
 	height uint64,
 	epochNumber uint64,
 ) error {
+	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(height)},
 	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		return errors.Wrap(err, "failed to get gravity chain start height")
+	nerr := backoff.Retry(func() error {
+		readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+		if err != nil {
+			return err
+		}
+		gravityChainStartHeight = byteutil.BytesToUint64(readStateRes.Data)
+		if gravityChainStartHeight == 0 {
+			//retry to get chain start height again 
+			return errors.New("waiting for fetching next timestamp in election service") 
+		}
+		return nil
+	}, backoff.NewExponentialBackOff())
+	if nerr != nil {
+		return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
 	}
-	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
-
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
 		Offset: uint32(0),
 		Limit:  uint32(p.NumCandidateDelegates),
 	}
-
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get candidates from election service")
@@ -333,7 +344,7 @@ func (p *Protocol) updateDelegates(
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(epochNumber)},
 	}
-	readStateRes, err = chainClient.ReadState(context.Background(), readStateRequest)
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get active block producers")
 	}

@@ -9,6 +9,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/agnivade/levenshtein v1.0.2 // indirect
 	github.com/btcsuite/goleveldb v1.0.0 // indirect
+	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b // indirect
