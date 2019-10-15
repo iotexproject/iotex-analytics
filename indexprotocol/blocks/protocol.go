@@ -316,8 +316,8 @@ func (p *Protocol) updateDelegates(
 		}
 		gravityChainStartHeight = byteutil.BytesToUint64(readStateRes.Data)
 		if gravityChainStartHeight == 0 {
-			//retry to get chain start height again 
-			return errors.New("waiting for fetching next timestamp in election service") 
+			//retry to get chain start height again
+			return errors.New("waiting for fetching next timestamp in election service")
 		}
 		return nil
 	}, backoff.NewExponentialBackOff())
