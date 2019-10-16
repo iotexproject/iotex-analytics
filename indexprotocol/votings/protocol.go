@@ -265,7 +265,7 @@ func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*typ
 }
 
 func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
-	// TODO: for the future, we need to handle when the ethereum buckets is nil too 
+	// TODO: for the future, we need to handle when the ethereum buckets is nil too
 	if err = p.registrationTableOperator.Put(height, regs, tx); err != nil {
 		return err
 	}
@@ -636,7 +636,9 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delega
 }
 func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	db := p.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT timestamp FROM %s WHERE block_height = (SELECT MAX(block_height) FROM %s WHERE action_type = ? AND block_height < ?)",
+	currentEpoch := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	lastEpochStartHeight := indexprotocol.GetEpochHeight(currentEpoch-1, p.NumDelegates, p.NumSubEpochs)
+	getQuery := fmt.Sprintf("SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)",
 		blocks.BlockHistoryTableName, actions.ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -644,7 +646,7 @@ func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	}
 	defer stmt.Close()
 	var unixTimeStamp int64
-	if err := stmt.QueryRow("putPollResult", height).Scan(&unixTimeStamp); err != nil {
+	if err := stmt.QueryRow("putPollResult", height, lastEpochStartHeight).Scan(&unixTimeStamp); err != nil {
 		return time.Time{}, err
 	}
 	log.S().Debugf("putpollresult block timestamp before height %d is %d\n", height, unixTimeStamp)
