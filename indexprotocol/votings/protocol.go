@@ -265,6 +265,7 @@ func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*typ
 }
 
 func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
+	// TODO: for the future, we need to handle when the ethereum buckets is nil too 
 	if err = p.registrationTableOperator.Put(height, regs, tx); err != nil {
 		return err
 	}
