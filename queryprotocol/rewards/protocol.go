@@ -22,7 +22,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
-	qvotings "github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -441,7 +440,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var votingHistory qvotings.VotingInfo
+	var votingHistory votings.VotingInfo
 	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
@@ -453,7 +452,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 
 	epochToVoters := make(map[uint64]map[string]*big.Int)
 	for _, parsedRow := range parsedRows {
-		voting := parsedRow.(*qvotings.VotingInfo)
+		voting := parsedRow.(*votings.VotingInfo)
 		if _, ok := epochToVoters[voting.EpochNumber]; !ok {
 			epochToVoters[voting.EpochNumber] = make(map[string]*big.Int)
 		}

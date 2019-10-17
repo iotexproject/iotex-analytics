@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
@@ -41,6 +42,11 @@ func TestProtocol(t *testing.T) {
 
 	// Creating protocol
 	var cfg indexservice.Config
+	cfg.Poll = indexprotocol.Poll{
+		VoteThreshold:        "100000000000000000000",
+		ScoreThreshold:       "0",
+		SelfStakingThreshold: "0",
+	}
 	idx := indexservice.NewIndexer(store, cfg)
 	p := NewProtocol(idx)
 
