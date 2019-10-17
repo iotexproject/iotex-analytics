@@ -120,7 +120,6 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 
-	//because there is no previous put poll action in the DB, it can't get previous mint time of native staking (sql.norows)
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
