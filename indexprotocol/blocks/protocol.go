@@ -43,6 +43,35 @@ const (
 	ProducerTableName = "producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
+
+	createBlockHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +
+		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, " +
+		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, " +
+		"producer_name VARCHAR(24) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, " +
+		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))"
+	selectBlockHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
+	createIndex    = "CREATE INDEX %s ON %s (epoch_number, producer_name, expected_producer_name)"
+	createProducer = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))"
+	createExpectedProducer = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))"
+	createProductivity = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) " +
+		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))"
+	selectBlockHistory = "SELECT * FROM %s WHERE block_height=?"
+	selectProductivity = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
+	insertBlockHistory = "INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
+		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, " +
+		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	insertExpectedProducer = "INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, " +
+		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name"
+	insertProducer = "INSERT IGNORE INTO %s SELECT epoch_number, producer_name, " +
+		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name"
+	insertProductivity = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, " +
+		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name"
 )
 
 type (
@@ -97,38 +126,28 @@ func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint6
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, "+
-		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, "+
-		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, "+
-		"producer_name VARCHAR(24) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, "+
-		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))", BlockHistoryTableName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistory, BlockHistoryTableName)); err != nil {
 		return err
 	}
 
 	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", BlockHistoryTableName, EpochProducerIndexName)).Scan(&exist); err != nil {
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectBlockHistoryInfo, BlockHistoryTableName, EpochProducerIndexName)).Scan(&exist); err != nil {
 		return err
 	}
 	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE INDEX %s ON %s (epoch_number, producer_name, expected_producer_name)", EpochProducerIndexName, BlockHistoryTableName)); err != nil {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createIndex, EpochProducerIndexName, BlockHistoryTableName)); err != nil {
 			return err
 		}
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createProducer,
 		ProducerTableName, EpochProducerIndexName)); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createExpectedProducer,
 		ExpectedProducerTableName, EpochProducerIndexName)); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) "+
-		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createProductivity,
 		ProductivityTableName, EpochProducerIndexName)); err != nil {
 		return err
 	}
@@ -202,7 +221,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE block_height=?", BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectBlockHistory, BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -236,7 +255,7 @@ func (p *Protocol) getBlockHistory(blockHeight uint64) (*BlockHistory, error) {
 func (p *Protocol) getProductivityHistory(epochNumber uint64, producerName string) (*ProductivityHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?", ProductivityTableName)
+	getQuery := fmt.Sprintf(selectProductivity, ProductivityTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -285,9 +304,7 @@ func (p *Protocol) updateBlockHistory(
 	expectedProducerName string,
 	timestamp time.Time,
 ) error {
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, "+
-		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, "+
-		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	insertQuery := fmt.Sprintf(insertBlockHistory,
 		BlockHistoryTableName)
 	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds,
 		claimFromRewardingFunds, grantRewards, putPollResults, gasConsumed, producerAddress, producerName,
@@ -362,21 +379,17 @@ func (p *Protocol) updateDelegates(
 }
 
 func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, "+
-		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name",
+	if _, err := tx.Exec(fmt.Sprintf(insertExpectedProducer,
 		ExpectedProducerTableName, BlockHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT epoch_number, producer_name, "+
-		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name",
+	if _, err := tx.Exec(fmt.Sprintf(insertProducer,
 		ProducerTableName, BlockHistoryTableName)); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf("INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
-		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", ProductivityTableName,
+	if _, err := tx.Exec(fmt.Sprintf(insertProductivity, ProductivityTableName,
 		ExpectedProducerTableName, ProducerTableName)); err != nil {
 		return err
 	}

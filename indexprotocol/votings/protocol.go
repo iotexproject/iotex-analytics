@@ -60,6 +60,27 @@ const (
 	EpochCandidateVoterIndexName = "epoch_candidate_voter_index"
 	// DefaultStakingAddress is the default staking address for delegates
 	DefaultStakingAddress = "0000000000000000000000000000000000000000"
+
+	createVotingResult = "CREATE TABLE IF NOT EXISTS %s " +
+		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, " +
+		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, " +
+		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100, " +
+		"staking_address VARCHAR(40) DEFAULT %s)"
+	selectVotingResultInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
+	createEpochCandidateIndex = "CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)"
+	createAggregateVoting     = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, " +
+		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))"
+	createVotingMetaTable = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, " +
+		"UNIQUE KEY %s (epoch_number))"
+	selectVotingResult = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
+	insertVotingResult = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
+		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)"
+	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
+	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
 )
 
 type (
@@ -183,34 +204,25 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 	// create voting result table
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
-		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, "+
-		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, "+
-		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100, "+
-		"staking_address VARCHAR(40) DEFAULT %s)",
+	if _, err := tx.Exec(fmt.Sprintf(createVotingResult,
 		VotingResultTableName, DefaultStakingAddress)); err != nil {
 		return err
 	}
 
-	if err := tx.QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = "+
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'", VotingResultTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
+	if err := tx.QueryRow(fmt.Sprintf(selectVotingResultInfo, VotingResultTableName, EpochCandidateIndexName)).Scan(&exist); err != nil {
 		return err
 	}
 	if exist == 0 {
-		if _, err := tx.Exec(fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)", EpochCandidateIndexName, VotingResultTableName)); err != nil {
+		if _, err := tx.Exec(fmt.Sprintf(createEpochCandidateIndex, EpochCandidateIndexName, VotingResultTableName)); err != nil {
 			return err
 		}
 	}
 	// create AggregateVotingTable
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, "+
-		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))", AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
+	if _, err := tx.Exec(fmt.Sprintf(createAggregateVoting, AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
 		return err
 	}
 	// create VotingMetaTableName
-	if _, err := tx.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, "+
-		"UNIQUE KEY %s (epoch_number))", VotingMetaTableName, EpochIndexName)); err != nil {
+	if _, err := tx.Exec(fmt.Sprintf(createVotingMetaTable, VotingMetaTableName, EpochIndexName)); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -389,7 +401,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 func (p *Protocol) getVotingResult(epochNumber uint64, delegateName string) (*VotingResult, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?",
+	getQuery := fmt.Sprintf(selectVotingResult,
 		VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -513,8 +525,7 @@ func (p *Protocol) getNativeBucket(
 
 func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
 	var voteResultStmt *sql.Stmt
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, "+
-		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	insertQuery := fmt.Sprintf(insertVotingResult,
 		VotingResultTableName)
 	if voteResultStmt, err = tx.Prepare(insertQuery); err != nil {
 		return err
@@ -597,7 +608,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delega
 		}
 		totalVoted.Add(totalVoted, vote.Amount())
 	}
-	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)", AggregateVotingTable)
+	insertQuery := fmt.Sprintf(insertAggregateVoting, AggregateVotingTable)
 	var aggregateStmt *sql.Stmt
 	if aggregateStmt, err = tx.Prepare(insertQuery); err != nil {
 		return err
@@ -623,7 +634,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delega
 	for _, cand := range delegates {
 		totalWeighted.Add(totalWeighted, cand.Score())
 	}
-	insertQuery = fmt.Sprintf("INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)", VotingMetaTableName)
+	insertQuery = fmt.Sprintf(insertVotingMeta, VotingMetaTableName)
 	if _, err = tx.Exec(insertQuery,
 		epochNumber,
 		totalVoted.Text(10),
@@ -638,7 +649,7 @@ func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	db := p.Store.GetDB()
 	currentEpoch := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
 	lastEpochStartHeight := indexprotocol.GetEpochHeight(currentEpoch-1, p.NumDelegates, p.NumSubEpochs)
-	getQuery := fmt.Sprintf("SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)",
+	getQuery := fmt.Sprintf(selectBlockHistory,
 		blocks.BlockHistoryTableName, actions.ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
