@@ -25,6 +25,21 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+const (
+	rowExist               = "SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?"
+	selectAccountRewardSum = "SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s " +
+		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?"
+	selectVotingResult  = "SELECT epoch_number, total_weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
+	selectAccountReward = "SELECT epoch_number, epoch_reward, foundation_bonus FROM %s " +
+		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? "
+	selectAggregateVoting    = "SELECT epoch_number, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
+	selectAccountRewardIn    = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
+	selectVotingResultAll    = "SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND reward_address= ? "
+	selectAggregateVotingIn  = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
+	selectAggregateVotingAll = "SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND voter_address= ? "
+	selectVotingResultIn     = "SELECT * FROM %s WHERE (epoch_number, delegate_name) IN (%s)"
+)
+
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
@@ -97,7 +112,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 
 	endEpoch := startEpoch + epochCount - 1
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and candidate_name = ?",
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(rowExist,
 		rewards.AccountRewardTableName), startEpoch, endEpoch, candidateName)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to check if the row exists")
@@ -106,8 +121,7 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 		return "", "", "", indexprotocol.ErrNotExist
 	}
 
-	getQuery := fmt.Sprintf("SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s "+
-		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?", rewards.AccountRewardTableName, startEpoch, endEpoch)
+	getQuery := fmt.Sprintf(selectAccountRewardSum, rewards.AccountRewardTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "failed to prepare get query")
@@ -341,7 +355,7 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 // totalWeightedVotes gets the given delegate's total weighted votes from start epoch to end epoch
 func (p *Protocol) totalWeightedVotes(startEpoch uint64, endEpoch uint64, delegateName string) (map[uint64]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT epoch_number, total_weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?",
+	getQuery := fmt.Sprintf(selectVotingResult,
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -383,8 +397,7 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT epoch_number, epoch_reward, foundation_bonus FROM %s "+
-		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? ", rewards.AccountRewardTableName)
+	getQuery := fmt.Sprintf(selectAccountReward, rewards.AccountRewardTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -427,7 +440,7 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 // voterVotes gets voters' address and weighted votes for the given delegate from start epoch to end epoch
 func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName string) (map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT epoch_number, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?",
+	getQuery := fmt.Sprintf(selectAggregateVoting,
 		votings.AggregateVotingTable)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -475,7 +488,7 @@ func (p *Protocol) accountRewards(searchPairs []string) (map[string]map[uint64]*
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)",
+	getQuery := fmt.Sprintf(selectAccountRewardIn,
 		rewards.AccountRewardTableName, strings.Join(searchPairs, ","))
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -533,7 +546,7 @@ func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch u
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND reward_address= ? ",
+	getQuery := fmt.Sprintf(selectVotingResultAll,
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -551,7 +564,7 @@ func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch u
 // weightedVotesBySearchPairs gets voters' address and weighted votes for delegates in the search pairs
 func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[string]map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)",
+	getQuery := fmt.Sprintf(selectAggregateVotingIn,
 		votings.AggregateVotingTable, strings.Join(searchPairs, ","))
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -603,7 +616,7 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND voter_address= ? ",
+	getQuery := fmt.Sprintf(selectAggregateVotingAll,
 		votings.AggregateVotingTable)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -644,7 +657,7 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 // distributionPlanBySearchPairs gets delegates' reward distribution plan in the search pairs
 func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[string]map[uint64]*HermesDistributionPlan, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE (epoch_number, delegate_name) IN (%s)",
+	getQuery := fmt.Sprintf(selectVotingResultIn,
 		votings.VotingResultTableName, strings.Join(searchPairs, ","))
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {

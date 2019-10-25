@@ -45,6 +45,27 @@ const (
 	AccountRewardTableName = "account_reward"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on account reward view
 	EpochCandidateIndexName = "epoch_candidate_index"
+
+	createRewardHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name VARCHAR(24) NOT NULL, " +
+		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)"
+	createAccountReward = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"candidate_name VARCHAR(24) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, " +
+		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))"
+	selectRewardHistory = "SELECT * FROM %s WHERE action_hash=?"
+	selectAccountReward = "SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?"
+	insertRewardHistory = "INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward," +
+		"foundation_bonus) VALUES %s"
+	selectRewardHistoryGroup = "SELECT epoch_number, reward_address, SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) " +
+		"FROM %s WHERE epoch_number = ? GROUP BY epoch_number, reward_address"
+	insertAccountReward = "INSERT IGNORE INTO %s (epoch_number,candidate_name,block_reward,epoch_reward," +
+		"foundation_bonus) VALUES %s"
+	selectVotingResult = "SELECT * FROM %s WHERE epoch_number = ?"
+	selectBlockHistory = "SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, " +
+		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
+		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, expected_producer_name) " +
+		"AS t1 LEFT JOIN (SELECT epoch_number, producer_name, COUNT(producer_address) AS production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, producer_name) " +
+		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name"
 )
 
 type (
@@ -125,15 +146,11 @@ func NewProtocol(
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create reward history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"action_hash VARCHAR(64) NOT NULL, reward_address VARCHAR(41) NOT NULL, candidate_name VARCHAR(24) NOT NULL, "+
-		"block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, foundation_bonus DECIMAL(65, 0) NOT NULL)",
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createRewardHistory,
 		RewardHistoryTableName)); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, "+
-		"candidate_name VARCHAR(24) NOT NULL, block_reward DECIMAL(65, 0) NOT NULL, epoch_reward DECIMAL(65, 0) NOT NULL, "+
-		"foundation_bonus DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, candidate_name))", AccountRewardTableName, EpochCandidateIndexName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createAccountReward, AccountRewardTableName, EpochCandidateIndexName)); err != nil {
 		return err
 	}
 	return nil
@@ -196,7 +213,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 func (p *Protocol) getRewardHistory(actionHash string) ([]*RewardHistory, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE action_hash=?",
+	getQuery := fmt.Sprintf(selectRewardHistory,
 		RewardHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -231,7 +248,7 @@ func (p *Protocol) getRewardHistory(actionHash string) ([]*RewardHistory, error)
 func (p *Protocol) getAccountReward(epochNumber uint64, candidateName string) (*AccountReward, error) {
 	db := p.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number=? AND candidate_name=?",
+	getQuery := fmt.Sprintf(selectAccountReward,
 		AccountRewardTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -279,8 +296,7 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHas
 		valStrs = append(valStrs, "(?, ?, ?, ?, CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)), CAST(? as DECIMAL(65, 0)))")
 		valArgs = append(valArgs, epochNumber, actionHash, rewardAddress, candidateName, blockReward, epochReward, foundationBonus)
 	}
-	insertQuery := fmt.Sprintf("INSERT INTO %s (epoch_number, action_hash,reward_address,candidate_name,block_reward,epoch_reward,"+
-		"foundation_bonus) VALUES %s", RewardHistoryTableName, strings.Join(valStrs, ","))
+	insertQuery := fmt.Sprintf(insertRewardHistory, RewardHistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
@@ -370,8 +386,7 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		return errors.Wrap(err, "failed to get voting info")
 	}
 	// Get aggregate reward	records from last epoch
-	getQuery := fmt.Sprintf("SELECT epoch_number, reward_address, SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) "+
-		"FROM %s WHERE epoch_number = ? GROUP BY epoch_number, reward_address", RewardHistoryTableName)
+	getQuery := fmt.Sprintf(selectRewardHistoryGroup, RewardHistoryTableName)
 	rows, err := tx.Query(getQuery, lastEpoch)
 	if err != nil {
 		return errors.Wrap(err, "failed to get reward history query")
@@ -429,8 +444,7 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		}
 	}
 
-	insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (epoch_number,candidate_name,block_reward,epoch_reward,"+
-		"foundation_bonus) VALUES %s", AccountRewardTableName, strings.Join(valStrs, ","))
+	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
 	}
@@ -439,7 +453,7 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 
 func (p *Protocol) getVotingInfo(tx *sql.Tx, lastEpoch uint64) (map[string][]string, map[string]*big.Int, error) {
 	// get voting results
-	getQuery := fmt.Sprintf("SELECT * FROM %s WHERE epoch_number = ?", votings.VotingResultTableName)
+	getQuery := fmt.Sprintf(selectVotingResult, votings.VotingResultTableName)
 	rows, err := tx.Query(getQuery, lastEpoch)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get voting result query")
@@ -474,11 +488,7 @@ func (p *Protocol) getVotingInfo(tx *sql.Tx, lastEpoch uint64) (map[string][]str
 
 func (p *Protocol) getProductivity(epochNumber uint64) (map[string]*Productivity, error) {
 	// get voting results
-	getQuery := fmt.Sprintf("SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, "+
-		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production "+
-		"FROM (SELECT epoch_number, expected_producer_name, COUNT(expected_producer_address) AS expected_production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, expected_producer_name) "+
-		"AS t1 LEFT JOIN (SELECT epoch_number, producer_name, COUNT(producer_address) AS production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, producer_name) "+
-		"AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name", blocks.BlockHistoryTableName, blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectBlockHistory, blocks.BlockHistoryTableName, blocks.BlockHistoryTableName)
 	db := p.Store.GetDB()
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
