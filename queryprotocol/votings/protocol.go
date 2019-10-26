@@ -19,6 +19,13 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+const (
+	selectVotingResult = "SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
+	selectVotingMeta   = "SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?"
+	selectDelegate     = "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
+	selectOperator     = "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
+)
+
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
@@ -86,7 +93,7 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 
 	endEpoch := startEpoch + epochCount - 1
 
-	getQuery := fmt.Sprintf("SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?", votings.VotingResultTableName)
+	getQuery := fmt.Sprintf(selectVotingResult, votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -124,7 +131,7 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 
 	endEpoch := startEpoch + epochCount - 1
 
-	getQuery := fmt.Sprintf("SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?", votings.VotingMetaTableName)
+	getQuery := fmt.Sprintf(selectVotingMeta, votings.VotingMetaTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to prepare get query")
@@ -162,7 +169,7 @@ func (p *Protocol) GetAlias(operatorAddress string) (string, error) {
 	}
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1",
+	getQuery := fmt.Sprintf(selectDelegate,
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -189,7 +196,7 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 	}
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1",
+	getQuery := fmt.Sprintf(selectOperator,
 		votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {

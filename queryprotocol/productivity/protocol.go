@@ -19,6 +19,13 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+const (
+	selectProductivity    = "SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?"
+	selectProductivitySum = "SELECT SUM(production), SUM(expected_production) FROM %s WHERE " +
+		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?"
+	selectProductivitySumGroup = "SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name"
+)
+
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
@@ -45,7 +52,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 	endEpoch := startEpoch + epochCount - 1
 
 	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf("SELECT * FROM %s WHERE epoch_number >= ? and epoch_number <= ? and delegate_name = ?",
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(selectProductivity,
 		blocks.ProductivityTableName), startEpoch, endEpoch, producerName)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to check if the row exists")
@@ -54,8 +61,7 @@ func (p *Protocol) GetProductivityHistory(startEpoch uint64, epochCount uint64, 
 		return "", "", indexprotocol.ErrNotExist
 	}
 
-	getQuery := fmt.Sprintf("SELECT SUM(production), SUM(expected_production) FROM %s WHERE "+
-		"epoch_number >= %d AND epoch_number <= %d AND delegate_name=?", blocks.ProductivityTableName, startEpoch, endEpoch)
+	getQuery := fmt.Sprintf(selectProductivitySum, blocks.ProductivityTableName, startEpoch, endEpoch)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to prepare get query")
@@ -87,7 +93,7 @@ func (p *Protocol) GetAverageProductivity(startEpoch uint64, epochCount uint64) 
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf("SELECT SUM(production),SUM(expected_production) FROM %s WHERE epoch_number>=? AND epoch_number<=? GROUP BY delegate_name", blocks.ProductivityTableName)
+	getQuery := fmt.Sprintf(selectProductivitySumGroup, blocks.ProductivityTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")

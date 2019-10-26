@@ -19,6 +19,11 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+const (
+	selectBlockHistory    = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
+	selectBlockHistorySum = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?"
+)
+
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
@@ -69,7 +74,7 @@ func (p *Protocol) MostRecentTPS(ranges uint64) (tps float64, err error) {
 	}
 	start := tipHeight - blockLimit + 1
 	end := tipHeight
-	getQuery := fmt.Sprintf("SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?",
+	getQuery := fmt.Sprintf(selectBlockHistory,
 		blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -133,7 +138,7 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 	}
 
 	endEpoch := startEpoch + epochCount - 1
-	getQuery := fmt.Sprintf("SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?", blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectBlockHistorySum, blocks.BlockHistoryTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
