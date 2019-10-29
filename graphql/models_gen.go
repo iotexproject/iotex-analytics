@@ -87,11 +87,11 @@ type CandidateMeta struct {
 }
 
 type Chain struct {
-	MostRecentEpoch       int              `json:"mostRecentEpoch"`
-	MostRecentBlockHeight int              `json:"mostRecentBlockHeight"`
-	CandidateMeta         *CandidateMeta   `json:"candidateMeta"`
-	MostRecentTps         float64          `json:"mostRecentTPS"`
-	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
+	MostRecentEpoch       int               `json:"mostRecentEpoch"`
+	MostRecentBlockHeight int               `json:"mostRecentBlockHeight"`
+	ResultMeta            *VotingResultMeta `json:"resultMeta"`
+	MostRecentTps         float64           `json:"mostRecentTPS"`
+	NumberOfActions       *NumberOfActions  `json:"numberOfActions"`
 }
 
 type Delegate struct {
@@ -196,6 +196,12 @@ type Voting struct {
 type VotingMeta struct {
 	Exist         bool             `json:"exist"`
 	CandidateMeta []*CandidateMeta `json:"candidateMeta"`
+}
+
+type VotingResultMeta struct {
+	TotalCandidates    int    `json:"totalCandidates"`
+	TotalWeightedVotes string `json:"totalWeightedVotes"`
+	VotedTokens        string `json:"votedTokens"`
 }
 
 type Xrc20 struct {

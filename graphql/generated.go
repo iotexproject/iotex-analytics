@@ -125,11 +125,11 @@ type ComplexityRoot struct {
 	}
 
 	Chain struct {
-		CandidateMeta         func(childComplexity int) int
 		MostRecentBlockHeight func(childComplexity int) int
 		MostRecentEpoch       func(childComplexity int) int
 		MostRecentTps         func(childComplexity int, blockWindow int) int
 		NumberOfActions       func(childComplexity int, pagination *EpochRange) int
+		ResultMeta            func(childComplexity int) int
 	}
 
 	Delegate struct {
@@ -235,6 +235,12 @@ type ComplexityRoot struct {
 	VotingMeta struct {
 		CandidateMeta func(childComplexity int) int
 		Exist         func(childComplexity int) int
+	}
+
+	VotingResultMeta struct {
+		TotalCandidates    func(childComplexity int) int
+		TotalWeightedVotes func(childComplexity int) int
+		VotedTokens        func(childComplexity int) int
 	}
 
 	Xrc20 struct {
@@ -635,13 +641,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.CandidateMeta.VotedTokens(childComplexity), true
 
-	case "Chain.CandidateMeta":
-		if e.complexity.Chain.CandidateMeta == nil {
-			break
-		}
-
-		return e.complexity.Chain.CandidateMeta(childComplexity), true
-
 	case "Chain.MostRecentBlockHeight":
 		if e.complexity.Chain.MostRecentBlockHeight == nil {
 			break
@@ -679,6 +678,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Chain.NumberOfActions(childComplexity, args["pagination"].(*EpochRange)), true
+
+	case "Chain.ResultMeta":
+		if e.complexity.Chain.ResultMeta == nil {
+			break
+		}
+
+		return e.complexity.Chain.ResultMeta(childComplexity), true
 
 	case "Delegate.Bookkeeping":
 		if e.complexity.Delegate.Bookkeeping == nil {
@@ -1088,6 +1094,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VotingMeta.Exist(childComplexity), true
 
+	case "VotingResultMeta.TotalCandidates":
+		if e.complexity.VotingResultMeta.TotalCandidates == nil {
+			break
+		}
+
+		return e.complexity.VotingResultMeta.TotalCandidates(childComplexity), true
+
+	case "VotingResultMeta.TotalWeightedVotes":
+		if e.complexity.VotingResultMeta.TotalWeightedVotes == nil {
+			break
+		}
+
+		return e.complexity.VotingResultMeta.TotalWeightedVotes(childComplexity), true
+
+	case "VotingResultMeta.VotedTokens":
+		if e.complexity.VotingResultMeta.VotedTokens == nil {
+			break
+		}
+
+		return e.complexity.VotingResultMeta.VotedTokens(childComplexity), true
+
 	case "Xrc20.ByAddress":
 		if e.complexity.Xrc20.ByAddress == nil {
 			break
@@ -1446,7 +1473,7 @@ type DelegateAmount {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    candidateMeta: CandidateMeta
+    resultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
@@ -1454,6 +1481,12 @@ type Chain {
 type NumberOfActions{
     exist: Boolean!
     count: Int!
+}
+
+type VotingResultMeta {
+    totalCandidates: Int!
+    totalWeightedVotes: String!
+    votedTokens: String!
 }
 
 type CandidateMeta{
@@ -3214,7 +3247,7 @@ func (ec *executionContext) _Chain_mostRecentBlockHeight(ctx context.Context, fi
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Chain_candidateMeta(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+func (ec *executionContext) _Chain_resultMeta(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -3227,15 +3260,15 @@ func (ec *executionContext) _Chain_candidateMeta(ctx context.Context, field grap
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.CandidateMeta, nil
+		return obj.ResultMeta, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*CandidateMeta)
+	res := resTmp.(*VotingResultMeta)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOCandidateMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateMeta(ctx, field.Selections, res)
+	return ec.marshalOVotingResultMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVotingResultMeta(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Chain_mostRecentTPS(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
@@ -4814,6 +4847,87 @@ func (ec *executionContext) _VotingMeta_candidateMeta(ctx context.Context, field
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNCandidateMeta2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateMeta(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VotingResultMeta_totalCandidates(ctx context.Context, field graphql.CollectedField, obj *VotingResultMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VotingResultMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCandidates, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VotingResultMeta_totalWeightedVotes(ctx context.Context, field graphql.CollectedField, obj *VotingResultMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VotingResultMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalWeightedVotes, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VotingResultMeta_votedTokens(ctx context.Context, field graphql.CollectedField, obj *VotingResultMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VotingResultMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VotedTokens, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc20_byContractAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
@@ -6560,8 +6674,8 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "candidateMeta":
-			out.Values[i] = ec._Chain_candidateMeta(ctx, field, obj)
+		case "resultMeta":
+			out.Values[i] = ec._Chain_resultMeta(ctx, field, obj)
 		case "mostRecentTPS":
 			out.Values[i] = ec._Chain_mostRecentTPS(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -7248,6 +7362,43 @@ func (ec *executionContext) _VotingMeta(ctx context.Context, sel ast.SelectionSe
 			}
 		case "candidateMeta":
 			out.Values[i] = ec._VotingMeta_candidateMeta(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var votingResultMetaImplementors = []string{"VotingResultMeta"}
+
+func (ec *executionContext) _VotingResultMeta(ctx context.Context, sel ast.SelectionSet, obj *VotingResultMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, votingResultMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VotingResultMeta")
+		case "totalCandidates":
+			out.Values[i] = ec._VotingResultMeta_totalCandidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalWeightedVotes":
+			out.Values[i] = ec._VotingResultMeta_totalWeightedVotes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "votedTokens":
+			out.Values[i] = ec._VotingResultMeta_votedTokens(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -8781,6 +8932,17 @@ func (ec *executionContext) marshalOVotingMeta2ᚖgithubᚗcomᚋiotexprojectᚋ
 		return graphql.Null
 	}
 	return ec._VotingMeta(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOVotingResultMeta2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVotingResultMeta(ctx context.Context, sel ast.SelectionSet, v VotingResultMeta) graphql.Marshaler {
+	return ec._VotingResultMeta(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOVotingResultMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVotingResultMeta(ctx context.Context, sel ast.SelectionSet, v *VotingResultMeta) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._VotingResultMeta(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOXrc202githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20(ctx context.Context, sel ast.SelectionSet, v Xrc20) graphql.Marshaler {

@@ -188,7 +188,7 @@ type DelegateAmount {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    candidateMeta: CandidateMeta
+    resultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
@@ -196,6 +196,12 @@ type Chain {
 type NumberOfActions{
     exist: Boolean!
     count: Int!
+}
+
+type VotingResultMeta {
+    totalCandidates: Int!
+    totalWeightedVotes: String!
+    votedTokens: String!
 }
 
 type CandidateMeta{

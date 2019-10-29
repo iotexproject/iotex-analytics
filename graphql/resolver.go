@@ -129,8 +129,8 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	if containField(requestedFields, "candidateMeta") {
-		g.Go(func() error { return r.getCandidateMeta(chainResponse) })
+	if containField(requestedFields, "resultMeta") {
+		g.Go(func() error { return r.getVotingResultMeta(chainResponse) })
 	}
 	if containField(requestedFields, "mostRecentTPS") {
 		g.Go(func() error { return r.getTPS(ctx, chainResponse) })
@@ -368,9 +368,9 @@ func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, ep
 	return nil
 }
 
-func (r *queryResolver) getCandidateMeta(chainResponse *Chain) error {
+func (r *queryResolver) getVotingResultMeta(chainResponse *Chain) error {
 	targetEpoch := uint64(chainResponse.MostRecentEpoch)
-	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(targetEpoch, 1)
+	cl, _, err := r.VP.GetCandidateMeta(targetEpoch, 1)
 	if err != nil {
 		return errors.Wrap(err, "failed to get candidate metadata")
 	}
@@ -378,10 +378,8 @@ func (r *queryResolver) getCandidateMeta(chainResponse *Chain) error {
 		return errors.Wrap(err, "the output length should be 1")
 	}
 	candidateMeta := cl[0]
-	chainResponse.CandidateMeta = &CandidateMeta{
-		EpochNumber:        int(candidateMeta.EpochNumber),
+	chainResponse.ResultMeta = &VotingResultMeta{
 		TotalCandidates:    int(candidateMeta.NumberOfCandidates),
-		ConsensusDelegates: int(numConsensusDelegates),
 		TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
 		VotedTokens:        candidateMeta.VotedTokens,
 	}
