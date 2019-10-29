@@ -23,6 +23,7 @@ import (
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -46,7 +47,7 @@ func TestXrc20(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	bp := blocks.NewProtocol(store, uint64(24), uint64(36), uint64(15))
+	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15))
 	p := NewProtocol(store)
 
 	require.NoError(bp.CreateTables(ctx))

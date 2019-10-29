@@ -1,6 +1,9 @@
 numDelegates: 24
 numCandidateDelegates: 36
 numSubEpochs: 15
+numSubEpochsDardanelles: 30
+dardanellesHeight: 1855201
+dardanellesOn: true
 rangeQueryLimit: 100
 genesis:
   account:

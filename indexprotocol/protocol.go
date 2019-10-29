@@ -68,19 +68,3 @@ type Protocol interface {
 type BlockHandler interface {
 	HandleBlock(context.Context, *sql.Tx, *block.Block) error
 }
-
-// GetEpochNumber gets epoch number
-func GetEpochNumber(numDelegates uint64, numSubEpochs uint64, height uint64) uint64 {
-	if height == 0 {
-		return 0
-	}
-	return (height-1)/numDelegates/numSubEpochs + 1
-}
-
-// GetEpochHeight gets the start height of an epoch
-func GetEpochHeight(epochNum uint64, numDelegates uint64, numSubEpochs uint64) uint64 {
-	if epochNum == 0 {
-		return 0
-	}
-	return (epochNum-1)*numDelegates*numSubEpochs + 1
-}

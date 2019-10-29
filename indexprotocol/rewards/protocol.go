@@ -29,6 +29,7 @@ import (
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
@@ -113,12 +114,10 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                 s.Store
-	NumDelegates          uint64
-	NumCandidateDelegates uint64
-	NumSubEpochs          uint64
-	RewardAddrToName      map[string][]string
-	RewardConfig          indexprotocol.Rewarding
+	Store            s.Store
+	RewardAddrToName map[string][]string
+	RewardConfig     indexprotocol.Rewarding
+	epochCtx         *epochctx.EpochCtx
 }
 
 // RewardInfo indicates the amount of different reward types
@@ -131,15 +130,13 @@ type RewardInfo struct {
 // NewProtocol creates a new protocol
 func NewProtocol(
 	store s.Store,
-	numDelegates uint64,
-	numSubEpochs uint64,
+	epochCtx *epochctx.EpochCtx,
 	rewardingConfig indexprotocol.Rewarding,
 ) *Protocol {
 	return &Protocol{
 		Store:        store,
-		NumDelegates: numDelegates,
-		NumSubEpochs: numSubEpochs,
 		RewardConfig: rewardingConfig,
+		epochCtx:     epochCtx,
 	}
 }
 
@@ -164,12 +161,12 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	epochNumber := p.epochCtx.GetEpochNumber(height)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	epochHeight := indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs)
+	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if height == epochHeight || p.RewardAddrToName == nil {
 		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
