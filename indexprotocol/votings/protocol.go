@@ -36,6 +36,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/contract"
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
@@ -132,8 +133,7 @@ type Protocol struct {
 	registrationTableOperator committee.Operator
 	nativeBucketTableOperator committee.Operator
 	timeTableOperator         *committee.TimeTableOperator
-	NumDelegates              uint64
-	NumSubEpochs              uint64
+	epochCtx                  *epochctx.EpochCtx
 	GravityChainCfg           indexprotocol.GravityChain
 	SkipManifiedCandidate     bool
 	VoteThreshold             *big.Int
@@ -142,7 +142,7 @@ type Protocol struct {
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) (*Protocol, error) {
+func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		return nil, err
@@ -173,8 +173,7 @@ func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64, gravit
 		registrationTableOperator: registrationTableOperator,
 		nativeBucketTableOperator: nativeBucketTableOperator,
 		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
-		NumDelegates:              numDelegates,
-		NumSubEpochs:              numSubEpochs,
+		epochCtx:                  epochCtx,
 		GravityChainCfg:           gravityChainCfg,
 		VoteThreshold:             voteThreshold,
 		ScoreThreshold:            scoreThreshold,
@@ -236,8 +235,8 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
-	if height == indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs) {
+	epochNumber := p.epochCtx.GetEpochNumber(height)
+	if height == p.epochCtx.GetEpochHeight(epochNumber) {
 		indexCtx := indexcontext.MustGetIndexCtx(ctx)
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
@@ -376,7 +375,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []*
 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
-	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
+	height := p.epochCtx.GetEpochHeight(epochNum)
 	votes, _, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
@@ -647,8 +646,8 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delega
 }
 func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	db := p.Store.GetDB()
-	currentEpoch := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
-	lastEpochStartHeight := indexprotocol.GetEpochHeight(currentEpoch-1, p.NumDelegates, p.NumSubEpochs)
+	currentEpoch := p.epochCtx.GetEpochNumber(height)
+	lastEpochStartHeight := p.epochCtx.GetEpochHeight(currentEpoch - 1)
 	getQuery := fmt.Sprintf(selectBlockHistory,
 		blocks.BlockHistoryTableName, actions.ActionHistoryTableName)
 	stmt, err := db.Prepare(getQuery)

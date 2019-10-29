@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
@@ -25,6 +24,7 @@ import (
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -105,21 +105,17 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                 s.Store
-	NumDelegates          uint64
-	NumCandidateDelegates uint64
-	NumSubEpochs          uint64
-	ActiveBlockProducers  []string
-	OperatorAddrToName    map[string]string
+	Store                s.Store
+	ActiveBlockProducers []string
+	OperatorAddrToName   map[string]string
+	epochCtx             *epochctx.EpochCtx
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numCandidateDelegates uint64, numSubEpochs uint64) *Protocol {
+func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
-		Store:                 store,
-		NumDelegates:          numDelegates,
-		NumCandidateDelegates: numCandidateDelegates,
-		NumSubEpochs:          numSubEpochs,
+		Store:    store,
+		epochCtx: epochctx,
 	}
 }
 
@@ -162,12 +158,12 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	epochNumber := p.epochCtx.GetEpochNumber(height)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
-	epochHeight := indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs)
+	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if height == epochHeight || p.OperatorAddrToName == nil {
 		if err := p.updateDelegates(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
@@ -344,7 +340,7 @@ func (p *Protocol) updateDelegates(
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
 		Offset: uint32(0),
-		Limit:  uint32(p.NumCandidateDelegates),
+		Limit:  uint32(p.epochCtx.NumCandidateDelegates()),
 	}
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {

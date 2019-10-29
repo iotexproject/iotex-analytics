@@ -13,6 +13,7 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -31,8 +32,8 @@ const (
 	AccountIncomeTableName = "account_income"
 	// EpochAddressIndexName is the index name of epoch number and account address
 	EpochAddressIndexName = "epoch_address_index"
-	
-	createBalanceHistory  = "CREATE TABLE IF NOT EXISTS %s " +
+
+	createBalanceHistory = "CREATE TABLE IF NOT EXISTS %s " +
 		"(epoch_number DECIMAL(65, 0) NOT NULL, block_height DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
 		"action_type TEXT NOT NULL, `from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, amount DECIMAL(65, 0) NOT NULL)"
 	createAccountInflow = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
@@ -80,17 +81,15 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store        s.Store
-	NumDelegates uint64
-	NumSubEpochs uint64
+	Store    s.Store
+	epochCtx *epochctx.EpochCtx
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, numDelegates uint64, numSubEpochs uint64) *Protocol {
+func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
-		Store:        store,
-		NumDelegates: numDelegates,
-		NumSubEpochs: numSubEpochs,
+		Store:    store,
+		epochCtx: epochctx,
 	}
 }
 
@@ -137,12 +136,12 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexpro
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
-	epochNumber := indexprotocol.GetEpochNumber(p.NumDelegates, p.NumSubEpochs, height)
+	epochNumber := p.epochCtx.GetEpochNumber(height)
 	// log action index
 	hashToGasPrice := make(map[string]*big.Int)
 	hashToSrcAddr := make(map[string]string)
 	// Special handling for epoch start height
-	epochHeight := indexprotocol.GetEpochHeight(epochNumber, p.NumDelegates, p.NumSubEpochs)
+	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if height == epochHeight {
 		if err := p.rebuildAccountIncomeTable(tx); err != nil {
 			return errors.Wrap(err, "failed to rebuild account income table")

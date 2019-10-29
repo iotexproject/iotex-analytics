@@ -20,6 +20,7 @@ import (
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -48,7 +49,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(1), uint64(1), indexprotocol.Rewarding{})
+	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1), indexprotocol.Rewarding{})
 
 	require.NoError(p.CreateTables(ctx))
 

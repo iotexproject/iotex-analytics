@@ -9,6 +9,7 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"time"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -37,18 +38,22 @@ type Indexer struct {
 	Config         Config
 	lastHeight     uint64
 	terminate      chan bool
+	epochCtx       *epochctx.EpochCtx
 }
 
 // Config contains indexer configs
 type Config struct {
-	NumDelegates          uint64                     `yaml:"numDelegates"`
-	NumCandidateDelegates uint64                     `yaml:"numCandidateDelegates"`
-	NumSubEpochs          uint64                     `yaml:"numSubEpochs"`
-	RangeQueryLimit       uint64                     `yaml:"rangeQueryLimit"`
-	Genesis               indexprotocol.Genesis      `yaml:"genesis"`
-	GravityChain          indexprotocol.GravityChain `yaml:"gravityChain"`
-	Rewarding             indexprotocol.Rewarding    `yaml:"rewarding"`
-	Poll                  indexprotocol.Poll         `yaml:"poll"`
+	NumDelegates            uint64                     `yaml:"numDelegates"`
+	NumCandidateDelegates   uint64                     `yaml:"numCandidateDelegates"`
+	NumSubEpochs            uint64                     `yaml:"numSubEpochs"`
+	NumSubEpochsDardanelles uint64                     `yaml:"numSubEpochsDardanelles"`
+	DardanellesHeight       uint64                     `yaml:"dardanellesHeight"`
+	DardanellesOn           bool                       `yaml:"dardanellesOn"`
+	RangeQueryLimit         uint64                     `yaml:"rangeQueryLimit"`
+	Genesis                 indexprotocol.Genesis      `yaml:"genesis"`
+	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`
+	Rewarding               indexprotocol.Rewarding    `yaml:"rewarding"`
+	Poll                    indexprotocol.Poll         `yaml:"poll"`
 }
 
 // NewIndexer creates a new indexer
@@ -58,6 +63,12 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 		Registry:       &indexprotocol.Registry{},
 		Config:         cfg,
 		IndexProtocols: make([]indexprotocol.Protocol, 0),
+		epochCtx: epochctx.NewEpochCtx(
+			cfg.NumCandidateDelegates,
+			cfg.NumDelegates,
+			cfg.NumSubEpochs,
+			epochctx.EnableDardanellesSubEpoch(cfg.DardanellesHeight, cfg.NumSubEpochsDardanelles),
+		),
 	}
 }
 
@@ -161,10 +172,10 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store)
-	blocksProtocol := blocks.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumCandidateDelegates, idx.Config.NumSubEpochs)
-	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.Rewarding)
-	accountsProtocol := accounts.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs)
-	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.Config.NumDelegates, idx.Config.NumSubEpochs, idx.Config.GravityChain, idx.Config.Poll)
+	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
+	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
+	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
+	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll)
 	if err != nil {
 		log.L().Error("failed to make new voting protocol", zap.Error(err))
 	}

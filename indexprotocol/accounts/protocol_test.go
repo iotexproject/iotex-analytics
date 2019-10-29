@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -34,7 +35,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, uint64(1), uint64(1))
+	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1))
 
 	require.NoError(p.CreateTables(ctx))
 
