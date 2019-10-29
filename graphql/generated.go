@@ -85,8 +85,10 @@ type ComplexityRoot struct {
 	}
 
 	BucketInfo struct {
-		VoterEthAddress func(childComplexity int) int
-		WeightedVotes   func(childComplexity int) int
+		RemainingDuration func(childComplexity int) int
+		VoterAddress      func(childComplexity int) int
+		Votes             func(childComplexity int) int
+		WeightedVotes     func(childComplexity int) int
 	}
 
 	BucketInfoList struct {
@@ -100,6 +102,20 @@ type ComplexityRoot struct {
 		Exist          func(childComplexity int) int
 	}
 
+	CandidateInfo struct {
+		Address            func(childComplexity int) int
+		Name               func(childComplexity int) int
+		OperatorAddress    func(childComplexity int) int
+		RewardAddress      func(childComplexity int) int
+		SelfStakingTokens  func(childComplexity int) int
+		TotalWeightedVotes func(childComplexity int) int
+	}
+
+	CandidateInfoList struct {
+		Candidates  func(childComplexity int) int
+		EpochNumber func(childComplexity int) int
+	}
+
 	CandidateMeta struct {
 		ConsensusDelegates func(childComplexity int) int
 		EpochNumber        func(childComplexity int) int
@@ -109,6 +125,7 @@ type ComplexityRoot struct {
 	}
 
 	Chain struct {
+		CandidateMeta         func(childComplexity int) int
 		MostRecentBlockHeight func(childComplexity int) int
 		MostRecentEpoch       func(childComplexity int) int
 		MostRecentTps         func(childComplexity int, blockWindow int) int
@@ -210,6 +227,7 @@ type ComplexityRoot struct {
 	}
 
 	Voting struct {
+		CandidateInfo func(childComplexity int) int
 		RewardSources func(childComplexity int, voterIotexAddress string) int
 		VotingMeta    func(childComplexity int) int
 	}
@@ -463,12 +481,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Bookkeeping.RewardDistribution(childComplexity, args["pagination"].(*Pagination)), true
 
-	case "BucketInfo.VoterEthAddress":
-		if e.complexity.BucketInfo.VoterEthAddress == nil {
+	case "BucketInfo.RemainingDuration":
+		if e.complexity.BucketInfo.RemainingDuration == nil {
 			break
 		}
 
-		return e.complexity.BucketInfo.VoterEthAddress(childComplexity), true
+		return e.complexity.BucketInfo.RemainingDuration(childComplexity), true
+
+	case "BucketInfo.VoterAddress":
+		if e.complexity.BucketInfo.VoterAddress == nil {
+			break
+		}
+
+		return e.complexity.BucketInfo.VoterAddress(childComplexity), true
+
+	case "BucketInfo.Votes":
+		if e.complexity.BucketInfo.Votes == nil {
+			break
+		}
+
+		return e.complexity.BucketInfo.Votes(childComplexity), true
 
 	case "BucketInfo.WeightedVotes":
 		if e.complexity.BucketInfo.WeightedVotes == nil {
@@ -512,6 +544,62 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.BucketInfoOutput.Exist(childComplexity), true
 
+	case "CandidateInfo.Address":
+		if e.complexity.CandidateInfo.Address == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.Address(childComplexity), true
+
+	case "CandidateInfo.Name":
+		if e.complexity.CandidateInfo.Name == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.Name(childComplexity), true
+
+	case "CandidateInfo.OperatorAddress":
+		if e.complexity.CandidateInfo.OperatorAddress == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.OperatorAddress(childComplexity), true
+
+	case "CandidateInfo.RewardAddress":
+		if e.complexity.CandidateInfo.RewardAddress == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.RewardAddress(childComplexity), true
+
+	case "CandidateInfo.SelfStakingTokens":
+		if e.complexity.CandidateInfo.SelfStakingTokens == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.SelfStakingTokens(childComplexity), true
+
+	case "CandidateInfo.TotalWeightedVotes":
+		if e.complexity.CandidateInfo.TotalWeightedVotes == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfo.TotalWeightedVotes(childComplexity), true
+
+	case "CandidateInfoList.Candidates":
+		if e.complexity.CandidateInfoList.Candidates == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfoList.Candidates(childComplexity), true
+
+	case "CandidateInfoList.EpochNumber":
+		if e.complexity.CandidateInfoList.EpochNumber == nil {
+			break
+		}
+
+		return e.complexity.CandidateInfoList.EpochNumber(childComplexity), true
+
 	case "CandidateMeta.ConsensusDelegates":
 		if e.complexity.CandidateMeta.ConsensusDelegates == nil {
 			break
@@ -546,6 +634,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.CandidateMeta.VotedTokens(childComplexity), true
+
+	case "Chain.CandidateMeta":
+		if e.complexity.Chain.CandidateMeta == nil {
+			break
+		}
+
+		return e.complexity.Chain.CandidateMeta(childComplexity), true
 
 	case "Chain.MostRecentBlockHeight":
 		if e.complexity.Chain.MostRecentBlockHeight == nil {
@@ -953,6 +1048,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.TopHolder.Balance(childComplexity), true
 
+	case "Voting.CandidateInfo":
+		if e.complexity.Voting.CandidateInfo == nil {
+			break
+		}
+
+		return e.complexity.Voting.CandidateInfo(childComplexity), true
+
 	case "Voting.RewardSources":
 		if e.complexity.Voting.RewardSources == nil {
 			break
@@ -1216,8 +1318,24 @@ type StakingInformation{
 }
 
 type Voting {
+    candidateInfo: [CandidateInfoList]!
     votingMeta: VotingMeta
     rewardSources(voterIotexAddress: String!): RewardSources
+}
+
+
+type CandidateInfoList {
+    epochNumber: Int!
+    candidates: [CandidateInfo]!
+}
+
+type CandidateInfo {
+    name: String!
+    address: String!
+    totalWeightedVotes: String!
+    selfStakingTokens: String!
+    operatorAddress: String!
+    rewardAddress: String!
 }
 
 type Hermes {
@@ -1291,8 +1409,10 @@ type Productivity {
 }
 
 type BucketInfo {
-    voterEthAddress: String!
+    voterAddress: String!   
+    votes: String!
     weightedVotes: String!
+    remainingDuration: String! 
 }
 
 type Bookkeeping {
@@ -1326,6 +1446,7 @@ type DelegateAmount {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
+    candidateMeta: CandidateMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
@@ -2445,7 +2566,7 @@ func (ec *executionContext) _Bookkeeping_count(ctx context.Context, field graphq
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _BucketInfo_voterEthAddress(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
+func (ec *executionContext) _BucketInfo_voterAddress(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -2458,7 +2579,34 @@ func (ec *executionContext) _BucketInfo_voterEthAddress(ctx context.Context, fie
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.VoterEthAddress, nil
+		return obj.VoterAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BucketInfo_votes(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "BucketInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Votes, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2486,6 +2634,33 @@ func (ec *executionContext) _BucketInfo_weightedVotes(ctx context.Context, field
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.WeightedVotes, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BucketInfo_remainingDuration(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "BucketInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RemainingDuration, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2632,6 +2807,222 @@ func (ec *executionContext) _BucketInfoOutput_bucketInfoList(ctx context.Context
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNBucketInfoList2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfoList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_name(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_address(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Address, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_totalWeightedVotes(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalWeightedVotes, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_selfStakingTokens(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SelfStakingTokens, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_operatorAddress(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OperatorAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfo_rewardAddress(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RewardAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfoList_epochNumber(ctx context.Context, field graphql.CollectedField, obj *CandidateInfoList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfoList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EpochNumber, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _CandidateInfoList_candidates(ctx context.Context, field graphql.CollectedField, obj *CandidateInfoList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "CandidateInfoList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Candidates, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*CandidateInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNCandidateInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _CandidateMeta_epochNumber(ctx context.Context, field graphql.CollectedField, obj *CandidateMeta) graphql.Marshaler {
@@ -2821,6 +3212,30 @@ func (ec *executionContext) _Chain_mostRecentBlockHeight(ctx context.Context, fi
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Chain_candidateMeta(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Chain",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CandidateMeta, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*CandidateMeta)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOCandidateMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateMeta(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Chain_mostRecentTPS(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
@@ -4263,6 +4678,33 @@ func (ec *executionContext) _TopHolder_balance(ctx context.Context, field graphq
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Voting_candidateInfo(ctx context.Context, field graphql.CollectedField, obj *Voting) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Voting",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CandidateInfo, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*CandidateInfoList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNCandidateInfoList2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfoList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Voting_votingMeta(ctx context.Context, field graphql.CollectedField, obj *Voting) graphql.Marshaler {
@@ -5866,13 +6308,23 @@ func (ec *executionContext) _BucketInfo(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BucketInfo")
-		case "voterEthAddress":
-			out.Values[i] = ec._BucketInfo_voterEthAddress(ctx, field, obj)
+		case "voterAddress":
+			out.Values[i] = ec._BucketInfo_voterAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "votes":
+			out.Values[i] = ec._BucketInfo_votes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
 		case "weightedVotes":
 			out.Values[i] = ec._BucketInfo_weightedVotes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "remainingDuration":
+			out.Values[i] = ec._BucketInfo_remainingDuration(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -5956,6 +6408,90 @@ func (ec *executionContext) _BucketInfoOutput(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var candidateInfoImplementors = []string{"CandidateInfo"}
+
+func (ec *executionContext) _CandidateInfo(ctx context.Context, sel ast.SelectionSet, obj *CandidateInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, candidateInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CandidateInfo")
+		case "name":
+			out.Values[i] = ec._CandidateInfo_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "address":
+			out.Values[i] = ec._CandidateInfo_address(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalWeightedVotes":
+			out.Values[i] = ec._CandidateInfo_totalWeightedVotes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "selfStakingTokens":
+			out.Values[i] = ec._CandidateInfo_selfStakingTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "operatorAddress":
+			out.Values[i] = ec._CandidateInfo_operatorAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "rewardAddress":
+			out.Values[i] = ec._CandidateInfo_rewardAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var candidateInfoListImplementors = []string{"CandidateInfoList"}
+
+func (ec *executionContext) _CandidateInfoList(ctx context.Context, sel ast.SelectionSet, obj *CandidateInfoList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, candidateInfoListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CandidateInfoList")
+		case "epochNumber":
+			out.Values[i] = ec._CandidateInfoList_epochNumber(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "candidates":
+			out.Values[i] = ec._CandidateInfoList_candidates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var candidateMetaImplementors = []string{"CandidateMeta"}
 
 func (ec *executionContext) _CandidateMeta(ctx context.Context, sel ast.SelectionSet, obj *CandidateMeta) graphql.Marshaler {
@@ -6024,6 +6560,8 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "candidateMeta":
+			out.Values[i] = ec._Chain_candidateMeta(ctx, field, obj)
 		case "mostRecentTPS":
 			out.Values[i] = ec._Chain_mostRecentTPS(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -6672,6 +7210,11 @@ func (ec *executionContext) _Voting(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Voting")
+		case "candidateInfo":
+			out.Values[i] = ec._Voting_candidateInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "votingMeta":
 			out.Values[i] = ec._Voting_votingMeta(ctx, field, obj)
 		case "rewardSources":
@@ -7188,6 +7731,80 @@ func (ec *executionContext) marshalNBucketInfoList2ᚕᚖgithubᚗcomᚋiotexpro
 				defer wg.Done()
 			}
 			ret[i] = ec.marshalOBucketInfoList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfoList(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNCandidateInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx context.Context, sel ast.SelectionSet, v []*CandidateInfo) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOCandidateInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNCandidateInfoList2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfoList(ctx context.Context, sel ast.SelectionSet, v []*CandidateInfoList) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOCandidateInfoList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfoList(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -7865,6 +8482,28 @@ func (ec *executionContext) marshalOBucketInfoOutput2ᚖgithubᚗcomᚋiotexproj
 		return graphql.Null
 	}
 	return ec._BucketInfoOutput(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCandidateInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx context.Context, sel ast.SelectionSet, v CandidateInfo) graphql.Marshaler {
+	return ec._CandidateInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOCandidateInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx context.Context, sel ast.SelectionSet, v *CandidateInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CandidateInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCandidateInfoList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfoList(ctx context.Context, sel ast.SelectionSet, v CandidateInfoList) graphql.Marshaler {
+	return ec._CandidateInfoList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOCandidateInfoList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfoList(ctx context.Context, sel ast.SelectionSet, v *CandidateInfoList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CandidateInfoList(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOCandidateMeta2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateMeta(ctx context.Context, sel ast.SelectionSet, v CandidateMeta) graphql.Marshaler {

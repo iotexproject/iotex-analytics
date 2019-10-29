@@ -110,9 +110,11 @@ type (
 
 	// VotingInfo defines voting info
 	VotingInfo struct {
-		EpochNumber   uint64
-		VoterAddress  string
-		WeightedVotes string
+		EpochNumber   	uint64
+		VoterAddress  	string
+		Votes         	string
+		WeightedVotes 	string
+		RemainingDuration 	string
 	}
 
 	rawData struct {
@@ -354,42 +356,63 @@ func (p *Protocol) calculateEthereumStaking(height uint64, tx *sql.Tx) (*types.E
 	return calculator.Calculate()
 }
 
-func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []*types.Candidate, error) {
+func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []bool, []*types.Candidate, error) {
 	result, err := p.calculateEthereumStaking(height, tx)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to calculate ethereum staking")
+		return nil, nil, nil, errors.Wrap(err, "failed to calculate ethereum staking")
 	}
+	bucketFlag := make([]bool, len(result.Votes())) // false stands for Ethereum 
 	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), tx)
 	switch err {
 	case db.ErrNotExist:
 	case nil:
 		nativeBuckets, ok := valueOfNativeBuckets.([]*types.Bucket)
 		if !ok {
-			return nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
+			return nil, nil, nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfNativeBuckets))
 		}
-		return p.mergeResult(height, result, nativeBuckets)
+		return p.mergeResult(height, result, nativeBuckets, bucketFlag)
 	default:
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return result.Votes(), result.Delegates(), nil
+	return result.Votes(), bucketFlag, result.Delegates(), nil
 }
 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
-	height := p.epochCtx.GetEpochHeight(epochNum)
-	votes, _, err := p.resultByHeight(height, nil)
+	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
+	votes, voteFlag, _, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
 	}
 	var votinginfoList []*VotingInfo
 
-	for _, vote := range votes {
+	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), nil)
+	if err != nil {
+		return nil, err
+	}
+	ethMintTime, ok := valueOfTime.(time.Time)
+	if !ok {
+		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfTime))
+	}
+	nativeMintTime, err := p.getLatestNativeMintTime(height)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get latest native mint time")
+	}
+	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
+			var mintTime time.Time
+			if voteFlag[i] {
+				mintTime = nativeMintTime
+			} else {
+				mintTime = ethMintTime
+			}
 			votinginfo := &VotingInfo{
-				EpochNumber:   epochNum,
-				VoterAddress:  hex.EncodeToString(vote.Voter()),
-				WeightedVotes: vote.WeightedAmount().Text(10),
+				EpochNumber:   		epochNum,
+				VoterAddress:  		hex.EncodeToString(vote.Voter()),
+				Votes: 		   		vote.Amount().Text(10),
+				WeightedVotes: 		vote.WeightedAmount().Text(10),
+				RemainingDuration: 	vote.RemainingTime(mintTime).String(), // If this is native vote, the mintTime is different from the ethereum staking mint Time
 			}
 			votinginfoList = append(votinginfoList, votinginfo)
 		}
@@ -577,7 +600,7 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, 
 }
 
 func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
-	votes, delegates, err := p.resultByHeight(height, tx)
+	votes, _, delegates, err := p.resultByHeight(height, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
@@ -665,10 +688,10 @@ func (p *Protocol) getLatestNativeMintTime(height uint64) (time.Time, error) {
 	return time.Unix(unixTimeStamp, 0), nil
 }
 
-func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nativeBuckets []*types.Bucket) ([]*types.Vote, []*types.Candidate, error) {
+func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nativeBuckets []*types.Bucket, bucketFlag []bool) ([]*types.Vote, []bool, []*types.Candidate, error) {
 	nativeMintTime, err := p.getLatestNativeMintTime(height)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to prepare get query")
+		return nil, nil, nil, errors.Wrap(err, "failed to get latest native mint time")
 	}
 	mergedVotes := result.Votes()
 	delegates := result.Delegates()
@@ -678,12 +701,12 @@ func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nati
 	for _, bucket := range nativeBuckets {
 		weighted := types.CalcWeightedVotes(bucket, nativeMintTime)
 		if big.NewInt(0).Cmp(weighted) == 1 {
-			return nil, nil, errors.Errorf("weighted amount %s cannot be negative", weighted)
+			return nil, nil, nil, errors.Errorf("weighted amount %s cannot be negative", weighted)
 		}
 		//append native vote to existing votes array
 		vote, err := types.NewVote(bucket, weighted)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		mergedVotes = append(mergedVotes, vote)
 		//put into the mapping of native bucket for recalculate candidate's score
@@ -694,8 +717,8 @@ func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nati
 			// add up the votes
 			score.Add(score, weighted)
 		}
+		bucketFlag = append(bucketFlag, true)
 	}
-
 	// merge native buckets with delegates
 	// when we merge, for now since we assumed that there is no selfstaking, just recalculate delegates' score
 	totalCandiates := make(map[string]*types.Candidate)
@@ -717,7 +740,7 @@ func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nati
 	for _, name := range sorted {
 		mergedDelegates = append(mergedDelegates, totalCandiates[name])
 	}
-	return mergedVotes, mergedDelegates, nil
+	return mergedVotes, bucketFlag, mergedDelegates, nil
 }
 
 func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {

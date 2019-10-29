@@ -129,6 +129,9 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "candidateMeta") {
+		g.Go(func() error { return r.getCandidateMeta(chainResponse) })
+	}
 	if containField(requestedFields, "mostRecentTPS") {
 		g.Go(func() error { return r.getTPS(ctx, chainResponse) })
 	}
@@ -174,6 +177,9 @@ func (r *queryResolver) Voting(ctx context.Context, startEpoch int, epochCount i
 	votingResponse := &Voting{}
 
 	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "candidateInfo") {
+		g.Go(func() error { return r.getCandidateList(votingResponse, startEpoch, epochCount) })
+	}
 	if containField(requestedFields, "votingMeta") {
 		g.Go(func() error { return r.getVotingMeta(votingResponse, startEpoch, epochCount) })
 	}
@@ -308,6 +314,35 @@ func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) 
 	return nil
 }
 
+func (r *queryResolver) getCandidateList(votingResponse *Voting, startEpoch int, epochCount int) error {
+	candidatesInfoMap, err := r.VP.GetCandidates(uint64(startEpoch), uint64(epochCount))
+	if err != nil {
+		return errors.Wrap(err, "failed to get candidate info")
+	}
+	candidateInfoLists := make([]*CandidateInfoList, 0)
+	for epoch, candidateList := range candidatesInfoMap {
+		candidateInfoByEpoch := &CandidateInfoList{
+			EpochNumber: int(epoch),
+		}
+		candidates := make([]*CandidateInfo, 0)
+		for _, cand := range candidateList {
+			candidates = append(candidates, &CandidateInfo{
+				Name:				cand.Name,
+				Address:			cand.Address,
+				TotalWeightedVotes:	cand.TotalWeightedVotes,
+				SelfStakingTokens:	cand.SelfStakingTokens,
+				OperatorAddress:	cand.OperatorAddress,
+				RewardAddress:		cand.RewardAddress,
+			})
+		}
+		candidateInfoByEpoch.Candidates = candidates
+		candidateInfoLists = append(candidateInfoLists, candidateInfoByEpoch)
+	}
+
+	votingResponse.CandidateInfo = candidateInfoLists
+	return nil 
+}
+
 func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, epochCount int) error {
 	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(uint64(startEpoch), uint64(epochCount))
 	switch {
@@ -329,6 +364,26 @@ func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, ep
 	votingResponse.VotingMeta = &VotingMeta{
 		Exist:         true,
 		CandidateMeta: candidateMetaList,
+	}
+	return nil
+}
+
+func (r *queryResolver) getCandidateMeta(chainResponse *Chain) error {
+	targetEpoch := uint64(chainResponse.MostRecentEpoch)
+	cl, numConsensusDelegates, err := r.VP.GetCandidateMeta(targetEpoch, 1)
+	if err != nil {
+		return errors.Wrap(err, "failed to get candidate metadata")
+	}
+	if len(cl) != 1 {
+		return errors.Wrap(err, "the output length should be 1")
+	}
+	candidateMeta := cl[0]
+	chainResponse.CandidateMeta = &CandidateMeta{
+		EpochNumber:        int(candidateMeta.EpochNumber),
+		TotalCandidates:    int(candidateMeta.NumberOfCandidates),
+		ConsensusDelegates: int(numConsensusDelegates),
+		TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
+		VotedTokens:        candidateMeta.VotedTokens,
 	}
 	return nil
 }
@@ -780,8 +835,10 @@ func (r *queryResolver) getBucketInfo(delegateResponse *Delegate, startEpoch int
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterEthAddress: bucket.VoterAddress,
-				WeightedVotes:   bucket.WeightedVotes,
+				VoterAddress: 		bucket.VoterAddress,
+				Votes:				bucket.Votes,
+				WeightedVotes:   	bucket.WeightedVotes,
+				RemainingDuration:  bucket.RemainingDuration,
 			})
 		}
 		bucketInfoList.BucketInfo = bucketInfo
