@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	selectVotingResultWithName 	= "SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
-	selectVotingResult 			= "SELECT delegate_name, staking_address, total_weighted_votes, self_staking, operator_address, reward_address FROM %s WHERE epoch_number = ?"
-	selectVotingMeta   			= "SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?"
-	selectDelegate     			= "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
-	selectOperator     			= "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
+	selectVotingResultWithName = "SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
+	selectVotingResult         = "SELECT delegate_name, staking_address, total_weighted_votes, self_staking, operator_address, reward_address FROM %s WHERE epoch_number = ?"
+	selectVotingMeta           = "SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?"
+	selectDelegate             = "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
+	selectOperator             = "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
 )
 
 // Protocol defines the protocol of querying tables
@@ -47,14 +47,14 @@ type StakingInfo struct {
 	SelfStaking  string
 }
 
-//CandidateInfo defines candidate info 
+//CandidateInfo defines candidate info
 type CandidateInfo struct {
-	Name  				string 
-	Address 			string 
-	TotalWeightedVotes 	string
-	SelfStakingTokens 	string
-	OperatorAddress 	string
-	RewardAddress 		string
+	Name               string
+	Address            string
+	TotalWeightedVotes string
+	SelfStakingTokens  string
+	OperatorAddress    string
+	RewardAddress      string
 }
 
 // NewProtocol creates a new protocol
@@ -172,7 +172,7 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 }
 
 //GetCandidates gets a list of candidate info
-func (p * Protocol) GetCandidates(startEpoch uint64, epochCount uint64) (map[uint64][]*CandidateInfo, error) {
+func (p *Protocol) GetCandidates(startEpoch uint64, epochCount uint64) (map[uint64][]*CandidateInfo, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("votings protocol is unregistered")
 	}
@@ -197,7 +197,7 @@ func (p * Protocol) GetCandidates(startEpoch uint64, epochCount uint64) (map[uin
 	return candidateInfoMap, nil
 }
 
-func (p *Protocol) GetCandidateInfoByEpoch(epochNumber uint64) ([]*CandidateInfo, error){
+func (p *Protocol) getCandidateInfoByEpoch(epochNumber uint64) ([]*CandidateInfo, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectVotingResult, votings.VotingResultTableName)
 

@@ -110,11 +110,11 @@ type (
 
 	// VotingInfo defines voting info
 	VotingInfo struct {
-		EpochNumber   	uint64
-		VoterAddress  	string
-		Votes         	string
-		WeightedVotes 	string
-		RemainingDuration 	string
+		EpochNumber       uint64
+		VoterAddress      string
+		Votes             string
+		WeightedVotes     string
+		RemainingDuration string
 	}
 
 	rawData struct {
@@ -361,7 +361,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to calculate ethereum staking")
 	}
-	bucketFlag := make([]bool, len(result.Votes())) // false stands for Ethereum 
+	bucketFlag := make([]bool, len(result.Votes())) // false stands for Ethereum
 	valueOfNativeBuckets, err := p.nativeBucketTableOperator.Get(height, p.Store.GetDB(), tx)
 	switch err {
 	case db.ErrNotExist:
@@ -408,11 +408,11 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 				mintTime = ethMintTime
 			}
 			votinginfo := &VotingInfo{
-				EpochNumber:   		epochNum,
-				VoterAddress:  		hex.EncodeToString(vote.Voter()),
-				Votes: 		   		vote.Amount().Text(10),
-				WeightedVotes: 		vote.WeightedAmount().Text(10),
-				RemainingDuration: 	vote.RemainingTime(mintTime).String(), // If this is native vote, the mintTime is different from the ethereum staking mint Time
+				EpochNumber:       epochNum,
+				VoterAddress:      hex.EncodeToString(vote.Voter()),
+				Votes:             vote.Amount().Text(10),
+				WeightedVotes:     vote.WeightedAmount().Text(10),
+				RemainingDuration: vote.RemainingTime(mintTime).String(),
 			}
 			votinginfoList = append(votinginfoList, votinginfo)
 		}
@@ -717,7 +717,7 @@ func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nati
 			// add up the votes
 			score.Add(score, weighted)
 		}
-		bucketFlag = append(bucketFlag, true)
+		bucketFlag = append(bucketFlag, true) // true stands for native staking buckets
 	}
 	// merge native buckets with delegates
 	// when we merge, for now since we assumed that there is no selfstaking, just recalculate delegates' score

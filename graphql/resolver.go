@@ -327,12 +327,12 @@ func (r *queryResolver) getCandidateList(votingResponse *Voting, startEpoch int,
 		candidates := make([]*CandidateInfo, 0)
 		for _, cand := range candidateList {
 			candidates = append(candidates, &CandidateInfo{
-				Name:				cand.Name,
-				Address:			cand.Address,
-				TotalWeightedVotes:	cand.TotalWeightedVotes,
-				SelfStakingTokens:	cand.SelfStakingTokens,
-				OperatorAddress:	cand.OperatorAddress,
-				RewardAddress:		cand.RewardAddress,
+				Name:               cand.Name,
+				Address:            cand.Address,
+				TotalWeightedVotes: cand.TotalWeightedVotes,
+				SelfStakingTokens:  cand.SelfStakingTokens,
+				OperatorAddress:    cand.OperatorAddress,
+				RewardAddress:      cand.RewardAddress,
 			})
 		}
 		candidateInfoByEpoch.Candidates = candidates
@@ -340,7 +340,7 @@ func (r *queryResolver) getCandidateList(votingResponse *Voting, startEpoch int,
 	}
 
 	votingResponse.CandidateInfo = candidateInfoLists
-	return nil 
+	return nil
 }
 
 func (r *queryResolver) getVotingMeta(votingResponse *Voting, startEpoch int, epochCount int) error {
@@ -833,10 +833,10 @@ func (r *queryResolver) getBucketInfo(delegateResponse *Delegate, startEpoch int
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterAddress: 		bucket.VoterAddress,
-				Votes:				bucket.Votes,
-				WeightedVotes:   	bucket.WeightedVotes,
-				RemainingDuration:  bucket.RemainingDuration,
+				VoterAddress:      bucket.VoterAddress,
+				Votes:             bucket.Votes,
+				WeightedVotes:     bucket.WeightedVotes,
+				RemainingDuration: bucket.RemainingDuration,
 			})
 		}
 		bucketInfoList.BucketInfo = bucketInfo
