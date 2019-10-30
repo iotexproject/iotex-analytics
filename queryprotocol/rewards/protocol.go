@@ -33,7 +33,7 @@ const (
 	selectVotingResult  = "SELECT epoch_number, total_weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
 	selectAccountReward = "SELECT epoch_number, epoch_reward, foundation_bonus FROM %s " +
 		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? "
-	selectAggregateVoting    = "SELECT epoch_number, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
+	selectAggregateVoting    = "SELECT epoch_number, candidate_name, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
 	selectAccountRewardIn    = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
 	selectVotingResultAll    = "SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND reward_address= ? "
 	selectAggregateVotingIn  = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
@@ -454,8 +454,8 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var votingHistory votings.VotingInfo
-	parsedRows, err := s.ParseSQLRows(rows, &votingHistory)
+	var aggregateVoting votings.AggregateVoting
+	parsedRows, err := s.ParseSQLRows(rows, &aggregateVoting)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
@@ -466,11 +466,11 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 
 	epochToVoters := make(map[uint64]map[string]*big.Int)
 	for _, parsedRow := range parsedRows {
-		voting := parsedRow.(*votings.VotingInfo)
+		voting := parsedRow.(*votings.AggregateVoting)
 		if _, ok := epochToVoters[voting.EpochNumber]; !ok {
 			epochToVoters[voting.EpochNumber] = make(map[string]*big.Int)
 		}
-		weightedVotesInt, errs := stringToBigInt(voting.WeightedVotes)
+		weightedVotesInt, errs := stringToBigInt(voting.AggregateVotes)
 		if errs != nil {
 			return nil, errors.Wrap(errs, "failed to convert to big int")
 
