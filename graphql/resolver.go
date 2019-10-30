@@ -916,9 +916,9 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					argsMap[arg.Name].Raw = value
 				}
 			case "Int":
-				valueJson, ok := val.Variables[arg.Name].(json.Number)
+				valueJSON, ok := val.Variables[arg.Name].(json.Number)
 				if ok {
-					value, err := valueJson.Int64()
+					value, err := valueJSON.Int64()
 					if err != nil {
 						return
 					}
