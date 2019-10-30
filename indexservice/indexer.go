@@ -9,16 +9,17 @@ package indexservice
 import (
 	"context"
 	"database/sql"
-	"github.com/iotexproject/iotex-analytics/epochctx"
 	"time"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"

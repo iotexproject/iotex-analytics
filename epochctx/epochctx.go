@@ -38,7 +38,7 @@ func NewEpochCtx(numCandidateDelegates, numDelegates, numSubEpochs uint64, opts 
 
 	for _, opt := range opts {
 		if err := opt(e); err != nil {
-			log.S().Panicf("Failed to execute epoch protocol creation option %p: %v", opt, err)
+			log.S().Panicf("Failed to execute epoch context creation option %p: %v", opt, err)
 		}
 	}
 	return e

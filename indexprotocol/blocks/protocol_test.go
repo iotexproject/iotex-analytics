@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/state"
@@ -21,7 +23,6 @@ import (
 	"github.com/iotexproject/iotex-election/pb/api"
 	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
-	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"

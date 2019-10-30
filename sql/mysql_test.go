@@ -7,8 +7,9 @@
 package sql
 
 import (
-	"github.com/iotexproject/iotex-analytics/testutil"
 	"testing"
+
+	"github.com/iotexproject/iotex-analytics/testutil"
 )
 
 const (
