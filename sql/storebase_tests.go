@@ -12,8 +12,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/stretchr/testify/require"
+
+	"github.com/iotexproject/go-pkgs/hash"
 )
 
 // ActionHistory define the schema for action history

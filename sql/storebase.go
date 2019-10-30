@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
+
 	// this is required for mysql usage
 	"github.com/iotexproject/iotex-core/pkg/lifecycle"
 )
