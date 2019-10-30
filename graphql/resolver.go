@@ -899,7 +899,8 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 	for _, arg := range arguments {
 		argsMap[arg.Name] = arg.Value
 	}
-	parseVariables(ctx, argsMap, arguments)
+	// TODO: Temporarily disable parsing variables
+	//parseVariables(ctx, argsMap, arguments)
 	return argsMap
 }
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
