@@ -92,7 +92,7 @@ type ComplexityRoot struct {
 	}
 
 	BucketInfoList struct {
-		BucketInfo  func(childComplexity int) int
+		BucketInfo  func(childComplexity int, pagination *Pagination) int
 		Count       func(childComplexity int) int
 		EpochNumber func(childComplexity int) int
 	}
@@ -129,7 +129,7 @@ type ComplexityRoot struct {
 		MostRecentEpoch       func(childComplexity int) int
 		MostRecentTps         func(childComplexity int, blockWindow int) int
 		NumberOfActions       func(childComplexity int, pagination *EpochRange) int
-		ResultMeta            func(childComplexity int) int
+		VotingResultMeta      func(childComplexity int) int
 	}
 
 	Delegate struct {
@@ -520,7 +520,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.BucketInfoList.BucketInfo(childComplexity), true
+		args, err := ec.field_BucketInfoList_bucketInfo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.BucketInfoList.BucketInfo(childComplexity, args["pagination"].(*Pagination)), true
 
 	case "BucketInfoList.Count":
 		if e.complexity.BucketInfoList.Count == nil {
@@ -679,12 +684,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Chain.NumberOfActions(childComplexity, args["pagination"].(*EpochRange)), true
 
-	case "Chain.ResultMeta":
-		if e.complexity.Chain.ResultMeta == nil {
+	case "Chain.VotingResultMeta":
+		if e.complexity.Chain.VotingResultMeta == nil {
 			break
 		}
 
-		return e.complexity.Chain.ResultMeta(childComplexity), true
+		return e.complexity.Chain.VotingResultMeta(childComplexity), true
 
 	case "Delegate.Bookkeeping":
 		if e.complexity.Delegate.Bookkeeping == nil {
@@ -1455,7 +1460,7 @@ type BucketInfoOutput {
 
 type BucketInfoList {
     epochNumber: Int!
-    bucketInfo: [BucketInfo]!
+    bucketInfo(pagination: Pagination): [BucketInfo]!
     count: Int!
 }
 
@@ -1473,7 +1478,7 @@ type DelegateAmount {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    resultMeta: VotingResultMeta
+    votingResultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
@@ -1489,6 +1494,7 @@ type VotingResultMeta {
     votedTokens: String!
 }
 
+#[TODO] combine candidateMeta with votingResultMeta
 type CandidateMeta{
     epochNumber: Int!
     totalCandidates: Int!
@@ -1616,6 +1622,20 @@ func (ec *executionContext) field_Action_byHash_args(ctx context.Context, rawArg
 }
 
 func (ec *executionContext) field_Bookkeeping_rewardDistribution_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_BucketInfoList_bucketInfo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 *Pagination
@@ -2744,6 +2764,13 @@ func (ec *executionContext) _BucketInfoList_bucketInfo(ctx context.Context, fiel
 		IsMethod: false,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_BucketInfoList_bucketInfo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
@@ -3247,7 +3274,7 @@ func (ec *executionContext) _Chain_mostRecentBlockHeight(ctx context.Context, fi
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Chain_resultMeta(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+func (ec *executionContext) _Chain_votingResultMeta(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -3260,7 +3287,7 @@ func (ec *executionContext) _Chain_resultMeta(ctx context.Context, field graphql
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ResultMeta, nil
+		return obj.VotingResultMeta, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -6674,8 +6701,8 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "resultMeta":
-			out.Values[i] = ec._Chain_resultMeta(ctx, field, obj)
+		case "votingResultMeta":
+			out.Values[i] = ec._Chain_votingResultMeta(ctx, field, obj)
 		case "mostRecentTPS":
 			out.Values[i] = ec._Chain_mostRecentTPS(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

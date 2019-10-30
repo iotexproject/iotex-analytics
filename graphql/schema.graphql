@@ -170,7 +170,7 @@ type BucketInfoOutput {
 
 type BucketInfoList {
     epochNumber: Int!
-    bucketInfo: [BucketInfo]!
+    bucketInfo(pagination: Pagination): [BucketInfo]!
     count: Int!
 }
 
@@ -188,7 +188,7 @@ type DelegateAmount {
 type Chain {
     mostRecentEpoch: Int!
     mostRecentBlockHeight: Int!
-    resultMeta: VotingResultMeta
+    votingResultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
 }
@@ -204,6 +204,7 @@ type VotingResultMeta {
     votedTokens: String!
 }
 
+#[TODO] combine candidateMeta with votingResultMeta
 type CandidateMeta{
     epochNumber: Int!
     totalCandidates: Int!

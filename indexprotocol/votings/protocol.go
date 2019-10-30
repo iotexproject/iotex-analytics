@@ -356,6 +356,7 @@ func (p *Protocol) calculateEthereumStaking(height uint64, tx *sql.Tx) (*types.E
 	return calculator.Calculate()
 }
 
+//[TODO] Wrap vote with flag which tells whether the bucket is from ethereum or native staking 
 func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []bool, []*types.Candidate, error) {
 	result, err := p.calculateEthereumStaking(height, tx)
 	if err != nil {
@@ -401,10 +402,8 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
-			var mintTime time.Time
-			if voteFlag[i] {
-				mintTime = nativeMintTime
-			} else {
+			mintTime := nativeMintTime
+			if !voteFlag[i] {
 				mintTime = ethMintTime
 			}
 			votinginfo := &VotingInfo{

@@ -129,7 +129,7 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	if containField(requestedFields, "resultMeta") {
+	if containField(requestedFields, "votingResultMeta") {
 		g.Go(func() error { return r.getVotingResultMeta(chainResponse) })
 	}
 	if containField(requestedFields, "mostRecentTPS") {
@@ -163,7 +163,7 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 		g.Go(func() error { return r.getBookkeeping(ctx, delegateResponse, startEpoch, epochCount, delegateName) })
 	}
 	if containField(requestedFields, "bucketInfo") {
-		g.Go(func() error { return r.getBucketInfo(delegateResponse, startEpoch, epochCount, delegateName) })
+		g.Go(func() error { return r.getBucketInfo(ctx, delegateResponse, startEpoch, epochCount, delegateName) })
 	}
 	if containField(requestedFields, "staking") {
 		g.Go(func() error { return r.getStaking(delegateResponse, startEpoch, epochCount, delegateName) })
@@ -378,7 +378,7 @@ func (r *queryResolver) getVotingResultMeta(chainResponse *Chain) error {
 		return errors.Wrap(err, "the output length should be 1")
 	}
 	candidateMeta := cl[0]
-	chainResponse.ResultMeta = &VotingResultMeta{
+	chainResponse.VotingResultMeta = &VotingResultMeta{
 		TotalCandidates:    int(candidateMeta.NumberOfCandidates),
 		TotalWeightedVotes: candidateMeta.TotalWeightedVotes,
 		VotedTokens:        candidateMeta.VotedTokens,
@@ -817,7 +817,8 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	return nil
 }
 
-func (r *queryResolver) getBucketInfo(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
+	argsMap := parseFieldArguments(ctx, "bucketInfo", "bucketInfoList")
 	bucketMap, err := r.VP.GetBucketInformation(uint64(startEpoch), uint64(epochCount), delegateName)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -839,7 +840,23 @@ func (r *queryResolver) getBucketInfo(delegateResponse *Delegate, startEpoch int
 				RemainingDuration: bucket.RemainingDuration,
 			})
 		}
-		bucketInfoList.BucketInfo = bucketInfo
+		paginationMap, err := getPaginationArgs(argsMap)
+		switch {
+		case err == ErrPaginationNotFound:
+			bucketInfoList.BucketInfo = bucketInfo
+		case err != nil:
+			return errors.Wrap(err, "failed to get pagination arguments for bucket info")
+		default:
+			skip := paginationMap["skip"]
+			first := paginationMap["first"]
+			if skip < 0 || skip >= len(bucketInfo) {
+				return errors.New("invalid pagination skip number for bucket info")
+			}
+			if len(bucketInfo)-skip < first {
+				first = len(bucketInfo) - skip
+			}
+			bucketInfoList.BucketInfo = bucketInfo[skip : skip+first]
+		}
 		bucketInfoLists = append(bucketInfoLists, bucketInfoList)
 	}
 	sort.Slice(bucketInfoLists, func(i, j int) bool { return bucketInfoLists[i].EpochNumber < bucketInfoLists[j].EpochNumber })
