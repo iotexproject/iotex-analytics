@@ -379,7 +379,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
-	height := indexprotocol.GetEpochHeight(epochNum, p.NumDelegates, p.NumSubEpochs)
+	height := p.epochCtx.GetEpochHeight(epochNum)
 	votes, voteFlag, _, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err

@@ -188,7 +188,7 @@ func (p *Protocol) GetCandidates(startEpoch uint64, epochCount uint64) (map[uint
 
 	candidateInfoMap := make(map[uint64][]*CandidateInfo)
 	for i := startEpoch; i <= endEpoch; i++ {
-		voteInfoList, err := p.GetCandidateInfoByEpoch(i)
+		voteInfoList, err := p.getCandidateInfoByEpoch(i)
 		if err != nil {
 			return nil, err
 		}
