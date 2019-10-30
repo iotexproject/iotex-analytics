@@ -47,8 +47,10 @@ type Bookkeeping struct {
 }
 
 type BucketInfo struct {
-	VoterEthAddress string `json:"voterEthAddress"`
-	WeightedVotes   string `json:"weightedVotes"`
+	VoterAddress      string `json:"voterAddress"`
+	Votes             string `json:"votes"`
+	WeightedVotes     string `json:"weightedVotes"`
+	RemainingDuration string `json:"remainingDuration"`
 }
 
 type BucketInfoList struct {
@@ -62,6 +64,20 @@ type BucketInfoOutput struct {
 	BucketInfoList []*BucketInfoList `json:"bucketInfoList"`
 }
 
+type CandidateInfo struct {
+	Name               string `json:"name"`
+	Address            string `json:"address"`
+	TotalWeightedVotes string `json:"totalWeightedVotes"`
+	SelfStakingTokens  string `json:"selfStakingTokens"`
+	OperatorAddress    string `json:"operatorAddress"`
+	RewardAddress      string `json:"rewardAddress"`
+}
+
+type CandidateInfoList struct {
+	EpochNumber int              `json:"epochNumber"`
+	Candidates  []*CandidateInfo `json:"candidates"`
+}
+
 type CandidateMeta struct {
 	EpochNumber        int    `json:"epochNumber"`
 	TotalCandidates    int    `json:"totalCandidates"`
@@ -71,10 +87,11 @@ type CandidateMeta struct {
 }
 
 type Chain struct {
-	MostRecentEpoch       int              `json:"mostRecentEpoch"`
-	MostRecentBlockHeight int              `json:"mostRecentBlockHeight"`
-	MostRecentTps         float64          `json:"mostRecentTPS"`
-	NumberOfActions       *NumberOfActions `json:"numberOfActions"`
+	MostRecentEpoch       int               `json:"mostRecentEpoch"`
+	MostRecentBlockHeight int               `json:"mostRecentBlockHeight"`
+	VotingResultMeta      *VotingResultMeta `json:"votingResultMeta"`
+	MostRecentTps         float64           `json:"mostRecentTPS"`
+	NumberOfActions       *NumberOfActions  `json:"numberOfActions"`
 }
 
 type Delegate struct {
@@ -171,13 +188,20 @@ type TopHolder struct {
 }
 
 type Voting struct {
-	VotingMeta    *VotingMeta    `json:"votingMeta"`
-	RewardSources *RewardSources `json:"rewardSources"`
+	CandidateInfo []*CandidateInfoList `json:"candidateInfo"`
+	VotingMeta    *VotingMeta          `json:"votingMeta"`
+	RewardSources *RewardSources       `json:"rewardSources"`
 }
 
 type VotingMeta struct {
 	Exist         bool             `json:"exist"`
 	CandidateMeta []*CandidateMeta `json:"candidateMeta"`
+}
+
+type VotingResultMeta struct {
+	TotalCandidates    int    `json:"totalCandidates"`
+	TotalWeightedVotes string `json:"totalWeightedVotes"`
+	VotedTokens        string `json:"votedTokens"`
 }
 
 type Xrc20 struct {

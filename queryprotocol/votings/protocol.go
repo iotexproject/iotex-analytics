@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	selectVotingResult = "SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
-	selectVotingMeta   = "SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?"
-	selectDelegate     = "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
-	selectOperator     = "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
+	selectVotingResultWithName = "SELECT epoch_number,total_weighted_votes,self_staking FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
+	selectVotingResult         = "SELECT delegate_name, staking_address, total_weighted_votes, self_staking, operator_address, reward_address FROM %s WHERE epoch_number = ?"
+	selectVotingMeta           = "SELECT * FROM %s where epoch_number >= ? AND epoch_number <= ?"
+	selectDelegate             = "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
+	selectOperator             = "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
 )
 
 // Protocol defines the protocol of querying tables
@@ -44,6 +45,16 @@ type StakingInfo struct {
 	EpochNumber  uint64
 	TotalStaking string
 	SelfStaking  string
+}
+
+//CandidateInfo defines candidate info
+type CandidateInfo struct {
+	Name               string
+	Address            string
+	TotalWeightedVotes string
+	SelfStakingTokens  string
+	OperatorAddress    string
+	RewardAddress      string
 }
 
 // NewProtocol creates a new protocol
@@ -125,7 +136,6 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*CandidateMeta, uint64, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, 0, errors.New("votings protocol is unregistered")
-
 	}
 	db := p.indexer.Store.GetDB()
 
@@ -159,6 +169,63 @@ func (p *Protocol) GetCandidateMeta(startEpoch uint64, epochCount uint64) ([]*Ca
 		candidateMetaList = append(candidateMetaList, candidateMeta)
 	}
 	return candidateMetaList, p.indexer.Config.NumCandidateDelegates, nil
+}
+
+//GetCandidates gets a list of candidate info
+func (p *Protocol) GetCandidates(startEpoch uint64, epochCount uint64) (map[uint64][]*CandidateInfo, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("votings protocol is unregistered")
+	}
+
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		return nil, errors.New("failed to get most recent epoch")
+	}
+	endEpoch := startEpoch + epochCount - 1
+	if endEpoch > currentEpoch {
+		endEpoch = currentEpoch
+	}
+
+	candidateInfoMap := make(map[uint64][]*CandidateInfo)
+	for i := startEpoch; i <= endEpoch; i++ {
+		voteInfoList, err := p.getCandidateInfoByEpoch(i)
+		if err != nil {
+			return nil, err
+		}
+		candidateInfoMap[i] = voteInfoList
+	}
+	return candidateInfoMap, nil
+}
+
+func (p *Protocol) getCandidateInfoByEpoch(epochNumber uint64) ([]*CandidateInfo, error) {
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectVotingResult, votings.VotingResultTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(epochNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var candidateInfo CandidateInfo
+	parsedRows, err := s.ParseSQLRows(rows, &candidateInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		return nil, indexprotocol.ErrNotExist
+	}
+	candidateInfoList := make([]*CandidateInfo, 0)
+	for _, parsedRow := range parsedRows {
+		candidateInfo := parsedRow.(*CandidateInfo)
+		candidateInfoList = append(candidateInfoList, candidateInfo)
+	}
+	return candidateInfoList, nil
 }
 
 //GetAlias gets operator name
