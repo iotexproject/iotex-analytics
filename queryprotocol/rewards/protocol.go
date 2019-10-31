@@ -46,6 +46,13 @@ type Protocol struct {
 	indexer *indexservice.Indexer
 }
 
+// VotingInfo defines voting info
+type VotingInfo struct {
+	EpochNumber   uint64
+	VoterAddress  string
+	WeightedVotes string
+}
+
 // RewardDistribution defines reward distribute info
 type RewardDistribution struct {
 	VoterEthAddress   string
@@ -456,6 +463,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 
 	var aggregateVoting votings.AggregateVoting
 	parsedRows, err := s.ParseSQLRows(rows, &aggregateVoting)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
@@ -467,6 +475,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 	epochToVoters := make(map[uint64]map[string]*big.Int)
 	for _, parsedRow := range parsedRows {
 		voting := parsedRow.(*votings.AggregateVoting)
+
 		if _, ok := epochToVoters[voting.EpochNumber]; !ok {
 			epochToVoters[voting.EpochNumber] = make(map[string]*big.Int)
 		}
