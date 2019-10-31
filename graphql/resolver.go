@@ -16,9 +16,12 @@ import (
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/ast"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/iotexproject/iotex-address/address"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
@@ -203,14 +206,18 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	for _, ret := range hermes {
 		rds := make([]*RewardDistribution, 0)
 		for _, distribution := range ret.Distributions {
+			voterEthAddress, err := ioAddrToEvmAddr(distribution.VoterIotexAddress)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to convert iotex address to eth address")
+			}
 			v := &RewardDistribution{
-				VoterEthAddress:   HexPrefix + distribution.VoterEthAddress,
 				VoterIotexAddress: distribution.VoterIotexAddress,
+				VoterEthAddress:   voterEthAddress,
 				Amount:            distribution.Amount,
 			}
 			rds = append(rds, v)
 		}
-		sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
+		sort.Slice(rds, func(i, j int) bool { return rds[i].VoterIotexAddress < rds[j].VoterIotexAddress })
 
 		aliasString, err := DecodeDelegateName(ret.DelegateName)
 		if err != nil {
@@ -785,15 +792,19 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 
 	rds := make([]*RewardDistribution, 0)
 	for _, ret := range rets {
+		voterEthAddress, err := ioAddrToEvmAddr(ret.VoterIotexAddress)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert iotex address to eth address")
+		}
 		v := &RewardDistribution{
-			VoterEthAddress:   HexPrefix + ret.VoterEthAddress,
 			VoterIotexAddress: ret.VoterIotexAddress,
+			VoterEthAddress:   voterEthAddress,
 			Amount:            ret.Amount,
 		}
 		rds = append(rds, v)
 	}
 
-	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
+	sort.Slice(rds, func(i, j int) bool { return rds[i].VoterIotexAddress < rds[j].VoterIotexAddress })
 
 	bookkeepingOutput := &Bookkeeping{Exist: true, Count: len(rds)}
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -833,11 +844,16 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		bucketInfoList := &BucketInfoList{EpochNumber: int(epoch), Count: len(bucketList)}
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
+			voterEthAddress, err := ioAddrToEvmAddr(bucket.VoterAddress)
+			if err != nil {
+				return errors.Wrap(err, "failed to convert iotex address to eth address")
+			}
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterIotexAddress:      bucket.VoterAddress,
-				Votes:             		bucket.Votes,
-				WeightedVotes:     		bucket.WeightedVotes,
-				RemainingDuration: 		bucket.RemainingDuration,
+				VoterIotexAddress: bucket.VoterAddress,
+				VoterEthAddress:   voterEthAddress,
+				Votes:             bucket.Votes,
+				WeightedVotes:     bucket.WeightedVotes,
+				RemainingDuration: bucket.RemainingDuration,
 			})
 		}
 		paginationMap, err := getPaginationArgs(argsMap)
@@ -977,4 +993,13 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 		paginationMap[childValue.Name] = intVal
 	}
 	return paginationMap, nil
+}
+
+// ioAddrToEvmAddr converts IoTeX address into evm hex address
+func ioAddrToEvmAddr(ioAddr string) (string, error) {
+	address, err := address.FromString(ioAddr)
+	if err != nil {
+		return "", err
+	}
+	return common.BytesToAddress(address.Bytes()).String(), nil
 }
