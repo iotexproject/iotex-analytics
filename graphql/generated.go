@@ -92,13 +92,13 @@ type ComplexityRoot struct {
 	}
 
 	BucketInfoList struct {
-		BucketInfo  func(childComplexity int, pagination *Pagination) int
+		BucketInfo  func(childComplexity int) int
 		Count       func(childComplexity int) int
 		EpochNumber func(childComplexity int) int
 	}
 
 	BucketInfoOutput struct {
-		BucketInfoList func(childComplexity int) int
+		BucketInfoList func(childComplexity int, pagination *Pagination) int
 		Exist          func(childComplexity int) int
 	}
 
@@ -520,12 +520,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_BucketInfoList_bucketInfo_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.BucketInfoList.BucketInfo(childComplexity, args["pagination"].(*Pagination)), true
+		return e.complexity.BucketInfoList.BucketInfo(childComplexity), true
 
 	case "BucketInfoList.Count":
 		if e.complexity.BucketInfoList.Count == nil {
@@ -546,7 +541,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.BucketInfoOutput.BucketInfoList(childComplexity), true
+		args, err := ec.field_BucketInfoOutput_bucketInfoList_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.BucketInfoOutput.BucketInfoList(childComplexity, args["pagination"].(*Pagination)), true
 
 	case "BucketInfoOutput.Exist":
 		if e.complexity.BucketInfoOutput.Exist == nil {
@@ -1455,12 +1455,12 @@ type Bookkeeping {
 
 type BucketInfoOutput {
     exist: Boolean!
-    bucketInfoList: [BucketInfoList]!
+    bucketInfoList(pagination: Pagination): [BucketInfoList]!
 }
 
 type BucketInfoList {
     epochNumber: Int!
-    bucketInfo(pagination: Pagination): [BucketInfo]!
+    bucketInfo: [BucketInfo]!
     count: Int!
 }
 
@@ -1635,7 +1635,7 @@ func (ec *executionContext) field_Bookkeeping_rewardDistribution_args(ctx contex
 	return args, nil
 }
 
-func (ec *executionContext) field_BucketInfoList_bucketInfo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_BucketInfoOutput_bucketInfoList_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 *Pagination
@@ -2764,13 +2764,6 @@ func (ec *executionContext) _BucketInfoList_bucketInfo(ctx context.Context, fiel
 		IsMethod: false,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_BucketInfoList_bucketInfo_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
@@ -2852,6 +2845,13 @@ func (ec *executionContext) _BucketInfoOutput_bucketInfoList(ctx context.Context
 		IsMethod: false,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_BucketInfoOutput_bucketInfoList_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children

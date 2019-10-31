@@ -165,12 +165,12 @@ type Bookkeeping {
 
 type BucketInfoOutput {
     exist: Boolean!
-    bucketInfoList: [BucketInfoList]!
+    bucketInfoList(pagination: Pagination): [BucketInfoList]!
 }
 
 type BucketInfoList {
     epochNumber: Int!
-    bucketInfo(pagination: Pagination): [BucketInfo]!
+    bucketInfo: [BucketInfo]!
     count: Int!
 }
 
