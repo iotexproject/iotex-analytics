@@ -834,10 +834,10 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterAddress:      bucket.VoterAddress,
-				Votes:             bucket.Votes,
-				WeightedVotes:     bucket.WeightedVotes,
-				RemainingDuration: bucket.RemainingDuration,
+				VoterIotexAddress:      bucket.VoterAddress,
+				Votes:             		bucket.Votes,
+				WeightedVotes:     		bucket.WeightedVotes,
+				RemainingDuration: 		bucket.RemainingDuration,
 			})
 		}
 		paginationMap, err := getPaginationArgs(argsMap)

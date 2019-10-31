@@ -686,14 +686,8 @@ func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[stri
 func convertVoterDistributionMapToList(voterAddrToReward map[string]*big.Int) ([]*RewardDistribution, error) {
 	rewardDistribution := make([]*RewardDistribution, 0)
 	for voterAddr, rewardAmount := range voterAddrToReward {
-		ethAddress := common.HexToAddress(voterAddr)
-		ioAddress, err := address.FromBytes(ethAddress.Bytes())
-		if err != nil {
-			return nil, errors.New("failed to form IoTeX address from ETH address")
-		}
 		rewardDistribution = append(rewardDistribution, &RewardDistribution{
-			VoterEthAddress:   voterAddr,
-			VoterIotexAddress: ioAddress.String(),
+			VoterIotexAddress: voterAddr,
 			Amount:            rewardAmount.String(),
 		})
 	}
