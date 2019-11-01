@@ -2,7 +2,7 @@ numDelegates: 24
 numCandidateDelegates: 36
 numSubEpochs: 15
 numSubEpochsDardanelles: 30
-dardanellesHeight: 1816201
+dardanellesHeight: 100081
 dardanellesOn: true
 fairbankHeight: 5165641
 consensusScheme: "ROLLDPOS"
