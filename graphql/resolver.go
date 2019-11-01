@@ -212,7 +212,7 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 			}
 			v := &RewardDistribution{
 				VoterIotexAddress: distribution.VoterIotexAddress,
-				VoterEthAddress:   voterEthAddress,
+				VoterEthAddress:   HexPrefix + voterEthAddress,
 				Amount:            distribution.Amount,
 			}
 			rds = append(rds, v)
@@ -798,7 +798,7 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 		}
 		v := &RewardDistribution{
 			VoterIotexAddress: ret.VoterIotexAddress,
-			VoterEthAddress:   voterEthAddress,
+			VoterEthAddress:   HexPrefix + voterEthAddress,
 			Amount:            ret.Amount,
 		}
 		rds = append(rds, v)
