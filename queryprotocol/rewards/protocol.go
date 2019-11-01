@@ -682,20 +682,42 @@ func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[stri
 	return parseDistributionPlanFromVotingResult(rows)
 }
 
+// ioAddrToEvmAddr converts IoTeX address into evm hex address
+func ioAddrToEvmAddr(ioAddr string) (string, error) {
+	address, err := address.FromString(ioAddr)
+	if err != nil {
+		return "", err
+	}
+	return common.BytesToAddress(address.Bytes()).String(), nil
+}
+
 // convertVoterDistributionMapToList converts voter reward distribution map to list
 func convertVoterDistributionMapToList(voterAddrToReward map[string]*big.Int) ([]*RewardDistribution, error) {
 	rewardDistribution := make([]*RewardDistribution, 0)
 	for voterAddr, rewardAmount := range voterAddrToReward {
-		ethAddress := common.HexToAddress(voterAddr)
-		ioAddress, err := address.FromBytes(ethAddress.Bytes())
-		if err != nil {
-			return nil, errors.New("failed to form IoTeX address from ETH address")
+		if !common.IsHexAddress(voterAddr) {
+			// if it is native staking 
+			ethAddress, err := ioAddrToEvmAddr(voterAddr)
+			if err != nil {
+				return nil, err
+			}
+			rewardDistribution = append(rewardDistribution, &RewardDistribution{
+				VoterEthAddress:   ethAddress,
+				VoterIotexAddress: voterAddr,
+				Amount:            rewardAmount.String(),
+			})
+		} else {
+			ethAddress := common.HexToAddress(voterAddr)
+			ioAddress, err := address.FromBytes(ethAddress.Bytes())
+			if err != nil {
+				return nil, errors.New("failed to form IoTeX address from ETH address")
+			}
+			rewardDistribution = append(rewardDistribution, &RewardDistribution{
+				VoterEthAddress:   voterAddr,
+				VoterIotexAddress: ioAddress.String(),
+				Amount:            rewardAmount.String(),
+			})
 		}
-		rewardDistribution = append(rewardDistribution, &RewardDistribution{
-			VoterEthAddress:   voterAddr,
-			VoterIotexAddress: ioAddress.String(),
-			Amount:            rewardAmount.String(),
-		})
 	}
 	return rewardDistribution, nil
 }
