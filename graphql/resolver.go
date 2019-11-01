@@ -206,13 +206,22 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	for _, ret := range hermes {
 		rds := make([]*RewardDistribution, 0)
 		for _, distribution := range ret.Distributions {
-			voterEthAddress, err := ioAddrToEvmAddr(distribution.VoterIotexAddress)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to convert iotex address to eth address")
+			var ethAddr, iotexAddr string
+			var err error
+			if common.IsHexAddress(distribution.VoterIotexAddress) {
+				ethAddr = distribution.VoterIotexAddress
+				if iotexAddr, err = evmAddrToioAddr(distribution.VoterIotexAddress); err != nil {
+					return nil, errors.Wrap(err, "failed to convert eth address to iotex address")
+				}
+			} else {
+				iotexAddr = distribution.VoterIotexAddress
+				if ethAddr, err = ioAddrToEvmAddr(distribution.VoterIotexAddress); err != nil {
+					return nil, errors.Wrap(err, "failed to convert iotex address to eth address")
+				}
 			}
 			v := &RewardDistribution{
-				VoterIotexAddress: distribution.VoterIotexAddress,
-				VoterEthAddress:   voterEthAddress,
+				VoterIotexAddress: iotexAddr,
+				VoterEthAddress:   ethAddr,
 				Amount:            distribution.Amount,
 			}
 			rds = append(rds, v)
@@ -792,13 +801,22 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 
 	rds := make([]*RewardDistribution, 0)
 	for _, ret := range rets {
-		voterEthAddress, err := ioAddrToEvmAddr(ret.VoterIotexAddress)
-		if err != nil {
-			return errors.Wrap(err, "failed to convert iotex address to eth address")
+		var ethAddr, iotexAddr string
+		var err error
+		if common.IsHexAddress(ret.VoterIotexAddress) {
+			ethAddr = ret.VoterIotexAddress
+			if iotexAddr, err = evmAddrToioAddr(ret.VoterIotexAddress); err != nil {
+				return errors.Wrap(err, "failed to convert eth address to iotex address")
+			}
+		} else {
+			iotexAddr = ret.VoterIotexAddress
+			if ethAddr, err = ioAddrToEvmAddr(ret.VoterIotexAddress); err != nil {
+				return errors.Wrap(err, "failed to convert iotex address to eth address")
+			}
 		}
 		v := &RewardDistribution{
-			VoterIotexAddress: ret.VoterIotexAddress,
-			VoterEthAddress:   voterEthAddress,
+			VoterIotexAddress: iotexAddr,
+			VoterEthAddress:   ethAddr,
 			Amount:            ret.Amount,
 		}
 		rds = append(rds, v)
@@ -844,13 +862,23 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		bucketInfoList := &BucketInfoList{EpochNumber: int(epoch), Count: len(bucketList)}
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
-			voterEthAddress, err := ioAddrToEvmAddr(bucket.VoterAddress)
-			if err != nil {
-				return errors.Wrap(err, "failed to convert iotex address to eth address")
+			// check whether it is already EthAddress
+			var iotexAddr, ethAddr string
+			var err error
+			if common.IsHexAddress(bucket.VoterAddress) {
+				ethAddr = bucket.VoterAddress
+				if iotexAddr, err = evmAddrToioAddr(bucket.VoterAddress); err != nil {
+					return errors.Wrap(err, "failed to convert eth address to iotex address")
+				}
+			} else {
+				iotexAddr = bucket.VoterAddress
+				if ethAddr, err = ioAddrToEvmAddr(bucket.VoterAddress); err != nil {
+					return errors.Wrap(err, "failed to convert iotex address to eth address")
+				}
 			}
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterIotexAddress: bucket.VoterAddress,
-				VoterEthAddress:   voterEthAddress,
+				VoterIotexAddress: iotexAddr,
+				VoterEthAddress:   ethAddr,
 				Votes:             bucket.Votes,
 				WeightedVotes:     bucket.WeightedVotes,
 				RemainingDuration: bucket.RemainingDuration,
@@ -993,6 +1021,16 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 		paginationMap[childValue.Name] = intVal
 	}
 	return paginationMap, nil
+}
+
+// evmAddrToioAddr converts evm hex address into iotex address
+func evmAddrToioAddr(ethAddr string) (string, error) {
+	ethAddress := common.HexToAddress(ethAddr)
+	ioAddress, err := address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return ioAddress.String(), nil
 }
 
 // ioAddrToEvmAddr converts IoTeX address into evm hex address
