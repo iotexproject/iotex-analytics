@@ -32,7 +32,9 @@ const (
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE timestamp >= ? AND timestamp <= ?"
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
-	selectBalanceHistory       = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
+	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ?"
+	selectEvmTransferHistory   = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
@@ -171,7 +173,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 
 	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
 
-	getQuery = fmt.Sprintf(selectBalanceHistory, accounts.BalanceHistoryTableName)
+	getQuery = fmt.Sprintf(selectEvmTransferHistory, accounts.BalanceHistoryTableName)
 
 	stmt, err = db.Prepare(getQuery)
 	if err != nil {
@@ -197,6 +199,80 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 	}
 
 	return actionDetail, nil
+}
+
+// GetActionsByAddress gets action detail information list by action address
+func (p *Protocol) GetActionsByAddress(address string, withEvmTransfer bool) ([]*ActionDetail, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
+		return nil, errors.New("accounts protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf(selectActionHistoryByAddress, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &ActionInfo{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	actionDetailList := make([]*ActionDetail, 0)
+	for _, parsedRow := range parsedRows {
+		actionDetail := &ActionDetail{ActionInfo: parsedRow.(*ActionInfo)}
+		actionDetailList = append(actionDetailList, actionDetail)
+	}
+
+	if withEvmTransfer {
+		getQuery = fmt.Sprintf(selectEvmTransferHistory, accounts.BalanceHistoryTableName)
+
+		stmt, err = db.Prepare(getQuery)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to prepare get query")
+		}
+
+		for _, actionDetail := range actionDetailList {
+			rows, err = stmt.Query(actionDetail.ActionInfo.ActHash)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to execute get query")
+			}
+
+			parsedRows, err = s.ParseSQLRows(rows, &EvmTransfer{})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse results")
+			}
+
+			for _, parsedRow := range parsedRows {
+				actionDetail.EvmTransfers = append(actionDetail.EvmTransfers, parsedRow.(*EvmTransfer))
+			}
+		}
+
+		if err := stmt.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to close stmt")
+		}
+	}
+
+	return actionDetailList, nil
 }
 
 // GetActiveAccount gets active account address

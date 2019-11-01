@@ -47,13 +47,20 @@ type ComplexityRoot struct {
 	}
 
 	Action struct {
-		ByDates func(childComplexity int, startDate int, endDate int) int
-		ByHash  func(childComplexity int, actHash string) int
+		ByAddress func(childComplexity int, adress string, withEvmTransfer bool) int
+		ByDates   func(childComplexity int, startDate int, endDate int) int
+		ByHash    func(childComplexity int, actHash string) int
 	}
 
 	ActionDetail struct {
 		ActionInfo   func(childComplexity int) int
 		EvmTransfers func(childComplexity int) int
+	}
+
+	ActionDetailList struct {
+		Actions func(childComplexity int, pagination *Pagination) int
+		Count   func(childComplexity int) int
+		Exist   func(childComplexity int) int
 	}
 
 	ActionInfo struct {
@@ -327,6 +334,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Account.OperatorAddress(childComplexity, args["aliasName"].(string)), true
 
+	case "Action.ByAddress":
+		if e.complexity.Action.ByAddress == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byAddress_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByAddress(childComplexity, args["adress"].(string), args["withEvmTransfer"].(bool)), true
+
 	case "Action.ByDates":
 		if e.complexity.Action.ByDates == nil {
 			break
@@ -364,6 +383,32 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ActionDetail.EvmTransfers(childComplexity), true
+
+	case "ActionDetailList.Actions":
+		if e.complexity.ActionDetailList.Actions == nil {
+			break
+		}
+
+		args, err := ec.field_ActionDetailList_actions_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.ActionDetailList.Actions(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "ActionDetailList.Count":
+		if e.complexity.ActionDetailList.Count == nil {
+			break
+		}
+
+		return e.complexity.ActionDetailList.Count(childComplexity), true
+
+	case "ActionDetailList.Exist":
+		if e.complexity.ActionDetailList.Exist == nil {
+			break
+		}
+
+		return e.complexity.ActionDetailList.Exist(childComplexity), true
 
 	case "ActionInfo.ActHash":
 		if e.complexity.ActionInfo.ActHash == nil {
@@ -1328,6 +1373,7 @@ type Account {
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
+    byAddress(adress: String!, withEvmTransfer: Boolean!): ActionDetailList
 }
 
 type Delegate {
@@ -1503,6 +1549,12 @@ type CandidateMeta{
     votedTokens: String!
 }
 
+type ActionDetailList{
+    exist: Boolean!
+    actions(pagination: Pagination): [ActionDetail]!
+    count: Int!
+}
+
 type ActionDetail{
     actionInfo: ActionInfo
     evmTransfers: [EvmTransfer]!
@@ -1571,6 +1623,20 @@ func (ec *executionContext) field_Account_operatorAddress_args(ctx context.Conte
 	return args, nil
 }
 
+func (ec *executionContext) field_ActionDetailList_actions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_ActionList_actions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1582,6 +1648,28 @@ func (ec *executionContext) field_ActionList_actions_args(ctx context.Context, r
 		}
 	}
 	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Action_byAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["adress"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["adress"] = arg0
+	var arg1 bool
+	if tmp, ok := rawArgs["withEvmTransfer"]; ok {
+		arg1, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["withEvmTransfer"] = arg1
 	return args, nil
 }
 
@@ -2122,6 +2210,37 @@ func (ec *executionContext) _Action_byHash(ctx context.Context, field graphql.Co
 	return ec.marshalOActionDetail2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Action_byAddress(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byAddress_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByAddress, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionDetailList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionDetailList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetailList(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _ActionDetail_actionInfo(ctx context.Context, field graphql.CollectedField, obj *ActionDetail) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -2171,6 +2290,94 @@ func (ec *executionContext) _ActionDetail_evmTransfers(ctx context.Context, fiel
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNEvmTransfer2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionDetailList_exist(ctx context.Context, field graphql.CollectedField, obj *ActionDetailList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionDetailList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionDetailList_actions(ctx context.Context, field graphql.CollectedField, obj *ActionDetailList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionDetailList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_ActionDetailList_actions_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Actions, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*ActionDetail)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNActionDetail2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ActionDetailList_count(ctx context.Context, field graphql.CollectedField, obj *ActionDetailList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ActionDetailList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ActionInfo_actHash(ctx context.Context, field graphql.CollectedField, obj *ActionInfo) graphql.Marshaler {
@@ -6230,6 +6437,8 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Action_byDates(ctx, field, obj)
 		case "byHash":
 			out.Values[i] = ec._Action_byHash(ctx, field, obj)
+		case "byAddress":
+			out.Values[i] = ec._Action_byAddress(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6256,6 +6465,43 @@ func (ec *executionContext) _ActionDetail(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._ActionDetail_actionInfo(ctx, field, obj)
 		case "evmTransfers":
 			out.Values[i] = ec._ActionDetail_evmTransfers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var actionDetailListImplementors = []string{"ActionDetailList"}
+
+func (ec *executionContext) _ActionDetailList(ctx context.Context, sel ast.SelectionSet, obj *ActionDetailList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, actionDetailListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActionDetailList")
+		case "exist":
+			out.Values[i] = ec._ActionDetailList_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "actions":
+			out.Values[i] = ec._ActionDetailList_actions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._ActionDetailList_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -7802,6 +8048,43 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNActionDetail2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx context.Context, sel ast.SelectionSet, v []*ActionDetail) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOActionDetail2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetail(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNActionInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx context.Context, sel ast.SelectionSet, v []*ActionInfo) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -8560,6 +8843,17 @@ func (ec *executionContext) marshalOActionDetail2ᚖgithubᚗcomᚋiotexproject�
 		return graphql.Null
 	}
 	return ec._ActionDetail(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOActionDetailList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetailList(ctx context.Context, sel ast.SelectionSet, v ActionDetailList) graphql.Marshaler {
+	return ec._ActionDetailList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOActionDetailList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionDetailList(ctx context.Context, sel ast.SelectionSet, v *ActionDetailList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ActionDetailList(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOActionInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionInfo(ctx context.Context, sel ast.SelectionSet, v ActionInfo) graphql.Marshaler {
