@@ -152,7 +152,8 @@ type Productivity {
 }
 
 type BucketInfo {
-    voterAddress: String!   
+    voterIotexAddress: String!
+    voterEthAddress: String!
     votes: String!
     weightedVotes: String!
     remainingDuration: String! 
@@ -176,8 +177,8 @@ type BucketInfoList {
 }
 
 type RewardDistribution {
-    voterEthAddress: String!
     voterIotexAddress: String!
+    voterEthAddress: String!
     amount: String!
 }
 

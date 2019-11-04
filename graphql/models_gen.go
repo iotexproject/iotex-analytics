@@ -54,7 +54,8 @@ type Bookkeeping struct {
 }
 
 type BucketInfo struct {
-	VoterAddress      string `json:"voterAddress"`
+	VoterIotexAddress string `json:"voterIotexAddress"`
+	VoterEthAddress   string `json:"voterEthAddress"`
 	Votes             string `json:"votes"`
 	WeightedVotes     string `json:"weightedVotes"`
 	RemainingDuration string `json:"remainingDuration"`
@@ -168,8 +169,8 @@ type Reward struct {
 }
 
 type RewardDistribution struct {
-	VoterEthAddress   string `json:"voterEthAddress"`
 	VoterIotexAddress string `json:"voterIotexAddress"`
+	VoterEthAddress   string `json:"voterEthAddress"`
 	Amount            string `json:"amount"`
 }
 
