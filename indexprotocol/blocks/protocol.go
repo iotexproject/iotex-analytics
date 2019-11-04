@@ -73,6 +73,8 @@ const (
 	insertProductivity = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, " +
 		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name"
+	backoffInterval = 1
+	numOfRetry      = 1000
 )
 
 type (
@@ -323,6 +325,8 @@ func (p *Protocol) updateDelegates(
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(height)},
 	}
+	retryInterval := time.Duration(backoffInterval) * time.Minute
+	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
 	nerr := backoff.Retry(func() error {
 		readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 		if err != nil {
@@ -334,7 +338,7 @@ func (p *Protocol) updateDelegates(
 			return errors.New("waiting for fetching next timestamp in election service")
 		}
 		return nil
-	}, backoff.NewExponentialBackOff())
+	}, bo)
 	if nerr != nil {
 		return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
 	}
