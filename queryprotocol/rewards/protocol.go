@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-core/ioctl/util"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
@@ -54,6 +55,7 @@ type VotingInfo struct {
 
 // RewardDistribution defines reward distribute info
 type RewardDistribution struct {
+	VoterEthAddress   string
 	VoterIotexAddress string
 	Amount            string
 }
@@ -287,9 +289,14 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 
 // GetRewardSources gets reward sources given a voter's IoTeX address
 func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateAmount, error) {
+	voterEthAddress, err := util.IoAddrToEvmAddr(voterIotexAddress)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
+	}
+	hexAddress := voterEthAddress.String()
 	endEpoch := startEpoch + epochCount - 1
 
-	weightedVotesMap, err := p.weightedVotesByVoterAddress(startEpoch, endEpoch, voterIotexAddress)
+	weightedVotesMap, err := p.weightedVotesByVoterAddress(startEpoch, endEpoch, hexAddress[2:])
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get voter's weighted votes")
 	}
@@ -612,7 +619,7 @@ func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[string]
 }
 
 // weightedVotesByVoterAddress gets voter's weighted votes for delegates by voter's address
-func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint64, voterIotexAddress string) (map[string]map[uint64]*big.Int, error) {
+func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint64, voterEthAddress string) (map[string]map[uint64]*big.Int, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return nil, errors.New("rewards protocol is unregistered")
 	}
@@ -627,7 +634,7 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(startEpoch, endEpoch, voterIotexAddress)
+	rows, err := stmt.Query(startEpoch, endEpoch, voterEthAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -679,8 +686,14 @@ func (p *Protocol) distributionPlanBySearchPairs(searchPairs []string) (map[stri
 func convertVoterDistributionMapToList(voterAddrToReward map[string]*big.Int) ([]*RewardDistribution, error) {
 	rewardDistribution := make([]*RewardDistribution, 0)
 	for voterAddr, rewardAmount := range voterAddrToReward {
+		ethAddress := common.HexToAddress(voterAddr)
+		ioAddress, err := address.FromBytes(ethAddress.Bytes())
+		if err != nil {
+			return nil, errors.New("failed to form IoTeX address from ETH address")
+		}
 		rewardDistribution = append(rewardDistribution, &RewardDistribution{
-			VoterIotexAddress: voterAddr,
+			VoterEthAddress:   voterAddr,
+			VoterIotexAddress: ioAddress.String(),
 			Amount:            rewardAmount.String(),
 		})
 	}
