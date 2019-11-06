@@ -11,6 +11,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 	"sort"
 	"strconv"
 	"strings"
@@ -833,8 +835,13 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		bucketInfoList := &BucketInfoList{EpochNumber: int(epoch), Count: len(bucketList)}
 		bucketInfo := make([]*BucketInfo, 0)
 		for _, bucket := range bucketList {
+			voterIotexAddr, err := ethAddrToIoAddr(bucket.VoterAddress)
+			if err != nil {
+				return errors.Wrap(err, "failed to convert eth address to IoTeX address")
+			}
 			bucketInfo = append(bucketInfo, &BucketInfo{
-				VoterAddress:      bucket.VoterAddress,
+				VoterEthAddress:   HexPrefix + bucket.VoterAddress,
+				VoterIotexAddress: voterIotexAddr,
 				Votes:             bucket.Votes,
 				WeightedVotes:     bucket.WeightedVotes,
 				RemainingDuration: bucket.RemainingDuration,
@@ -977,4 +984,13 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 		paginationMap[childValue.Name] = intVal
 	}
 	return paginationMap, nil
+}
+
+func ethAddrToIoAddr(ethAddr string) (string, error) {
+	ethAddress := common.HexToAddress(ethAddr)
+	ioAddress, err := address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return ioAddress.String(), nil
 }
