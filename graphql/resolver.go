@@ -931,6 +931,21 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					}
 					argsMap[arg.Name].Raw = fmt.Sprintf("%d", value)
 				}
+			case "Pagination":
+				value, ok := val.Variables[arg.Name].(map[string]interface{})
+				if ok {
+					for k, v := range value {
+						valueJSON, ok := v.(json.Number)
+						if ok {
+							valueInt64, err := valueJSON.Int64()
+							if err != nil {
+								continue
+							}
+							child := &ast.ChildValue{Name: k, Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)}}
+							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
+						}
+					}
+				}
 			default:
 				return
 			}
