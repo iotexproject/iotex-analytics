@@ -24,7 +24,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
@@ -381,7 +380,6 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
-	var err error
 	height := p.epochCtx.GetEpochHeight(epochNum)
 	votes, voteFlag, _, err := p.resultByHeight(height, nil)
 	if err != nil {
@@ -405,21 +403,12 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
 			mintTime := nativeMintTime
-			voterAddress := hex.EncodeToString(vote.Voter())
 			if !voteFlag[i] {
 				mintTime = ethMintTime
-				// convert ethAddress to ioAddress
-				ethAddress := common.HexToAddress(voterAddress)
-				ioAddress, err := address.FromBytes(ethAddress.Bytes())
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to convert from ethAddress to iotexAddress")
-
-				}
-				voterAddress = ioAddress.String()
 			}
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
-				VoterAddress:      voterAddress,
+				VoterAddress:      hex.EncodeToString(vote.Voter()),
 				Votes:             vote.Amount().Text(10),
 				WeightedVotes:     vote.WeightedAmount().Text(10),
 				RemainingDuration: vote.RemainingTime(mintTime).String(),
@@ -610,11 +599,11 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, 
 }
 
 func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
-	votes, voteFlag, delegates, err := p.resultByHeight(height, tx)
+	votes, _, delegates, err := p.resultByHeight(height, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
-	if err := p.updateAggregateVoting(tx, votes, voteFlag, delegates, epochNumber); err != nil {
+	if err := p.updateAggregateVoting(tx, votes, delegates, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
 	if err := p.updateVotingResult(tx, delegates, epochNumber, gravityHeight); err != nil {
@@ -623,26 +612,16 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uin
 	return nil
 }
 
-func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64) (err error) {
+func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delegates []*types.Candidate, epochNumber uint64) (err error) {
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
-	for i, vote := range votes {
-		voterAddress := hex.EncodeToString(vote.Voter())
-		if !voteFlag[i] {
-			// convert ethAddress to ioAddress
-			ethAddress := common.HexToAddress(voterAddress)
-			ioAddress, err := address.FromBytes(ethAddress.Bytes())
-			if err != nil {
-				return errors.Wrap(err, "failed to convert from ethAddress to iotexAddress")
-			}
-			voterAddress = ioAddress.String()
-		}
+	for _, vote := range votes {
 		//for sumOfWeightedVotes
 		key := aggregateKey{
 			epochNumber:   epochNumber,
 			candidateName: hex.EncodeToString(vote.Candidate()),
-			voterAddress:  voterAddress,
+			voterAddress:  hex.EncodeToString(vote.Voter()),
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, vote.WeightedAmount())

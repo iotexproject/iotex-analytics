@@ -1495,8 +1495,8 @@ type Productivity {
 }
 
 type BucketInfo {
-    voterIotexAddress: String!
     voterEthAddress: String!
+    voterIotexAddress: String!
     votes: String!
     weightedVotes: String!
     remainingDuration: String! 
@@ -1520,8 +1520,8 @@ type BucketInfoList {
 }
 
 type RewardDistribution {
-    voterIotexAddress: String!
     voterEthAddress: String!
+    voterIotexAddress: String!
     amount: String!
 }
 
@@ -2835,33 +2835,6 @@ func (ec *executionContext) _Bookkeeping_count(ctx context.Context, field graphq
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _BucketInfo_voterIotexAddress(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "BucketInfo",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.VoterIotexAddress, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _BucketInfo_voterEthAddress(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -2876,6 +2849,33 @@ func (ec *executionContext) _BucketInfo_voterEthAddress(ctx context.Context, fie
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.VoterEthAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BucketInfo_voterIotexAddress(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "BucketInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterIotexAddress, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -4659,33 +4659,6 @@ func (ec *executionContext) _Reward_foundationBonus(ctx context.Context, field g
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _RewardDistribution_voterIotexAddress(ctx context.Context, field graphql.CollectedField, obj *RewardDistribution) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "RewardDistribution",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.VoterIotexAddress, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _RewardDistribution_voterEthAddress(ctx context.Context, field graphql.CollectedField, obj *RewardDistribution) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -4700,6 +4673,33 @@ func (ec *executionContext) _RewardDistribution_voterEthAddress(ctx context.Cont
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.VoterEthAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _RewardDistribution_voterIotexAddress(ctx context.Context, field graphql.CollectedField, obj *RewardDistribution) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "RewardDistribution",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterIotexAddress, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -6731,13 +6731,13 @@ func (ec *executionContext) _BucketInfo(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BucketInfo")
-		case "voterIotexAddress":
-			out.Values[i] = ec._BucketInfo_voterIotexAddress(ctx, field, obj)
+		case "voterEthAddress":
+			out.Values[i] = ec._BucketInfo_voterEthAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "voterEthAddress":
-			out.Values[i] = ec._BucketInfo_voterEthAddress(ctx, field, obj)
+		case "voterIotexAddress":
+			out.Values[i] = ec._BucketInfo_voterIotexAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -7468,13 +7468,13 @@ func (ec *executionContext) _RewardDistribution(ctx context.Context, sel ast.Sel
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("RewardDistribution")
-		case "voterIotexAddress":
-			out.Values[i] = ec._RewardDistribution_voterIotexAddress(ctx, field, obj)
+		case "voterEthAddress":
+			out.Values[i] = ec._RewardDistribution_voterEthAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "voterEthAddress":
-			out.Values[i] = ec._RewardDistribution_voterEthAddress(ctx, field, obj)
+		case "voterIotexAddress":
+			out.Values[i] = ec._RewardDistribution_voterIotexAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
