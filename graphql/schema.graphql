@@ -38,7 +38,7 @@ type Account {
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
-    byAddress(adress: String!, withEvmTransfer: Boolean!): ActionDetailList
+    byAddress(address: String!, withEvmTransfer: Boolean!): ActionDetailList
 }
 
 type Delegate {
