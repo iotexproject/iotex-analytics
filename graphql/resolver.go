@@ -11,11 +11,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/iotexproject/iotex-address/address"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/pkg/errors"
@@ -525,6 +526,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	actionResponse.ByDates = actionOutput
 	return nil
 }
+
 func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse *Action) error {
 	argsMap := parseFieldArguments(ctx, "byAddress", "actions")
 	address, err := getStringArg(argsMap, "address")
