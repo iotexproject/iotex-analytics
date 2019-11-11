@@ -47,7 +47,7 @@ type ComplexityRoot struct {
 	}
 
 	Action struct {
-		ByAddress func(childComplexity int, adress string, withEvmTransfer bool) int
+		ByAddress func(childComplexity int, address string, withEvmTransfer bool) int
 		ByDates   func(childComplexity int, startDate int, endDate int) int
 		ByHash    func(childComplexity int, actHash string) int
 	}
@@ -345,7 +345,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Action.ByAddress(childComplexity, args["adress"].(string), args["withEvmTransfer"].(bool)), true
+		return e.complexity.Action.ByAddress(childComplexity, args["address"].(string), args["withEvmTransfer"].(bool)), true
 
 	case "Action.ByDates":
 		if e.complexity.Action.ByDates == nil {
@@ -1381,7 +1381,7 @@ type Account {
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
-    byAddress(adress: String!, withEvmTransfer: Boolean!): ActionDetailList
+    byAddress(address: String!, withEvmTransfer: Boolean!): ActionDetailList
 }
 
 type Delegate {
@@ -1664,13 +1664,13 @@ func (ec *executionContext) field_Action_byAddress_args(ctx context.Context, raw
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["adress"]; ok {
+	if tmp, ok := rawArgs["address"]; ok {
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["adress"] = arg0
+	args["address"] = arg0
 	var arg1 bool
 	if tmp, ok := rawArgs["withEvmTransfer"]; ok {
 		arg1, err = ec.unmarshalNBoolean2bool(ctx, tmp)
