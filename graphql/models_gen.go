@@ -9,13 +9,20 @@ type Account struct {
 }
 
 type Action struct {
-	ByDates *ActionList   `json:"byDates"`
-	ByHash  *ActionDetail `json:"byHash"`
+	ByDates   *ActionList       `json:"byDates"`
+	ByHash    *ActionDetail     `json:"byHash"`
+	ByAddress *ActionDetailList `json:"byAddress"`
 }
 
 type ActionDetail struct {
 	ActionInfo   *ActionInfo    `json:"actionInfo"`
 	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
+}
+
+type ActionDetailList struct {
+	Exist   bool            `json:"exist"`
+	Actions []*ActionDetail `json:"actions"`
+	Count   int             `json:"count"`
 }
 
 type ActionInfo struct {

@@ -38,6 +38,7 @@ type Account {
 type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
+    byAddress(adress: String!, withEvmTransfer: Boolean!): ActionDetailList
 }
 
 type Delegate {
@@ -212,6 +213,12 @@ type CandidateMeta{
     consensusDelegates: Int!
     totalWeightedVotes: String!
     votedTokens: String!
+}
+
+type ActionDetailList{
+    exist: Boolean!
+    actions(pagination: Pagination): [ActionDetail]!
+    count: Int!
 }
 
 type ActionDetail{
