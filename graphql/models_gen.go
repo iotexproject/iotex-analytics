@@ -9,20 +9,15 @@ type Account struct {
 }
 
 type Action struct {
-	ByDates   *ActionList       `json:"byDates"`
-	ByHash    *ActionDetail     `json:"byHash"`
-	ByAddress *ActionDetailList `json:"byAddress"`
+	ByDates      *ActionList      `json:"byDates"`
+	ByHash       *ActionDetail    `json:"byHash"`
+	ByAddress    *ActionList      `json:"byAddress"`
+	EvmTransfers *EvmTransferList `json:"evmTransfers"`
 }
 
 type ActionDetail struct {
 	ActionInfo   *ActionInfo    `json:"actionInfo"`
 	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
-}
-
-type ActionDetailList struct {
-	Exist   bool            `json:"exist"`
-	Actions []*ActionDetail `json:"actions"`
-	Count   int             `json:"count"`
 }
 
 type ActionInfo struct {
@@ -124,6 +119,12 @@ type EvmTransfer struct {
 	From     string `json:"from"`
 	To       string `json:"to"`
 	Quantity string `json:"quantity"`
+}
+
+type EvmTransferList struct {
+	Exist        bool           `json:"exist"`
+	EvmTransfers []*EvmTransfer `json:"evmTransfers"`
+	Count        int            `json:"count"`
 }
 
 type Hermes struct {

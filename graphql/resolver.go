@@ -15,13 +15,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/iotexproject/iotex-address/address"
-
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/ast"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/iotexproject/iotex-address/address"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
@@ -121,6 +121,9 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	}
 	if containField(requestedFields, "byAddress") {
 		g.Go(func() error { return r.getActionsByAddress(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "evmTransfers") {
+		g.Go(func() error { return r.getEvmTransferByAddress(ctx, actionResponse) })
 	}
 	return actionResponse, g.Wait()
 }
@@ -396,7 +399,7 @@ func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Vo
 	argsMap := parseFieldArguments(ctx, "rewardSources", "")
 	voterIotexAddress, err := getStringArg(argsMap, "voterIotexAddress")
 	if err != nil {
-		return errors.Wrap(err, "voter's IoTeX address is requried")
+		return errors.Wrap(err, "voter's IoTeX address is required")
 	}
 	delegateDistributions, err := r.RP.GetRewardSources(uint64(startEpoch), uint64(epochCount), voterIotexAddress)
 	switch {
@@ -529,70 +532,66 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 
 func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse *Action) error {
 	argsMap := parseFieldArguments(ctx, "byAddress", "actions")
-	address, err := getStringArg(argsMap, "address")
+	addr, err := getStringArg(argsMap, "address")
 	if err != nil {
 		return errors.Wrap(err, "failed to get address")
 	}
-	withEvmTransfer, err := getBoolArg(argsMap, "withEvmTransfer")
-	if err != nil {
-		return errors.Wrap(err, "failed to get withEvmTransfer")
-	}
-	actionDetailList, err := r.AP.GetActionsByAddress(address, withEvmTransfer)
+
+	actionInfoList, err := r.AP.GetActionsByAddress(addr)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		actionResponse.ByAddress = &ActionDetailList{Exist: false}
+		actionResponse.ByDates = &ActionList{Exist: false}
 		return nil
 	case err != nil:
-		return errors.Wrap(err, "failed to get actions' detail information")
+		return errors.Wrap(err, "failed to get actions' information")
 	}
 
-	actDetailList := make([]*ActionDetail, 0, len(actionDetailList))
-	for _, act := range actionDetailList {
-		actionDetail := &ActionDetail{
-			ActionInfo: &ActionInfo{
-				ActHash:   act.ActionInfo.ActHash,
-				BlkHash:   act.ActionInfo.BlkHash,
-				ActType:   act.ActionInfo.ActType,
-				TimeStamp: int(act.ActionInfo.TimeStamp),
-				Sender:    act.ActionInfo.Sender,
-				Recipient: act.ActionInfo.Recipient,
-				Amount:    act.ActionInfo.Amount,
-				GasFee:    act.ActionInfo.GasFee,
-			}}
-		for _, evmTransfer := range act.EvmTransfers {
-			actionDetail.EvmTransfers = append(actionDetail.EvmTransfers, &EvmTransfer{
-				From:     evmTransfer.From,
-				To:       evmTransfer.To,
-				Quantity: evmTransfer.Quantity,
-			})
-		}
-		actDetailList = append(actDetailList, actionDetail)
-	}
-	sort.Slice(actDetailList,
-		func(i, j int) bool {
-			return actDetailList[i].ActionInfo.TimeStamp < actDetailList[j].ActionInfo.TimeStamp
+	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
+	for _, act := range actionInfoList {
+		actInfoList = append(actInfoList, &ActionInfo{
+			ActHash:   act.ActHash,
+			BlkHash:   act.BlkHash,
+			ActType:   act.ActType,
+			TimeStamp: int(act.TimeStamp),
+			Sender:    act.Sender,
+			Recipient: act.Recipient,
+			Amount:    act.Amount,
+			GasFee:    act.GasFee,
 		})
+	}
+	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp < actInfoList[j].TimeStamp })
 
-	actionOutput := &ActionDetailList{Exist: true, Count: len(actDetailList)}
+	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	case err == ErrPaginationNotFound:
-		actionOutput.Actions = actDetailList
+		actionOutput.Actions = actInfoList
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for actions")
 	default:
 		skip := paginationMap["skip"]
 		first := paginationMap["first"]
-		if skip < 0 || skip >= len(actDetailList) {
+		if skip < 0 || skip >= len(actInfoList) {
 			return errors.New("invalid pagination skip number for actions")
 		}
-		if len(actDetailList)-skip < first {
-			first = len(actDetailList) - skip
+		if len(actInfoList)-skip < first {
+			first = len(actInfoList) - skip
 		}
-		actionOutput.Actions = actDetailList[skip : skip+first]
+		actionOutput.Actions = actInfoList[skip : skip+first]
 	}
 	actionResponse.ByAddress = actionOutput
 	return nil
+}
+
+func (r *queryResolver) getEvmTransferByAddress(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byAddress", "actions")
+	addr, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+
+	evmTransferList, err := r.AP.GetEvmTransferByAddress(addr)
+
 }
 
 func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {

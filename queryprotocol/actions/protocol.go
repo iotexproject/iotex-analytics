@@ -33,13 +33,14 @@ const (
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ?"
-	selectEvmTransferHistory   = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
-	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
-	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ?"
+	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
+	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
+	selectActionHistory               = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
+	selectXrc20History                = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByTopics        = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByPage          = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
+	selectAccountIncome               = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
 )
 
 type activeAccout struct {
@@ -173,7 +174,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 
 	actionDetail := &ActionDetail{ActionInfo: parsedRows[0].(*ActionInfo)}
 
-	getQuery = fmt.Sprintf(selectEvmTransferHistory, accounts.BalanceHistoryTableName)
+	getQuery = fmt.Sprintf(selectEvmTransferHistoryByHash, accounts.BalanceHistoryTableName)
 
 	stmt, err = db.Prepare(getQuery)
 	if err != nil {
@@ -201,8 +202,8 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 	return actionDetail, nil
 }
 
-// GetActionsByAddress gets action detail information list by action address
-func (p *Protocol) GetActionsByAddress(address string, withEvmTransfer bool) ([]*ActionDetail, error) {
+// GetActionsByAddress gets action information list by address
+func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -219,7 +220,7 @@ func (p *Protocol) GetActionsByAddress(address string, withEvmTransfer bool) ([]
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(address)
+	rows, err := stmt.Query(address, address)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -237,42 +238,53 @@ func (p *Protocol) GetActionsByAddress(address string, withEvmTransfer bool) ([]
 		return nil, err
 	}
 
-	actionDetailList := make([]*ActionDetail, 0)
+	actionInfoList := make([]*ActionInfo, 0)
 	for _, parsedRow := range parsedRows {
-		actionDetail := &ActionDetail{ActionInfo: parsedRow.(*ActionInfo)}
-		actionDetailList = append(actionDetailList, actionDetail)
+		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
 	}
 
-	if withEvmTransfer {
-		getQuery = fmt.Sprintf(selectEvmTransferHistory, accounts.BalanceHistoryTableName)
+	return actionInfoList, nil
+}
 
-		stmt, err = db.Prepare(getQuery)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to prepare get query")
-		}
-
-		for _, actionDetail := range actionDetailList {
-			rows, err = stmt.Query(actionDetail.ActionInfo.ActHash)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to execute get query")
-			}
-
-			parsedRows, err = s.ParseSQLRows(rows, &EvmTransfer{})
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse results")
-			}
-
-			for _, parsedRow := range parsedRows {
-				actionDetail.EvmTransfers = append(actionDetail.EvmTransfers, parsedRow.(*EvmTransfer))
-			}
-		}
-
-		if err := stmt.Close(); err != nil {
-			return nil, errors.Wrap(err, "failed to close stmt")
-		}
+// GetEvmTransferByAddress gets evm transfer information list by address
+func (p *Protocol) GetEvmTransferByAddress(address string) ([]*EvmTransfer, error) {
+	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
+		return nil, errors.New("accounts protocol is unregistered")
 	}
 
-	return actionDetailList, nil
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf(selectEvmTransferHistoryByAddress, blocks.BlockHistoryTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(address, address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &EvmTransfer{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	evmTransferList := make([]*EvmTransfer, 0)
+	for _, parsedRow := range parsedRows {
+		evmTransferList = append(evmTransferList, parsedRow.(*EvmTransfer))
+	}
+
+	return evmTransferList, nil
 }
 
 // GetActiveAccount gets active account address
