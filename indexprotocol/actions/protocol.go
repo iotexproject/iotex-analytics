@@ -33,10 +33,12 @@ const (
 	// FromIndexName is the 'from' index name of ActionHistory table
 	FromIndexName = "from_index"
 	// ToIndexName is the 'to' index name of ActionHistory table
-	ToIndexName                  = "to_index"
+	ToIndexName             = "to_index"
+	selectActionHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createActionHistoryFromIndex = "CREATE INDEX %s ON %s (`from`)"
 	createActionHistoryToIndex   = "CREATE INDEX %s ON %s (`to`)"
-	createActionHistory = "CREATE TABLE IF NOT EXISTS %s " +
+	createActionHistory          = "CREATE TABLE IF NOT EXISTS %s " +
 		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
 		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, " +
 		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))"
@@ -98,12 +100,24 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryFromIndex, FromIndexName, ActionHistoryTableName)); err != nil {
+	var exist uint64
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectActionHistoryInfo, ActionHistoryTableName, FromIndexName)).Scan(&exist); err != nil {
 		return err
 	}
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryToIndex, ToIndexName, ActionHistoryTableName)); err != nil {
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryFromIndex, FromIndexName, ActionHistoryTableName)); err != nil {
+			return err
+		}
+	}
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectActionHistoryInfo, ActionHistoryTableName, ToIndexName)).Scan(&exist); err != nil {
 		return err
 	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryToIndex, ToIndexName, ActionHistoryTableName)); err != nil {
+			return err
+		}
+	}
+
 	return p.CreateXrc20Tables(ctx)
 }
 

@@ -47,7 +47,7 @@ const (
 	// TimestampIndexName is the 'timestamp' index name of BlockHistory table
 	TimestampIndexName      = "timestamp_index"
 	createBlockHistoryIndex = "CREATE INDEX %s ON %s (timestamp)"
-	createBlockHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
+	createBlockHistory      = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, " +
 		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, " +
@@ -139,6 +139,11 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createIndex, EpochProducerIndexName, BlockHistoryTableName)); err != nil {
 			return err
 		}
+	}
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectBlockHistoryInfo, BlockHistoryTableName, TimestampIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistoryIndex, TimestampIndexName, BlockHistoryTableName)); err != nil {
 			return err
 		}
