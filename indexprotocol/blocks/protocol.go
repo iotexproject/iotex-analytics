@@ -44,13 +44,14 @@ const (
 	ProducerTableName = "producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
-
+	// TimestampIndexName is 'timestamp' of BlockHistory table
+	TimestampIndexName = "timestamp_index"
 	createBlockHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, " +
 		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, " +
 		"producer_name VARCHAR(24) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, " +
-		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))"
+		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, INDEX %s (timestamp), PRIMARY KEY (block_height))"
 	selectBlockHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createIndex    = "CREATE INDEX %s ON %s (epoch_number, producer_name, expected_producer_name)"
@@ -125,7 +126,7 @@ func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx) *Protocol {
 // CreateTables creates tables
 func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block history table
-	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistory, BlockHistoryTableName)); err != nil {
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistory, BlockHistoryTableName, TimestampIndexName)); err != nil {
 		return err
 	}
 
