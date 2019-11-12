@@ -44,7 +44,7 @@ const (
 	ProducerTableName = "producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
-	// TimestampIndexName is 'timestamp' of BlockHistory table
+	// TimestampIndexName is the 'timestamp' index name of BlockHistory table
 	TimestampIndexName = "timestamp_index"
 	createBlockHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +

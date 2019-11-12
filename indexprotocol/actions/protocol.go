@@ -30,9 +30,9 @@ const (
 	ProtocolID = "actions"
 	// ActionHistoryTableName is the table name of action history
 	ActionHistoryTableName = "action_history"
-	// FromIndexName is 'from' index of ActionHistory table
+	// FromIndexName is the 'from' index name of ActionHistory table
 	FromIndexName = "from_index"
-	// ToIndexName is 'to' index of ActionHistory table
+	// ToIndexName is the 'to' index name of ActionHistory table
 	ToIndexName         = "to_index"
 	createActionHistory = "CREATE TABLE IF NOT EXISTS %s " +
 		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
