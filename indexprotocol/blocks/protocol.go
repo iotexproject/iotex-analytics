@@ -44,7 +44,9 @@ const (
 	ProducerTableName = "producer_history"
 	// EpochProducerIndexName is the index name of epoch number and producer's name on block history table
 	EpochProducerIndexName = "epoch_producer_index"
-
+	// TimestampIndexName is the 'timestamp' index name of BlockHistory table
+	TimestampIndexName      = "timestamp_index"
+	createBlockHistoryIndex = "CREATE INDEX %s ON %s (timestamp)"
 	createBlockHistory = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, " +
@@ -135,6 +137,9 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 	if exist == 0 {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createIndex, EpochProducerIndexName, BlockHistoryTableName)); err != nil {
+			return err
+		}
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistoryIndex, TimestampIndexName, BlockHistoryTableName)); err != nil {
 			return err
 		}
 	}

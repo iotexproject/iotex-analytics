@@ -30,7 +30,12 @@ const (
 	ProtocolID = "actions"
 	// ActionHistoryTableName is the table name of action history
 	ActionHistoryTableName = "action_history"
-
+	// FromIndexName is the 'from' index name of ActionHistory table
+	FromIndexName = "from_index"
+	// ToIndexName is the 'to' index name of ActionHistory table
+	ToIndexName                  = "to_index"
+	createActionHistoryFromIndex = "CREATE INDEX %s ON %s (`from`)"
+	createActionHistoryToIndex   = "CREATE INDEX %s ON %s (`to`)"
 	createActionHistory = "CREATE TABLE IF NOT EXISTS %s " +
 		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
 		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, " +
@@ -91,6 +96,12 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	// create block by action table
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistory,
 		ActionHistoryTableName, blocks.BlockHistoryTableName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryFromIndex, FromIndexName, ActionHistoryTableName)); err != nil {
+		return err
+	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryToIndex, ToIndexName, ActionHistoryTableName)); err != nil {
 		return err
 	}
 	return p.CreateXrc20Tables(ctx)
