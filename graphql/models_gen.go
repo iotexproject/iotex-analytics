@@ -119,6 +119,8 @@ type EvmTransfer struct {
 	From     string `json:"from"`
 	To       string `json:"to"`
 	Quantity string `json:"quantity"`
+	ActHash  string `json:"actHash"`
+	BlkHash  string `json:"blkHash"`
 }
 
 type EvmTransferList struct {

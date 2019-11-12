@@ -35,7 +35,7 @@ const (
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
-	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
+	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, block_height FROM %s WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
 	selectActionHistory               = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History                = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics        = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
@@ -43,7 +43,7 @@ const (
 	selectAccountIncome               = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
 )
 
-type activeAccout struct {
+type activeAccount struct {
 	From        string
 	BlockHeight uint64
 }
@@ -71,6 +71,15 @@ type EvmTransfer struct {
 	From     string
 	To       string
 	Quantity string
+}
+
+// EvmTransferDetail defines evm transfer detail information
+type EvmTransferDetail struct {
+	From     string
+	To       string
+	Quantity string
+	ActHash  string
+	BlkHash  string
 }
 
 // Xrc20Info defines xrc20 transfer info
@@ -246,15 +255,15 @@ func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 	return actionInfoList, nil
 }
 
-// GetEvmTransferByAddress gets evm transfer information list by address
-func (p *Protocol) GetEvmTransferByAddress(address string) ([]*EvmTransfer, error) {
+// GetEvmTransferDetailByAddress gets evm transfer detail information list by address
+func (p *Protocol) GetEvmTransferDetailByAddress(address string) ([]*EvmTransferDetail, error) {
 	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
 		return nil, errors.New("accounts protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf(selectEvmTransferHistoryByAddress, blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectEvmTransferHistoryByAddress, accounts.BalanceHistoryTableName)
 
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
@@ -279,9 +288,9 @@ func (p *Protocol) GetEvmTransferByAddress(address string) ([]*EvmTransfer, erro
 		return nil, err
 	}
 
-	evmTransferList := make([]*EvmTransfer, 0)
+	evmTransferList := make([]*EvmTransferDetail, 0)
 	for _, parsedRow := range parsedRows {
-		evmTransferList = append(evmTransferList, parsedRow.(*EvmTransfer))
+		evmTransferList = append(evmTransferList, parsedRow.(*EvmTransferDetail))
 	}
 
 	return evmTransferList, nil
@@ -307,7 +316,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var acc activeAccout
+	var acc activeAccount
 	parsedRows, err := s.ParseSQLRows(rows, &acc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
@@ -319,7 +328,7 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 
 	var addrs []string
 	for _, parsedRow := range parsedRows {
-		acc := parsedRow.(*activeAccout)
+		acc := parsedRow.(*activeAccount)
 		addrs = append(addrs, acc.From)
 	}
 	return addrs, nil

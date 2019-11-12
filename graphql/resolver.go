@@ -540,7 +540,7 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	actionInfoList, err := r.AP.GetActionsByAddress(addr)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		actionResponse.ByDates = &ActionList{Exist: false}
+		actionResponse.ByAddress = &ActionList{Exist: false}
 		return nil
 	case err != nil:
 		return errors.Wrap(err, "failed to get actions' information")
@@ -590,8 +590,47 @@ func (r *queryResolver) getEvmTransferByAddress(ctx context.Context, actionRespo
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	evmTransferList, err := r.AP.GetEvmTransferByAddress(addr)
+	evmTransferDetailList, err := r.AP.GetEvmTransferDetailByAddress(addr)
 
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.EvmTransfers = &EvmTransferList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get evm transfers")
+	}
+
+	evmTransferList := make([]*EvmTransfer, 0, len(evmTransferDetailList))
+	for _, etf := range evmTransferDetailList {
+		evmTransferList = append(evmTransferList, &EvmTransfer{
+			From:     etf.From,
+			To:       etf.To,
+			Quantity: etf.Quantity,
+			ActHash:  etf.ActHash,
+			BlkHash:  etf.BlkHash,
+		})
+	}
+
+	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransferList)}
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	case err == ErrPaginationNotFound:
+		actionOutput.EvmTransfers = evmTransferList
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for evm transfers")
+	default:
+		skip := paginationMap["skip"]
+		first := paginationMap["first"]
+		if skip < 0 || skip >= len(evmTransferList) {
+			return errors.New("invalid pagination skip number for evm transfers")
+		}
+		if len(evmTransferList)-skip < first {
+			first = len(evmTransferList) - skip
+		}
+		actionOutput.EvmTransfers = evmTransferList[skip : skip+first]
+	}
+	actionResponse.EvmTransfers = actionOutput
+	return nil
 }
 
 func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {

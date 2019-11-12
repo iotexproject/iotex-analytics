@@ -225,6 +225,8 @@ type EvmTransfer{
     from: String!
     to: String!
     quantity: String!
+    actHash: String!
+    blkHash: String!
 }
 
 type EvmTransferList{

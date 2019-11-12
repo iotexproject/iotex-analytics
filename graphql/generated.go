@@ -149,6 +149,8 @@ type ComplexityRoot struct {
 	}
 
 	EvmTransfer struct {
+		ActHash  func(childComplexity int) int
+		BlkHash  func(childComplexity int) int
 		From     func(childComplexity int) int
 		Quantity func(childComplexity int) int
 		To       func(childComplexity int) int
@@ -784,6 +786,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.DelegateAmount.DelegateName(childComplexity), true
+
+	case "EvmTransfer.ActHash":
+		if e.complexity.EvmTransfer.ActHash == nil {
+			break
+		}
+
+		return e.complexity.EvmTransfer.ActHash(childComplexity), true
+
+	case "EvmTransfer.BlkHash":
+		if e.complexity.EvmTransfer.BlkHash == nil {
+			break
+		}
+
+		return e.complexity.EvmTransfer.BlkHash(childComplexity), true
 
 	case "EvmTransfer.From":
 		if e.complexity.EvmTransfer.From == nil {
@@ -1581,6 +1597,8 @@ type EvmTransfer{
     from: String!
     to: String!
     quantity: String!
+    actHash: String!
+    blkHash: String!
 }
 
 type EvmTransferList{
@@ -3818,6 +3836,60 @@ func (ec *executionContext) _EvmTransfer_quantity(ctx context.Context, field gra
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Quantity, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _EvmTransfer_actHash(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "EvmTransfer",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ActHash, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _EvmTransfer_blkHash(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "EvmTransfer",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BlkHash, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -7111,6 +7183,16 @@ func (ec *executionContext) _EvmTransfer(ctx context.Context, sel ast.SelectionS
 			}
 		case "quantity":
 			out.Values[i] = ec._EvmTransfer_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "actHash":
+			out.Values[i] = ec._EvmTransfer_actHash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "blkHash":
+			out.Values[i] = ec._EvmTransfer_blkHash(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
