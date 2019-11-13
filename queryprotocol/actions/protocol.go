@@ -281,7 +281,7 @@ func (p *Protocol) GetEvmTransferDetailListByAddress(address string) ([]*EvmTran
 		return nil, errors.Wrap(err, "failed to close stmt")
 	}
 
-	parsedRows, err := s.ParseSQLRows(rows, &EvmTransfer{})
+	parsedRows, err := s.ParseSQLRows(rows, &EvmTransferDetail{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
