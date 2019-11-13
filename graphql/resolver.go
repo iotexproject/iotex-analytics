@@ -123,7 +123,7 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 		g.Go(func() error { return r.getActionsByAddress(ctx, actionResponse) })
 	}
 	if containField(requestedFields, "evmTransfers") {
-		g.Go(func() error { return r.getEvmTransferByAddress(ctx, actionResponse) })
+		g.Go(func() error { return r.getEvmTransfersByAddress(ctx, actionResponse) })
 	}
 	return actionResponse, g.Wait()
 }
@@ -583,53 +583,54 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	return nil
 }
 
-func (r *queryResolver) getEvmTransferByAddress(ctx context.Context, actionResponse *Action) error {
-	argsMap := parseFieldArguments(ctx, "byAddress", "actions")
+func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "evmTransfersByAddress", "evmTransfers")
 	addr, err := getStringArg(argsMap, "address")
 	if err != nil {
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	evmTransferDetailList, err := r.AP.GetEvmTransferDetailByAddress(addr)
+	evmTransferDetailList, err := r.AP.GetEvmTransferDetailListByAddress(addr)
 
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		actionResponse.EvmTransfers = &EvmTransferList{Exist: false}
+		actionResponse.EvmTransfersByAddress = &EvmTransferList{Exist: false}
 		return nil
 	case err != nil:
 		return errors.Wrap(err, "failed to get evm transfers")
 	}
 
-	evmTransferList := make([]*EvmTransfer, 0, len(evmTransferDetailList))
+	evmTransfers := make([]*EvmTransferDetail, 0, len(evmTransferDetailList))
 	for _, etf := range evmTransferDetailList {
-		evmTransferList = append(evmTransferList, &EvmTransfer{
-			From:     etf.From,
-			To:       etf.To,
-			Quantity: etf.Quantity,
-			ActHash:  etf.ActHash,
-			BlkHash:  etf.BlkHash,
+		evmTransfers = append(evmTransfers, &EvmTransferDetail{
+			From:      etf.From,
+			To:        etf.To,
+			Quantity:  etf.Quantity,
+			ActHash:   etf.ActHash,
+			BlkHash:   etf.BlkHash,
+			TimeStamp: int(etf.TimeStamp),
 		})
 	}
 
-	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransferList)}
+	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransfers)}
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	case err == ErrPaginationNotFound:
-		actionOutput.EvmTransfers = evmTransferList
+		actionOutput.EvmTransfers = evmTransfers
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for evm transfers")
 	default:
 		skip := paginationMap["skip"]
 		first := paginationMap["first"]
-		if skip < 0 || skip >= len(evmTransferList) {
+		if skip < 0 || skip >= len(evmTransfers) {
 			return errors.New("invalid pagination skip number for evm transfers")
 		}
-		if len(evmTransferList)-skip < first {
-			first = len(evmTransferList) - skip
+		if len(evmTransfers)-skip < first {
+			first = len(evmTransfers) - skip
 		}
-		actionOutput.EvmTransfers = evmTransferList[skip : skip+first]
+		actionOutput.EvmTransfers = evmTransfers[skip : skip+first]
 	}
-	actionResponse.EvmTransfers = actionOutput
+	actionResponse.EvmTransfersByAddress = actionOutput
 	return nil
 }
 

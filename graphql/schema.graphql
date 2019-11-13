@@ -39,7 +39,7 @@ type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
-    evmTransfers(address: String!): EvmTransferList
+    evmTransfersByAddress(address: String!): EvmTransferList
 }
 
 type Delegate {
@@ -225,13 +225,20 @@ type EvmTransfer{
     from: String!
     to: String!
     quantity: String!
+}
+
+type EvmTransferDetail{
+    from: String!
+    to: String!
+    quantity: String!
     actHash: String!
     blkHash: String!
+    timeStamp: Int!
 }
 
 type EvmTransferList{
     exist: Boolean!
-    evmTransfers(pagination: Pagination): [EvmTransfer]!
+    evmTransfers(pagination: Pagination): [EvmTransferDetail]!
     count: Int!
 }
 

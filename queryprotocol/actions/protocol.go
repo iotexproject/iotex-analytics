@@ -35,12 +35,13 @@ const (
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
-	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, block_height FROM %s WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
-	selectActionHistory               = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
-	selectXrc20History                = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByTopics        = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByPage          = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome               = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
+	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, block_height, timestamp FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
+	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
+	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
+	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
 )
 
 type activeAccount struct {
@@ -75,11 +76,12 @@ type EvmTransfer struct {
 
 // EvmTransferDetail defines evm transfer detail information
 type EvmTransferDetail struct {
-	From     string
-	To       string
-	Quantity string
-	ActHash  string
-	BlkHash  string
+	From      string
+	To        string
+	Quantity  string
+	ActHash   string
+	BlkHash   string
+	TimeStamp uint64
 }
 
 // Xrc20Info defines xrc20 transfer info
@@ -255,15 +257,15 @@ func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 	return actionInfoList, nil
 }
 
-// GetEvmTransferDetailByAddress gets evm transfer detail information list by address
-func (p *Protocol) GetEvmTransferDetailByAddress(address string) ([]*EvmTransferDetail, error) {
+// GetEvmTransferDetailListByAddress gets evm transfer detail information list by address
+func (p *Protocol) GetEvmTransferDetailListByAddress(address string) ([]*EvmTransferDetail, error) {
 	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
 		return nil, errors.New("accounts protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf(selectEvmTransferHistoryByAddress, accounts.BalanceHistoryTableName)
+	getQuery := fmt.Sprintf(selectEvmTransferHistoryByAddress, accounts.BalanceHistoryTableName, blocks.BlockHistoryTableName)
 
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
