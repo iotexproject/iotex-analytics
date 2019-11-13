@@ -611,6 +611,7 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 			TimeStamp: int(etf.TimeStamp),
 		})
 	}
+	sort.Slice(evmTransfers, func(i, j int) bool { return evmTransfers[i].TimeStamp < evmTransfers[j].TimeStamp })
 
 	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransfers)}
 	paginationMap, err := getPaginationArgs(argsMap)
