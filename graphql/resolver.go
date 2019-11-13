@@ -506,7 +506,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 			GasFee:    act.GasFee,
 		})
 	}
-	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp < actInfoList[j].TimeStamp })
+	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp > actInfoList[j].TimeStamp })
 
 	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -559,7 +559,7 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 			GasFee:    act.GasFee,
 		})
 	}
-	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp < actInfoList[j].TimeStamp })
+	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp > actInfoList[j].TimeStamp })
 
 	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -611,7 +611,7 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 			TimeStamp: int(etf.TimeStamp),
 		})
 	}
-	sort.Slice(evmTransfers, func(i, j int) bool { return evmTransfers[i].TimeStamp < evmTransfers[j].TimeStamp })
+	sort.Slice(evmTransfers, func(i, j int) bool { return evmTransfers[i].TimeStamp > evmTransfers[j].TimeStamp })
 
 	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransfers)}
 	paginationMap, err := getPaginationArgs(argsMap)
