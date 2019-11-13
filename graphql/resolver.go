@@ -122,7 +122,7 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byAddress") {
 		g.Go(func() error { return r.getActionsByAddress(ctx, actionResponse) })
 	}
-	if containField(requestedFields, "evmTransfers") {
+	if containField(requestedFields, "evmTransfersByAddress") {
 		g.Go(func() error { return r.getEvmTransfersByAddress(ctx, actionResponse) })
 	}
 	return actionResponse, g.Wait()
