@@ -33,7 +33,7 @@ const (
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ?"
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
 	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
@@ -214,7 +214,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 }
 
 // GetActionsByAddress gets action information list by address
-func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
+func (p *Protocol) GetActionsByAddress(address string, offset int, size int) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -231,7 +231,7 @@ func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(address, address)
+	rows, err := stmt.Query(address, address, offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}

@@ -37,6 +37,9 @@ const HexPrefix = "0x"
 // ErrPaginationNotFound is the error indicating that pagination is not specified
 var ErrPaginationNotFound = errors.New("Pagination information is not found")
 
+// DefaultPageSize is the size of page when pagination parameters are not set
+var DefaultPageSize = 200
+
 // EncodeDelegateName converts a delegate name input to an internal format
 func EncodeDelegateName(name string) (string, error) {
 	l := len(name)
@@ -537,7 +540,21 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	actionInfoList, err := r.AP.GetActionsByAddress(addr)
+	var offset, size int
+
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+
+	actionInfoList, err := r.AP.GetActionsByAddress(addr, offset, size)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		actionResponse.ByAddress = &ActionList{Exist: false}
@@ -559,27 +576,8 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 			GasFee:    act.GasFee,
 		})
 	}
-	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp > actInfoList[j].TimeStamp })
 
-	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
-	paginationMap, err := getPaginationArgs(argsMap)
-	switch {
-	case err == ErrPaginationNotFound:
-		actionOutput.Actions = actInfoList
-	case err != nil:
-		return errors.Wrap(err, "failed to get pagination arguments for actions")
-	default:
-		skip := paginationMap["skip"]
-		first := paginationMap["first"]
-		if skip < 0 || skip >= len(actInfoList) {
-			return errors.New("invalid pagination skip number for actions")
-		}
-		if len(actInfoList)-skip < first {
-			first = len(actInfoList) - skip
-		}
-		actionOutput.Actions = actInfoList[skip : skip+first]
-	}
-	actionResponse.ByAddress = actionOutput
+	actionResponse.ByAddress = &ActionList{Exist: true, Actions: actInfoList, Count: len(actInfoList)}
 	return nil
 }
 
