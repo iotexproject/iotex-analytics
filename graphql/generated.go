@@ -70,7 +70,7 @@ type ComplexityRoot struct {
 	}
 
 	ActionList struct {
-		Actions func(childComplexity int, pagination *Pagination) int
+		Actions func(childComplexity int, pagination *NewPagination) int
 		Count   func(childComplexity int) int
 		Exist   func(childComplexity int) int
 	}
@@ -165,7 +165,7 @@ type ComplexityRoot struct {
 
 	EvmTransferList struct {
 		Count        func(childComplexity int) int
-		EvmTransfers func(childComplexity int, pagination *Pagination) int
+		EvmTransfers func(childComplexity int, pagination *NewPagination) int
 		Exist        func(childComplexity int) int
 	}
 
@@ -473,7 +473,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.ActionList.Actions(childComplexity, args["pagination"].(*Pagination)), true
+		return e.complexity.ActionList.Actions(childComplexity, args["pagination"].(*NewPagination)), true
 
 	case "ActionList.Count":
 		if e.complexity.ActionList.Count == nil {
@@ -874,7 +874,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.EvmTransferList.EvmTransfers(childComplexity, args["pagination"].(*Pagination)), true
+		return e.complexity.EvmTransferList.EvmTransfers(childComplexity, args["pagination"].(*NewPagination)), true
 
 	case "EvmTransferList.Exist":
 		if e.complexity.EvmTransferList.Exist == nil {
@@ -1515,7 +1515,7 @@ type RewardSources {
 
 type ActionList {
     exist: Boolean!
-    actions(pagination: Pagination): [ActionInfo]!
+    actions(pagination: NewPagination): [ActionInfo]!
     count: Int!
 }
 
@@ -1645,13 +1645,18 @@ type EvmTransferDetail{
 
 type EvmTransferList{
     exist: Boolean!
-    evmTransfers(pagination: Pagination): [EvmTransferDetail]!
+    evmTransfers(pagination: NewPagination): [EvmTransferDetail]!
     count: Int!
 }
 
 input Pagination{
     skip: Int!
     first: Int!
+}
+
+input NewPagination{
+    offset: Int!
+    size: Int!
 }
 
 input EpochRange{
@@ -1709,9 +1714,9 @@ func (ec *executionContext) field_Account_operatorAddress_args(ctx context.Conte
 func (ec *executionContext) field_ActionList_actions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 *Pagination
+	var arg0 *NewPagination
 	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		arg0, err = ec.unmarshalONewPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNewPagination(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -1865,9 +1870,9 @@ func (ec *executionContext) field_Delegate_bookkeeping_args(ctx context.Context,
 func (ec *executionContext) field_EvmTransferList_evmTransfers_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 *Pagination
+	var arg0 *NewPagination
 	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		arg0, err = ec.unmarshalONewPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNewPagination(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -6671,6 +6676,30 @@ func (ec *executionContext) unmarshalInputEpochRange(ctx context.Context, v inte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputNewPagination(ctx context.Context, v interface{}) (NewPagination, error) {
+	var it NewPagination
+	var asMap = v.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "offset":
+			var err error
+			it.Offset, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "size":
+			var err error
+			it.Size, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputPagination(ctx context.Context, v interface{}) (Pagination, error) {
 	var it Pagination
 	var asMap = v.(map[string]interface{})
@@ -9444,6 +9473,18 @@ func (ec *executionContext) marshalOHermesDistribution2ᚖgithubᚗcomᚋiotexpr
 		return graphql.Null
 	}
 	return ec._HermesDistribution(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalONewPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNewPagination(ctx context.Context, v interface{}) (NewPagination, error) {
+	return ec.unmarshalInputNewPagination(ctx, v)
+}
+
+func (ec *executionContext) unmarshalONewPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNewPagination(ctx context.Context, v interface{}) (*NewPagination, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalONewPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNewPagination(ctx, v)
+	return &res, err
 }
 
 func (ec *executionContext) marshalONumberOfActions2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfActions(ctx context.Context, sel ast.SelectionSet, v NumberOfActions) graphql.Marshaler {

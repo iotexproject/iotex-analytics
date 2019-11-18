@@ -35,7 +35,10 @@ import (
 const HexPrefix = "0x"
 
 // ErrPaginationNotFound is the error indicating that pagination is not specified
-var ErrPaginationNotFound = errors.New("Pagination information is not found")
+var ErrPaginationNotFound = errors.New("pagination information is not found")
+
+// ErrPaginationInvalidOffset is the error indicating that pagination's offset parameter is invalid
+var ErrPaginationInvalidOffset = errors.New("invalid pagination offset number")
 
 // DefaultPageSize is the size of page when pagination parameters are not set
 var DefaultPageSize = 200
@@ -487,7 +490,26 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	if startDate > endDate {
 		return errors.New("invalid dates")
 	}
-	actionInfoList, err := r.AP.GetActionsByDates(uint64(startDate), uint64(endDate))
+
+	var offset, size int
+
+	paginationMap, err := getPaginationArgs(argsMap)
+	// TODO: put the switch part into getPaginationArgs() after pagination optimization
+	switch {
+	default:
+		offset = paginationMap["offset"]
+		size = paginationMap["size"]
+		if offset < 0 {
+			return ErrPaginationInvalidOffset
+		}
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+
+	actionInfoList, err := r.AP.GetActionsByDates(uint64(startDate), uint64(endDate), offset, size)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		actionResponse.ByDates = &ActionList{Exist: false}
@@ -509,27 +531,9 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 			GasFee:    act.GasFee,
 		})
 	}
-	sort.Slice(actInfoList, func(i, j int) bool { return actInfoList[i].TimeStamp > actInfoList[j].TimeStamp })
 
-	actionOutput := &ActionList{Exist: true, Count: len(actInfoList)}
-	paginationMap, err := getPaginationArgs(argsMap)
-	switch {
-	case err == ErrPaginationNotFound:
-		actionOutput.Actions = actInfoList
-	case err != nil:
-		return errors.Wrap(err, "failed to get pagination arguments for actions")
-	default:
-		skip := paginationMap["skip"]
-		first := paginationMap["first"]
-		if skip < 0 || skip >= len(actInfoList) {
-			return errors.New("invalid pagination skip number for actions")
-		}
-		if len(actInfoList)-skip < first {
-			first = len(actInfoList) - skip
-		}
-		actionOutput.Actions = actInfoList[skip : skip+first]
-	}
-	actionResponse.ByDates = actionOutput
+	actionResponse.ByDates = &ActionList{Exist: true, Actions: actInfoList, Count: len(actInfoList)}
+
 	return nil
 }
 
@@ -545,8 +549,11 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	default:
-		offset = paginationMap["skip"]
-		size = paginationMap["first"]
+		offset = paginationMap["offset"]
+		size = paginationMap["size"]
+		if offset < 0 {
+			return ErrPaginationInvalidOffset
+		}
 	case err == ErrPaginationNotFound:
 		offset = 0
 		size = DefaultPageSize
@@ -578,6 +585,7 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	}
 
 	actionResponse.ByAddress = &ActionList{Exist: true, Actions: actInfoList, Count: len(actInfoList)}
+
 	return nil
 }
 
@@ -588,8 +596,24 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	evmTransferDetailList, err := r.AP.GetEvmTransferDetailListByAddress(addr)
+	var offset, size int
 
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["offset"]
+		size = paginationMap["size"]
+		if offset < 0 {
+			return ErrPaginationInvalidOffset
+		}
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+
+	evmTransferDetailList, err := r.AP.GetEvmTransferDetailListByAddress(addr, offset, size)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		actionResponse.EvmTransfersByAddress = &EvmTransferList{Exist: false}
@@ -609,27 +633,9 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 			TimeStamp: int(etf.TimeStamp),
 		})
 	}
-	sort.Slice(evmTransfers, func(i, j int) bool { return evmTransfers[i].TimeStamp > evmTransfers[j].TimeStamp })
 
-	actionOutput := &EvmTransferList{Exist: true, Count: len(evmTransfers)}
-	paginationMap, err := getPaginationArgs(argsMap)
-	switch {
-	case err == ErrPaginationNotFound:
-		actionOutput.EvmTransfers = evmTransfers
-	case err != nil:
-		return errors.Wrap(err, "failed to get pagination arguments for evm transfers")
-	default:
-		skip := paginationMap["skip"]
-		first := paginationMap["first"]
-		if skip < 0 || skip >= len(evmTransfers) {
-			return errors.New("invalid pagination skip number for evm transfers")
-		}
-		if len(evmTransfers)-skip < first {
-			first = len(evmTransfers) - skip
-		}
-		actionOutput.EvmTransfers = evmTransfers[skip : skip+first]
-	}
-	actionResponse.EvmTransfersByAddress = actionOutput
+	actionResponse.EvmTransfersByAddress = &EvmTransferList{Exist: true, EvmTransfers: evmTransfers, Count: len(evmTransfers)}
+
 	return nil
 }
 
