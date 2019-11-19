@@ -150,11 +150,6 @@ type HermesDistribution struct {
 	Refund              string                `json:"refund"`
 }
 
-type NewPagination struct {
-	Offset int `json:"offset"`
-	Size   int `json:"size"`
-}
-
 type NumberOfActions struct {
 	Exist bool `json:"exist"`
 	Count int  `json:"count"`

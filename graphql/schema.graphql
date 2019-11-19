@@ -108,7 +108,7 @@ type RewardSources {
 
 type ActionList {
     exist: Boolean!
-    actions(pagination: NewPagination): [ActionInfo]!
+    actions(pagination: Pagination): [ActionInfo]!
     count: Int!
 }
 
@@ -238,18 +238,13 @@ type EvmTransferDetail{
 
 type EvmTransferList{
     exist: Boolean!
-    evmTransfers(pagination: NewPagination): [EvmTransferDetail]!
+    evmTransfers(pagination: Pagination): [EvmTransferDetail]!
     count: Int!
 }
 
 input Pagination{
     skip: Int!
     first: Int!
-}
-
-input NewPagination{
-    offset: Int!
-    size: Int!
 }
 
 input EpochRange{

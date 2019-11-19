@@ -497,8 +497,9 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	// TODO: put the switch part into getPaginationArgs() after pagination optimization
 	switch {
 	default:
-		offset = paginationMap["offset"]
-		size = paginationMap["size"]
+		// TODO: rename skip/first into offset/size
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
 		}
@@ -549,8 +550,8 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	default:
-		offset = paginationMap["offset"]
-		size = paginationMap["size"]
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
 		}
@@ -601,8 +602,8 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
 	default:
-		offset = paginationMap["offset"]
-		size = paginationMap["size"]
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
 		}
