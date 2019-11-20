@@ -157,7 +157,8 @@ type BucketInfo {
     voterIotexAddress: String!
     votes: String!
     weightedVotes: String!
-    remainingDuration: String! 
+    remainingDuration: String!
+    decay: Boolean!
 }
 
 type Bookkeeping {

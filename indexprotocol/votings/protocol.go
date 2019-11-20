@@ -115,6 +115,7 @@ type (
 		Votes             string
 		WeightedVotes     string
 		RemainingDuration string
+		Decay             bool
 	}
 
 	rawData struct {
@@ -412,6 +413,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 				Votes:             vote.Amount().Text(10),
 				WeightedVotes:     vote.WeightedAmount().Text(10),
 				RemainingDuration: vote.RemainingTime(mintTime).String(),
+				Decay:             vote.Decay(),
 			}
 			votinginfoList = append(votinginfoList, votinginfo)
 		}
