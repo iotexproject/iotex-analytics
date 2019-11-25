@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 	}
 
 	BucketInfo struct {
+		Decay             func(childComplexity int) int
 		RemainingDuration func(childComplexity int) int
 		VoterEthAddress   func(childComplexity int) int
 		VoterIotexAddress func(childComplexity int) int
@@ -528,6 +529,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Bookkeeping.RewardDistribution(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "BucketInfo.Decay":
+		if e.complexity.BucketInfo.Decay == nil {
+			break
+		}
+
+		return e.complexity.BucketInfo.Decay(childComplexity), true
 
 	case "BucketInfo.RemainingDuration":
 		if e.complexity.BucketInfo.RemainingDuration == nil {
@@ -1564,7 +1572,8 @@ type BucketInfo {
     voterIotexAddress: String!
     votes: String!
     weightedVotes: String!
-    remainingDuration: String! 
+    remainingDuration: String!
+    decay: Boolean!
 }
 
 type Bookkeeping {
@@ -2991,6 +3000,33 @@ func (ec *executionContext) _BucketInfo_remainingDuration(ctx context.Context, f
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BucketInfo_decay(ctx context.Context, field graphql.CollectedField, obj *BucketInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "BucketInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Decay, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _BucketInfoList_epochNumber(ctx context.Context, field graphql.CollectedField, obj *BucketInfoList) graphql.Marshaler {
@@ -6991,6 +7027,11 @@ func (ec *executionContext) _BucketInfo(ctx context.Context, sel ast.SelectionSe
 			}
 		case "remainingDuration":
 			out.Values[i] = ec._BucketInfo_remainingDuration(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "decay":
+			out.Values[i] = ec._BucketInfo_decay(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

@@ -115,6 +115,7 @@ type (
 		Votes             string
 		WeightedVotes     string
 		RemainingDuration string
+		Decay             bool
 	}
 
 	rawData struct {
@@ -395,15 +396,18 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(valueOfTime))
 	}
-	nativeMintTime, err := p.getLatestNativeMintTime(height)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get latest native mint time")
+	nativeMintTime := time.Time{}
+	if epochNum != 1 {
+		nativeMintTime, err = p.getLatestNativeMintTime(height)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get latest native mint time")
+		}
 	}
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
 			mintTime := nativeMintTime
-			if !voteFlag[i] {
+			if !voteFlag[i] || epochNum == 1 {
 				mintTime = ethMintTime
 			}
 			votinginfo := &VotingInfo{
@@ -412,6 +416,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 				Votes:             vote.Amount().Text(10),
 				WeightedVotes:     vote.WeightedAmount().Text(10),
 				RemainingDuration: vote.RemainingTime(mintTime).String(),
+				Decay:             vote.Decay(),
 			}
 			votinginfoList = append(votinginfoList, votinginfo)
 		}

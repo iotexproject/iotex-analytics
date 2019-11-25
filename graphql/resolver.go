@@ -962,6 +962,7 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 				Votes:             bucket.Votes,
 				WeightedVotes:     bucket.WeightedVotes,
 				RemainingDuration: bucket.RemainingDuration,
+				Decay:             bucket.Decay,
 			})
 		}
 		paginationMap, err := getPaginationArgs(argsMap)
