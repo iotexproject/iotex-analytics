@@ -484,7 +484,11 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 			return nil, errors.Wrap(errs, "failed to convert to big int")
 
 		}
-		epochToVoters[voting.EpochNumber][voting.VoterAddress] = weightedVotesInt
+		if val, ok := epochToVoters[voting.EpochNumber][voting.VoterAddress]; !ok {
+			epochToVoters[voting.EpochNumber][voting.VoterAddress] = weightedVotesInt
+		} else {
+			val.Add(val, weightedVotesInt)
+		} 
 	}
 
 	return epochToVoters, nil
@@ -613,7 +617,11 @@ func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[string]
 		if errs != nil {
 			return nil, errors.Wrap(errs, "failed to convert to big int")
 		}
-		voterMap[voting.VoterAddress] = weightedVotesInt
+		if val, ok := voterMap[voting.VoterAddress]; !ok {
+			voterMap[voting.VoterAddress] = weightedVotesInt
+		} else {
+			val.Add(val, weightedVotesInt)
+		}
 	}
 	return voterVotesMap, nil
 }
@@ -659,7 +667,11 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 			return nil, errors.Wrap(errs, "failed to convert to big int")
 
 		}
-		weightedVotesMap[voting.CandidateName][voting.EpochNumber] = weightedVotesInt
+		if val, ok := weightedVotesMap[voting.CandidateName][voting.EpochNumber]; !ok {
+			weightedVotesMap[voting.CandidateName][voting.EpochNumber] = weightedVotesInt
+		} else {
+			val.Add(val, weightedVotesInt)
+		} 
 	}
 	return weightedVotesMap, nil
 }

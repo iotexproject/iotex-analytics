@@ -72,15 +72,15 @@ const (
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createEpochCandidateIndex = "CREATE UNIQUE INDEX %s ON %s (epoch_number, delegate_name)"
 	createAggregateVoting     = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, aggregate_votes DECIMAL(65, 0) NOT NULL, " +
-		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address))"
+		"candidate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, native_flag BOOLEAN, aggregate_votes DECIMAL(65, 0) NOT NULL, " +
+		"UNIQUE KEY %s (epoch_number, candidate_name, voter_address, native_flag))"
 	createVotingMetaTable = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, " +
 		"UNIQUE KEY %s (epoch_number))"
 	selectVotingResult = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
 	insertVotingResult = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, aggregate_votes) VALUES (?, ?, ?, ?)"
+	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
 	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
 	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
 )
@@ -127,6 +127,7 @@ type (
 		epochNumber   uint64
 		candidateName string
 		voterAddress  string
+		isNative	  bool
 	}
 )
 
@@ -604,11 +605,11 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, 
 }
 
 func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
-	votes, _, delegates, err := p.resultByHeight(height, tx)
+	votes, voteFlag, delegates, err := p.resultByHeight(height, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
-	if err := p.updateAggregateVoting(tx, votes, delegates, epochNumber); err != nil {
+	if err := p.updateAggregateVoting(tx, votes, voteFlag, delegates, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
 	if err := p.updateVotingResult(tx, delegates, epochNumber, gravityHeight); err != nil {
@@ -617,16 +618,17 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uin
 	return nil
 }
 
-func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delegates []*types.Candidate, epochNumber uint64) (err error) {
+func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64) (err error) {
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
-	for _, vote := range votes {
+	for i, vote := range votes {
 		//for sumOfWeightedVotes
 		key := aggregateKey{
 			epochNumber:   epochNumber,
 			candidateName: hex.EncodeToString(vote.Candidate()),
 			voterAddress:  hex.EncodeToString(vote.Voter()),
+			isNative:	   voteFlag[i],
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, vote.WeightedAmount())
@@ -651,6 +653,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, delega
 			key.epochNumber,
 			key.candidateName,
 			key.voterAddress,
+			key.isNative,
 			val.Text(10),
 		); err != nil {
 			return err
