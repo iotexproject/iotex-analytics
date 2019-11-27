@@ -127,7 +127,7 @@ type (
 		epochNumber   uint64
 		candidateName string
 		voterAddress  string
-		isNative	  bool
+		isNative      bool
 	}
 )
 
@@ -628,7 +628,7 @@ func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, voteFl
 			epochNumber:   epochNumber,
 			candidateName: hex.EncodeToString(vote.Candidate()),
 			voterAddress:  hex.EncodeToString(vote.Voter()),
-			isNative:	   voteFlag[i],
+			isNative:      voteFlag[i],
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, vote.WeightedAmount())

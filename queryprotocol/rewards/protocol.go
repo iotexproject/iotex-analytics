@@ -488,7 +488,7 @@ func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName s
 			epochToVoters[voting.EpochNumber][voting.VoterAddress] = weightedVotesInt
 		} else {
 			val.Add(val, weightedVotesInt)
-		} 
+		}
 	}
 
 	return epochToVoters, nil
@@ -671,7 +671,7 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 			weightedVotesMap[voting.CandidateName][voting.EpochNumber] = weightedVotesInt
 		} else {
 			val.Add(val, weightedVotesInt)
-		} 
+		}
 	}
 	return weightedVotesMap, nil
 }
