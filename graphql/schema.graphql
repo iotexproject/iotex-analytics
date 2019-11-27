@@ -158,6 +158,7 @@ type BucketInfo {
     votes: String!
     weightedVotes: String!
     remainingDuration: String!
+    startTime: String!
     decay: Boolean!
 }
 

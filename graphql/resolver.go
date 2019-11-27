@@ -957,6 +957,7 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 				Votes:             bucket.Votes,
 				WeightedVotes:     bucket.WeightedVotes,
 				RemainingDuration: bucket.RemainingDuration,
+				StartTime:         bucket.StartTime,
 				Decay:             bucket.Decay,
 			})
 		}

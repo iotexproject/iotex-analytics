@@ -54,6 +54,7 @@ type BucketInfo struct {
 	Votes             string `json:"votes"`
 	WeightedVotes     string `json:"weightedVotes"`
 	RemainingDuration string `json:"remainingDuration"`
+	StartTime         string `json:"startTime"`
 	Decay             bool   `json:"decay"`
 }
 
