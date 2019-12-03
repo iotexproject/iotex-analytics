@@ -264,6 +264,9 @@ func (idx *Indexer) SubscribeNewBlock(
 
 // buildIndex builds the index for a block
 func (idx *Indexer) buildIndex(ctx context.Context, blk *block.Block) error {
+	if blk.Height() == uint64(2040121) {
+		log.L().Fatal("Shut down service!")
+	}
 	if err := idx.Store.Transact(func(tx *sql.Tx) error {
 		for _, p := range idx.IndexProtocols {
 			if err := p.HandleBlock(ctx, tx, blk); err != nil {
