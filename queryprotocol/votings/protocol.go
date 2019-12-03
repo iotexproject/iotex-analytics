@@ -104,7 +104,7 @@ func (p *Protocol) GetStaking(startEpoch uint64, epochCount uint64, delegateName
 
 	endEpoch := startEpoch + epochCount - 1
 
-	getQuery := fmt.Sprintf(selectVotingResult, votings.VotingResultTableName)
+	getQuery := fmt.Sprintf(selectVotingResultWithName, votings.VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
