@@ -105,6 +105,7 @@ type (
 		EpochNumber    uint64
 		CandidateName  string
 		VoterAddress   string
+		NativeFlag     bool
 		AggregateVotes string
 	}
 

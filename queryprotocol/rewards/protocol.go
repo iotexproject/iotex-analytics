@@ -33,7 +33,7 @@ const (
 	selectVotingResult  = "SELECT epoch_number, total_weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
 	selectAccountReward = "SELECT epoch_number, epoch_reward, foundation_bonus FROM %s " +
 		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? "
-	selectAggregateVoting    = "SELECT epoch_number, candidate_name, voter_address, aggregate_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
+	selectAggregateVoting    = "SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
 	selectAccountRewardIn    = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
 	selectVotingResultAll    = "SELECT * FROM %s WHERE epoch_number >= ?  AND epoch_number <= ? AND reward_address= ? "
 	selectAggregateVotingIn  = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
