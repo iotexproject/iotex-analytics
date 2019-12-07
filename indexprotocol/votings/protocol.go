@@ -113,6 +113,7 @@ type (
 	VotingInfo struct {
 		EpochNumber       uint64
 		VoterAddress      string
+		IsNative          bool
 		Votes             string
 		WeightedVotes     string
 		RemainingDuration string
@@ -416,6 +417,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
 				VoterAddress:      hex.EncodeToString(vote.Voter()),
+				IsNative:          voteFlag[i],
 				Votes:             vote.Amount().Text(10),
 				WeightedVotes:     vote.WeightedAmount().Text(10),
 				RemainingDuration: vote.RemainingTime(mintTime).String(),

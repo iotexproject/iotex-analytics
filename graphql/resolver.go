@@ -954,6 +954,7 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 			bucketInfo = append(bucketInfo, &BucketInfo{
 				VoterEthAddress:   HexPrefix + bucket.VoterAddress,
 				VoterIotexAddress: voterIotexAddr,
+				IsNative:          bucket.IsNative,
 				Votes:             bucket.Votes,
 				WeightedVotes:     bucket.WeightedVotes,
 				RemainingDuration: bucket.RemainingDuration,
