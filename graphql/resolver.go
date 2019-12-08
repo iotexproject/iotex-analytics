@@ -257,8 +257,8 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 }
 
 // TopHolders handles top holders requests
-func (r *queryResolver) TopHolders(ctx context.Context, endEpochNumber, numberOfHolders int) ([]*TopHolder, error) {
-	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(numberOfHolders))
+func (r *queryResolver) TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error) {
+	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(pagination.Skip), uint64(pagination.First))
 	if err != nil {
 		return nil, err
 	}
