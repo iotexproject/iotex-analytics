@@ -155,9 +155,11 @@ type Productivity {
 type BucketInfo {
     voterEthAddress: String!
     voterIotexAddress: String!
+    isNative: Boolean!
     votes: String!
     weightedVotes: String!
     remainingDuration: String!
+    startTime: String!
     decay: Boolean!
 }
 

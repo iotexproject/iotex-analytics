@@ -51,9 +51,11 @@ type Bookkeeping struct {
 type BucketInfo struct {
 	VoterEthAddress   string `json:"voterEthAddress"`
 	VoterIotexAddress string `json:"voterIotexAddress"`
+	IsNative          bool   `json:"isNative"`
 	Votes             string `json:"votes"`
 	WeightedVotes     string `json:"weightedVotes"`
 	RemainingDuration string `json:"remainingDuration"`
+	StartTime         string `json:"startTime"`
 	Decay             bool   `json:"decay"`
 }
 
