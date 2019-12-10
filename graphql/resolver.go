@@ -30,18 +30,23 @@ import (
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
+const (
+	// HexPrefix is the prefix of ERC20 address in hex string
+	HexPrefix = "0x"
+	// DefaultPageSize is the size of page when pagination parameters are not set
+	DefaultPageSize = 200
+	// MaximumPageSize is the maximum size of page
+	MaximumPageSize = 500
+)
 
-// HexPrefix is the prefix of ERC20 address in hex string
-const HexPrefix = "0x"
-
-// ErrPaginationNotFound is the error indicating that pagination is not specified
-var ErrPaginationNotFound = errors.New("pagination information is not found")
-
-// ErrPaginationInvalidOffset is the error indicating that pagination's offset parameter is invalid
-var ErrPaginationInvalidOffset = errors.New("invalid pagination offset number")
-
-// DefaultPageSize is the size of page when pagination parameters are not set
-var DefaultPageSize = 200
+var (
+	// ErrPaginationNotFound is the error indicating that pagination is not specified
+	ErrPaginationNotFound = errors.New("pagination information is not found")
+	// ErrPaginationInvalidOffset is the error indicating that pagination's offset parameter is invalid
+	ErrPaginationInvalidOffset = errors.New("invalid pagination offset number")
+	// ErrPaginationInvalidSize is the error indicating that pagination's size parameter is invalid
+	ErrPaginationInvalidSize = errors.New("invalid pagination size number")
+)
 
 // EncodeDelegateName converts a delegate name input to an internal format
 func EncodeDelegateName(name string) (string, error) {
@@ -499,9 +504,12 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	default:
 		// TODO: rename skip/first into offset/size
 		offset = paginationMap["skip"]
-		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
+		}
+		size = paginationMap["first"]
+		if size <= 0 || size > MaximumPageSize {
+			return ErrPaginationInvalidSize
 		}
 	case err == ErrPaginationNotFound:
 		offset = 0
@@ -551,9 +559,12 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	switch {
 	default:
 		offset = paginationMap["skip"]
-		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
+		}
+		size = paginationMap["first"]
+		if size <= 0 || size > MaximumPageSize {
+			return ErrPaginationInvalidSize
 		}
 	case err == ErrPaginationNotFound:
 		offset = 0
@@ -603,9 +614,12 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 	switch {
 	default:
 		offset = paginationMap["skip"]
-		size = paginationMap["first"]
 		if offset < 0 {
 			return ErrPaginationInvalidOffset
+		}
+		size = paginationMap["first"]
+		if size <= 0 || size > MaximumPageSize {
+			return ErrPaginationInvalidSize
 		}
 	case err == ErrPaginationNotFound:
 		offset = 0
