@@ -208,7 +208,7 @@ type ComplexityRoot struct {
 		Chain      func(childComplexity int) int
 		Delegate   func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
 		Hermes     func(childComplexity int, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) int
-		TopHolders func(childComplexity int, endEpochNumber int, numberOfHolders int) int
+		TopHolders func(childComplexity int, endEpochNumber int, pagination Pagination) int
 		Voting     func(childComplexity int, startEpoch int, epochCount int) int
 		Xrc20      func(childComplexity int) int
 	}
@@ -294,7 +294,7 @@ type QueryResolver interface {
 	Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) (*Hermes, error)
 	Xrc20(ctx context.Context) (*Xrc20, error)
 	Action(ctx context.Context) (*Action, error)
-	TopHolders(ctx context.Context, endEpochNumber int, numberOfHolders int) ([]*TopHolder, error)
+	TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error)
 }
 
 type executableSchema struct {
@@ -1067,7 +1067,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.TopHolders(childComplexity, args["endEpochNumber"].(int), args["numberOfHolders"].(int)), true
+		return e.complexity.Query.TopHolders(childComplexity, args["endEpochNumber"].(int), args["pagination"].(Pagination)), true
 
 	case "Query.Voting":
 		if e.complexity.Query.Voting == nil {
@@ -1437,7 +1437,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
     xrc20: Xrc20
     action: Action
-    topHolders(endEpochNumber: Int!, numberOfHolders: Int!):[TopHolder]!
+    topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
 }
 
 type TopHolder{
@@ -1996,14 +1996,14 @@ func (ec *executionContext) field_Query_topHolders_args(ctx context.Context, raw
 		}
 	}
 	args["endEpochNumber"] = arg0
-	var arg1 int
-	if tmp, ok := rawArgs["numberOfHolders"]; ok {
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+	var arg1 Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg1, err = ec.unmarshalNPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["numberOfHolders"] = arg1
+	args["pagination"] = arg1
 	return args, nil
 }
 
@@ -4863,7 +4863,7 @@ func (ec *executionContext) _Query_topHolders(ctx context.Context, field graphql
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().TopHolders(rctx, args["endEpochNumber"].(int), args["numberOfHolders"].(int))
+		return ec.resolvers.Query().TopHolders(rctx, args["endEpochNumber"].(int), args["pagination"].(Pagination))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -8931,6 +8931,10 @@ func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}
 
 func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
 	return graphql.MarshalInt(v)
+}
+
+func (ec *executionContext) unmarshalNPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx context.Context, v interface{}) (Pagination, error) {
+	return ec.unmarshalInputPagination(ctx, v)
 }
 
 func (ec *executionContext) marshalNRewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx context.Context, sel ast.SelectionSet, v []*RewardDistribution) graphql.Marshaler {

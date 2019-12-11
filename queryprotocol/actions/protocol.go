@@ -43,7 +43,7 @@ const (
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d"
+	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
 )
 
 type activeAccount struct {
@@ -484,15 +484,12 @@ func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, e
 }
 
 // GetTopHolders gets top holders
-func (p *Protocol) GetTopHolders(endEpochNumber, numberOfHolders uint64) (holders []*TopHolder, err error) {
+func (p *Protocol) GetTopHolders(endEpochNumber, skip, first uint64) (holders []*TopHolder, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
-	if numberOfHolders < 1 {
-		numberOfHolders = 1
-	}
-	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, numberOfHolders)
+	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, skip, first)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
