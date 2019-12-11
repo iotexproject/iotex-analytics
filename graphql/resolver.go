@@ -269,8 +269,11 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 
 // TopHolders handles top holders requests
 func (r *queryResolver) TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error) {
-	if pagination.Skip < 0 || pagination.First < 1 {
-		return nil, errors.New("invalid pagination skip number or first number")
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, ErrPaginationInvalidSize
 	}
 	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(pagination.Skip), uint64(pagination.First))
 	if err != nil {
