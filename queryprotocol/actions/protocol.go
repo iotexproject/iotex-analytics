@@ -28,15 +28,17 @@ const (
 	sha3Len                        = 64
 	contractParamsLen              = 64
 	addressLen                     = 40
-	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE timestamp >= ? AND timestamp <= ?"
+	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
+		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ?"
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
-	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?)"
+	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
+		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
@@ -111,7 +113,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // GetActionsByDates gets actions by start date and end date
-func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, error) {
+func (p *Protocol) GetActionsByDates(startDate, endDate uint64, offset, size int) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -125,7 +127,7 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64) ([]*ActionInfo, 
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(startDate, endDate)
+	rows, err := stmt.Query(startDate, endDate, offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -214,7 +216,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 }
 
 // GetActionsByAddress gets action information list by address
-func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
+func (p *Protocol) GetActionsByAddress(address string, offset int, size int) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -231,7 +233,7 @@ func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(address, address)
+	rows, err := stmt.Query(address, address, offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -258,7 +260,7 @@ func (p *Protocol) GetActionsByAddress(address string) ([]*ActionInfo, error) {
 }
 
 // GetEvmTransferDetailListByAddress gets evm transfer detail information list by address
-func (p *Protocol) GetEvmTransferDetailListByAddress(address string) ([]*EvmTransferDetail, error) {
+func (p *Protocol) GetEvmTransferDetailListByAddress(address string, offset, size int) ([]*EvmTransferDetail, error) {
 	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
 		return nil, errors.New("accounts protocol is unregistered")
 	}
@@ -272,7 +274,7 @@ func (p *Protocol) GetEvmTransferDetailListByAddress(address string) ([]*EvmTran
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 
-	rows, err := stmt.Query(address, address)
+	rows, err := stmt.Query(address, address, offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
