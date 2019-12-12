@@ -351,7 +351,7 @@ func (p *Protocol) updateCandidateRewardAddress(
 	if err != nil {
 		return errors.Wrap(err, "failed to get gravity chain start height")
 	}
-	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
+	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.GetData())
 
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
@@ -365,11 +365,11 @@ func (p *Protocol) updateCandidateRewardAddress(
 	}
 
 	p.RewardAddrToName = make(map[string][]string)
-	for _, candidate := range getCandidatesResponse.Candidates {
-		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
-			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
+	for _, candidate := range getCandidatesResponse.GetCandidates() {
+		if _, ok := p.RewardAddrToName[candidate.GetRewardAddress()]; !ok {
+			p.RewardAddrToName[candidate.GetRewardAddress()] = make([]string, 0)
 		}
-		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], candidate.Name)
+		p.RewardAddrToName[candidate.GetRewardAddress()] = append(p.RewardAddrToName[candidate.GetRewardAddress()], candidate.GetName())
 	}
 	return nil
 }

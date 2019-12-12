@@ -100,7 +100,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get chain metadata")
 	}
-	tipHeight := getChainMetaRes.ChainMeta.Height
+	tipHeight := getChainMetaRes.GetChainMeta().GetHeight()
 
 	if err := idx.IndexInBatch(ctx, tipHeight); err != nil {
 		return errors.Wrap(err, "failed to index blocks in batch")
@@ -214,13 +214,13 @@ func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to get raw blocks from the chain")
 		}
-		for _, blkInfo := range getRawBlocksRes.Blocks {
+		for _, blkInfo := range getRawBlocksRes.GetBlocks() {
 			blk := &block.Block{}
-			if err := blk.ConvertFromBlockPb(blkInfo.Block); err != nil {
+			if err := blk.ConvertFromBlockPb(blkInfo.GetBlock()); err != nil {
 				return errors.Wrap(err, "failed to convert block protobuf to raw block")
 			}
 
-			for _, receiptPb := range blkInfo.Receipts {
+			for _, receiptPb := range blkInfo.GetReceipts() {
 				receipt := &action.Receipt{}
 				receipt.ConvertFromReceiptPb(receiptPb)
 				blk.Receipts = append(blk.Receipts, receipt)

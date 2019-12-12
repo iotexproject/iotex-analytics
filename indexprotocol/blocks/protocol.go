@@ -342,7 +342,7 @@ func (p *Protocol) updateDelegates(
 		if err != nil {
 			return err
 		}
-		gravityChainStartHeight = byteutil.BytesToUint64(readStateRes.Data)
+		gravityChainStartHeight = byteutil.BytesToUint64(readStateRes.GetData())
 		if gravityChainStartHeight == 0 {
 			//retry to get chain start height again
 			return errors.New("waiting for fetching next timestamp in election service")
@@ -363,8 +363,8 @@ func (p *Protocol) updateDelegates(
 	}
 
 	p.OperatorAddrToName = make(map[string]string)
-	for _, candidate := range getCandidatesResponse.Candidates {
-		p.OperatorAddrToName[candidate.OperatorAddress] = candidate.Name
+	for _, candidate := range getCandidatesResponse.GetCandidates() {
+		p.OperatorAddrToName[candidate.GetOperatorAddress()] = candidate.GetName()
 	}
 
 	readStateRequest = &iotexapi.ReadStateRequest{
@@ -378,7 +378,7 @@ func (p *Protocol) updateDelegates(
 	}
 
 	var activeBlockProducers state.CandidateList
-	if err := activeBlockProducers.Deserialize(readStateRes.Data); err != nil {
+	if err := activeBlockProducers.Deserialize(readStateRes.GetData()); err != nil {
 		return errors.Wrap(err, "failed to deserialize active block producers")
 	}
 	p.ActiveBlockProducers = []string{}

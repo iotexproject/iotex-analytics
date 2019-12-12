@@ -477,21 +477,21 @@ func (p *Protocol) getRawData(
 	}
 	var buckets []*types.Bucket
 	var regs []*types.Registration
-	for _, bucketPb := range getRawDataResponse.Buckets {
+	for _, bucketPb := range getRawDataResponse.GetBuckets() {
 		bucket := &types.Bucket{}
 		if err := bucket.FromProtoMsg(bucketPb); err != nil {
 			return nil, nil, time.Time{}, err
 		}
 		buckets = append(buckets, bucket)
 	}
-	for _, regPb := range getRawDataResponse.Registrations {
+	for _, regPb := range getRawDataResponse.GetRegistrations() {
 		reg := &types.Registration{}
 		if err := reg.FromProtoMsg(regPb); err != nil {
 			return nil, nil, time.Time{}, err
 		}
 		regs = append(regs, reg)
 	}
-	mintTime, err := ptypes.Timestamp(getRawDataResponse.Timestamp)
+	mintTime, err := ptypes.Timestamp(getRawDataResponse.GetTimestamp())
 	if err != nil {
 		return nil, nil, time.Time{}, err
 	}
@@ -511,7 +511,7 @@ func (p *Protocol) getGravityChainStartHeight(
 	if err != nil {
 		return uint64(0), errors.Wrap(err, "failed to get gravity chain start height")
 	}
-	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.Data)
+	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.GetData())
 
 	return gravityChainStartHeight, nil
 }
@@ -532,21 +532,21 @@ func (p *Protocol) getNativeBucket(
 		return nil, errors.Wrap(err, "failed to get native buckets from API")
 	}
 	var buckets []*types.Bucket
-	for _, bucketPb := range getNativeBucketRes.Buckets {
-		voter := make([]byte, len(bucketPb.Voter))
-		copy(voter, bucketPb.Voter)
-		candidate := make([]byte, len(bucketPb.Candidate))
-		copy(candidate, bucketPb.Candidate)
-		amount := big.NewInt(0).SetBytes(bucketPb.Amount)
-		startTime, err := ptypes.Timestamp(bucketPb.StartTime)
+	for _, bucketPb := range getNativeBucketRes.GetBuckets() {
+		voter := make([]byte, len(bucketPb.GetVoter()))
+		copy(voter, bucketPb.GetVoter())
+		candidate := make([]byte, len(bucketPb.GetCandidate()))
+		copy(candidate, bucketPb.GetCandidate())
+		amount := big.NewInt(0).SetBytes(bucketPb.GetAmount())
+		startTime, err := ptypes.Timestamp(bucketPb.GetStartTime())
 		if err != nil {
 			return nil, err
 		}
-		duration, err := ptypes.Duration(bucketPb.Duration)
+		duration, err := ptypes.Duration(bucketPb.GetDuration())
 		if err != nil {
 			return nil, err
 		}
-		decay := bucketPb.Decay
+		decay := bucketPb.GetDecay()
 		bucket, err := types.NewBucket(startTime, duration, amount, voter, candidate, decay)
 		if err != nil {
 			return nil, err
