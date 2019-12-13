@@ -50,6 +50,7 @@ type Config struct {
 	NumSubEpochsDardanelles uint64                     `yaml:"numSubEpochsDardanelles"`
 	DardanellesHeight       uint64                     `yaml:"dardanellesHeight"`
 	DardanellesOn           bool                       `yaml:"dardanellesOn"`
+	ConsensusScheme         string                     `yaml:"consensusScheme"`
 	RangeQueryLimit         uint64                     `yaml:"rangeQueryLimit"`
 	Genesis                 indexprotocol.Genesis      `yaml:"genesis"`
 	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`

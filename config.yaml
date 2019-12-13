@@ -4,6 +4,7 @@ numSubEpochs: 15
 numSubEpochsDardanelles: 30
 dardanellesHeight: 1816201
 dardanellesOn: true
+consensusScheme: "ROLLDPOS"
 rangeQueryLimit: 100
 genesis:
   account:

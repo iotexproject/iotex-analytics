@@ -177,7 +177,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
 	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
-	if height == epochHeight || p.OperatorAddrToName == nil {
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && (height == epochHeight || p.OperatorAddrToName == nil) {
 		if err := p.updateDelegates(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update delegates in epoch %d", epochNumber)
 		}
@@ -219,7 +219,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	hash := blk.HashBlock()
 	producerAddr := blk.ProducerAddress()
 	producerName := p.OperatorAddrToName[producerAddr]
-	expectedProducerAddr := p.ActiveBlockProducers[int(height)%len(p.ActiveBlockProducers)]
+	var expectedProducerAddr string
+	if len(p.ActiveBlockProducers) > 0 {
+		expectedProducerAddr = p.ActiveBlockProducers[int(height)%len(p.ActiveBlockProducers)]
+	}
 	expectedProducerName := p.OperatorAddrToName[expectedProducerAddr]
 	return p.updateBlockHistory(tx, epochNumber, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
 		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, gasConsumed,

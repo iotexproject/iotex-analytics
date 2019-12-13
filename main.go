@@ -119,8 +119,9 @@ func main() {
 	electionClient := api.NewAPIServiceClient(conn2)
 
 	ctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:    chainClient,
-		ElectionClient: electionClient,
+		ChainClient:     chainClient,
+		ElectionClient:  electionClient,
+		ConsensusScheme: idx.Config.ConsensusScheme,
 	})
 
 	if err := idx.Start(ctx); err != nil {

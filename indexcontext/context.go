@@ -18,8 +18,9 @@ type indexCtxKey struct{}
 
 // IndexCtx provides the indexer with auxiliary information
 type IndexCtx struct {
-	ChainClient    iotexapi.APIServiceClient
-	ElectionClient api.APIServiceClient
+	ChainClient     iotexapi.APIServiceClient
+	ElectionClient  api.APIServiceClient
+	ConsensusScheme string
 }
 
 // WithIndexCtx adds IndexCtx into context

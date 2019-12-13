@@ -168,7 +168,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	electionClient := indexCtx.ElectionClient
 	// Special handling for epoch start height
 	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
-	if height == epochHeight || p.RewardAddrToName == nil {
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && (height == epochHeight || p.RewardAddrToName == nil) {
 		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
