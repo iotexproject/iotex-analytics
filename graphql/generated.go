@@ -267,7 +267,7 @@ type ComplexityRoot struct {
 	Xrc20 struct {
 		ByAddress         func(childComplexity int, address string, numPerPage int, page int) int
 		ByContractAddress func(childComplexity int, address string, numPerPage int, page int) int
-		ByPage            func(childComplexity int, numPerPage int, page int) int
+		ByPage            func(childComplexity int, pagination Pagination) int
 	}
 
 	Xrc20Info struct {
@@ -1295,7 +1295,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Xrc20.ByPage(childComplexity, args["numPerPage"].(int), args["page"].(int)), true
+		return e.complexity.Xrc20.ByPage(childComplexity, args["pagination"].(Pagination)), true
 
 	case "Xrc20Info.Contract":
 		if e.complexity.Xrc20Info.Contract == nil {
@@ -1457,7 +1457,7 @@ type Xrc20Info{
 type Xrc20 {
     byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byPage(numPerPage:Int!,page:Int!): Xrc20List
+    byPage(pagination: Pagination!): Xrc20List
 }
 
 type Account {
@@ -2120,22 +2120,14 @@ func (ec *executionContext) field_Xrc20_byContractAddress_args(ctx context.Conte
 func (ec *executionContext) field_Xrc20_byPage_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 int
-	if tmp, ok := rawArgs["numPerPage"]; ok {
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+	var arg0 Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalNPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["numPerPage"] = arg0
-	var arg1 int
-	if tmp, ok := rawArgs["page"]; ok {
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["page"] = arg1
+	args["pagination"] = arg0
 	return args, nil
 }
 
