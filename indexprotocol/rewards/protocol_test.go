@@ -60,8 +60,9 @@ func TestProtocol(t *testing.T) {
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
 	electionClient := mock_election.NewMockAPIServiceClient(ctrl)
 	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:    chainClient,
-		ElectionClient: electionClient,
+		ChainClient:     chainClient,
+		ElectionClient:  electionClient,
+		ConsensusScheme: "ROLLDPOS",
 	})
 
 	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
