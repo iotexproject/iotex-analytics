@@ -67,10 +67,10 @@ func TestProtocol(t *testing.T) {
 		ElectionClient: electionClient,
 	})
 
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).AnyTimes().Return(
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
@@ -103,7 +103,7 @@ func TestProtocol(t *testing.T) {
 	}
 	data, err := candidateList.Serialize()
 	require.NoError(err)
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).AnyTimes().Return(&iotexapi.ReadStateResponse{
 		Data: data,
 	}, nil)
 
