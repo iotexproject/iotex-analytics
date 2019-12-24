@@ -743,8 +743,6 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	var skip,first int
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
-	case err == ErrPaginationNotFound:
-		fallthrough
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 ByPage")
 	default:
