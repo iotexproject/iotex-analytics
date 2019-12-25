@@ -740,20 +740,17 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
-	var skip,first int
 	paginationMap, err := getPaginationArgs(argsMap)
-	switch {
-	case err != nil:
+	if err != nil {
 		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 ByPage")
-	default:
-		skip = paginationMap["skip"]
-		first = paginationMap["first"]
-		if skip < 0 {
-			return ErrPaginationInvalidOffset
-		}
-		if first <= 0 || first > MaximumPageSize {
-			return ErrPaginationInvalidSize
-		}
+	}
+	skip := paginationMap["skip"]
+	first := paginationMap["first"]
+	if skip < 0 {
+		return ErrPaginationInvalidOffset
+	}
+	if first <= 0 || first > MaximumPageSize {
+		return ErrPaginationInvalidSize
 	}
 	output := &Xrc20List{Exist: false}
 	actionResponse.ByPage = output
