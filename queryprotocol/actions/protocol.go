@@ -42,6 +42,7 @@ const (
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
 	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
 )
@@ -105,6 +106,12 @@ type TopHolder struct {
 // Protocol defines the protocol of querying tables
 type Protocol struct {
 	indexer *indexservice.Indexer
+}
+
+// Address defines the address struct
+type Address struct {
+	Address   string
+	TimeStamp uint64
 }
 
 // NewProtocol creates a new protocol
@@ -475,6 +482,41 @@ func (p *Protocol) GetXrc20ByPage(offset, limit uint64) (cons []*Xrc20Info, err 
 		con.Timestamp = r.Timestamp
 		con.Contract = r.Address
 		cons = append(cons, con)
+	}
+	return
+}
+
+// GetXrc20Addresses gets xrc20 addresses by page
+func (p *Protocol) GetXrc20Addresses(offset, limit uint64) (addresses []*string, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectXrc20AddressesByPage, actions.Xrc20HistoryTableName, offset, limit)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret Address
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	for _, parsedRow := range parsedRows {
+		fmt.Println(parsedRows)
+		r := parsedRow.(*Address)
+		addresses = append(addresses, &r.Address)
 	}
 	return
 }

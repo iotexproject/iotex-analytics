@@ -264,6 +264,9 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	if containField(requestedFields, "byPage") {
 		g.Go(func() error { return r.getXrc20ByPage(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "xrc20Addresses") {
+		g.Go(func() error { return r.getXrc20Addresses(ctx, actionResponse) })
+	}
 	return actionResponse, g.Wait()
 }
 
@@ -773,6 +776,37 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 			Quantity:  c.Quantity,
 			Contract:  c.Contract,
 		})
+	}
+	return nil
+}
+
+func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "xrc20Addresses", "xrc20")
+	paginationMap, err := getPaginationArgs(argsMap)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 addresses")
+	}
+	skip := paginationMap["skip"]
+	first := paginationMap["first"]
+	if skip < 0 {
+		return ErrPaginationInvalidOffset
+	}
+	if first <= 0 || first > MaximumPageSize {
+		return ErrPaginationInvalidSize
+	}
+	output := &XRC20AddressList{Exist: false}
+	actionResponse.Xrc20Addresses = output
+	addresses, err := r.AP.GetXrc20Addresses(uint64(skip), uint64(first))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	output.Count = len(addresses)
+	for _, c := range addresses {
+		output.Addresses = append(output.Addresses, c)
 	}
 	return nil
 }
