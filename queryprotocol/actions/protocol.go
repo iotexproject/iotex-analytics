@@ -437,17 +437,13 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 }
 
 // GetXrc20ByPage gets xrc20 transfer info by page
-func (p *Protocol) GetXrc20ByPage(numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+func (p *Protocol) GetXrc20ByPage(offset, limit uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
-	if page < 1 {
-		page = 1
-	}
-	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf(selectXrc20HistoryByPage, actions.Xrc20HistoryTableName, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20HistoryByPage, actions.Xrc20HistoryTableName, offset, limit)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

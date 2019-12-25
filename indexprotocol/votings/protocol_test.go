@@ -69,8 +69,9 @@ func TestProtocol(t *testing.T) {
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
 	electionClient := mock_election.NewMockAPIServiceClient(ctrl)
 	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:    chainClient,
-		ElectionClient: electionClient,
+		ChainClient:     chainClient,
+		ElectionClient:  electionClient,
+		ConsensusScheme: "ROLLDPOS",
 	})
 	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
