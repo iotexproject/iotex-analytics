@@ -513,13 +513,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	default:
 		// TODO: rename skip/first into offset/size
 		offset = paginationMap["skip"]
-		if offset < 0 {
-			return ErrPaginationInvalidOffset
-		}
 		size = paginationMap["first"]
-		if size <= 0 || size > MaximumPageSize {
-			return ErrPaginationInvalidSize
-		}
 	case err == ErrPaginationNotFound:
 		offset = 0
 		size = DefaultPageSize
@@ -568,13 +562,7 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	switch {
 	default:
 		offset = paginationMap["skip"]
-		if offset < 0 {
-			return ErrPaginationInvalidOffset
-		}
 		size = paginationMap["first"]
-		if size <= 0 || size > MaximumPageSize {
-			return ErrPaginationInvalidSize
-		}
 	case err == ErrPaginationNotFound:
 		offset = 0
 		size = DefaultPageSize
@@ -623,13 +611,7 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 	switch {
 	default:
 		offset = paginationMap["skip"]
-		if offset < 0 {
-			return ErrPaginationInvalidOffset
-		}
 		size = paginationMap["first"]
-		if size <= 0 || size > MaximumPageSize {
-			return ErrPaginationInvalidSize
-		}
 	case err == ErrPaginationNotFound:
 		offset = 0
 		size = DefaultPageSize
@@ -749,12 +731,6 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	}
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
-	if skip < 0 {
-		return ErrPaginationInvalidOffset
-	}
-	if first <= 0 || first > MaximumPageSize {
-		return ErrPaginationInvalidSize
-	}
 	output := &Xrc20List{Exist: false}
 	actionResponse.ByPage = output
 	xrc20InfoList, err := r.AP.GetXrc20ByPage(uint64(skip), uint64(first))
@@ -788,12 +764,6 @@ func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *X
 	}
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
-	if skip < 0 {
-		return ErrPaginationInvalidOffset
-	}
-	if first <= 0 || first > MaximumPageSize {
-		return ErrPaginationInvalidSize
-	}
 	output := &XRC20AddressList{Exist: false}
 	actionResponse.Xrc20Addresses = output
 	addresses, err := r.AP.GetXrc20Addresses(uint64(skip), uint64(first))
@@ -982,7 +952,7 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	default:
 		skip := paginationMap["skip"]
 		first := paginationMap["first"]
-		if skip < 0 || skip >= len(rds) {
+		if skip >= len(rds) {
 			return errors.New("invalid pagination skip number for reward distributions")
 		}
 		if len(rds)-skip < first {
@@ -1034,7 +1004,7 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		default:
 			skip := paginationMap["skip"]
 			first := paginationMap["first"]
-			if skip < 0 || skip >= len(bucketInfo) {
+			if skip >= len(bucketInfo) {
 				return errors.New("invalid pagination skip number for bucket info")
 			}
 			if len(bucketInfo)-skip < first {
@@ -1175,6 +1145,14 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 			return nil, errors.Wrap(err, "pagination value must be an integer")
 		}
 		paginationMap[childValue.Name] = intVal
+	}
+	offset, ok := paginationMap["skip"]
+	if ok && offset < 0 {
+		return paginationMap, ErrPaginationInvalidOffset
+	}
+	size, ok := paginationMap["first"]
+	if ok && (size <= 0 || size > MaximumPageSize) {
+		return paginationMap, ErrPaginationInvalidSize
 	}
 	return paginationMap, nil
 }

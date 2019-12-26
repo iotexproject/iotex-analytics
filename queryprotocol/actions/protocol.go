@@ -509,10 +509,6 @@ func (p *Protocol) GetXrc20Addresses(offset, limit uint64) (addresses []*string,
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}
-	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return nil, err
-	}
 	for _, parsedRow := range parsedRows {
 		r := parsedRow.(*Address)
 		addresses = append(addresses, &r.Address)
