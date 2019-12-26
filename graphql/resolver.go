@@ -46,6 +46,8 @@ var (
 	ErrPaginationInvalidOffset = errors.New("invalid pagination offset number")
 	// ErrPaginationInvalidSize is the error indicating that pagination's size parameter is invalid
 	ErrPaginationInvalidSize = errors.New("invalid pagination size number")
+	// ErrInvalidParameter is the error indicating that invalid size
+	ErrInvalidParameter = errors.New("invalid parameter number")
 )
 
 // EncodeDelegateName converts a delegate name input to an internal format
@@ -505,7 +507,7 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 		return errors.New("invalid dates")
 	}
 
-	var offset, size int
+	var offset, size uint64
 
 	paginationMap, err := getPaginationArgs(argsMap)
 	// TODO: put the switch part into getPaginationArgs() after pagination optimization
@@ -556,7 +558,7 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	var offset, size int
+	var offset, size uint64
 
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
@@ -605,7 +607,7 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 		return errors.Wrap(err, "failed to get address")
 	}
 
-	var offset, size int
+	var offset, size uint64
 
 	paginationMap, err := getPaginationArgs(argsMap)
 	switch {
@@ -733,7 +735,7 @@ func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc2
 	first := paginationMap["first"]
 	output := &Xrc20List{Exist: false}
 	actionResponse.ByPage = output
-	xrc20InfoList, err := r.AP.GetXrc20ByPage(uint64(skip), uint64(first))
+	xrc20InfoList, err := r.AP.GetXrc20ByPage(skip, first)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -766,11 +768,8 @@ func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *X
 	first := paginationMap["first"]
 	output := &XRC20AddressList{Exist: false}
 	actionResponse.Xrc20Addresses = output
-	addresses, err := r.AP.GetXrc20Addresses(uint64(skip), uint64(first))
-	switch {
-	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		return nil
-	case err != nil:
+	addresses, err := r.AP.GetXrc20Addresses(skip, first)
+	if err != nil {
 		return errors.Wrap(err, "failed to get contract information")
 	}
 	output.Exist = true
@@ -952,11 +951,11 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	default:
 		skip := paginationMap["skip"]
 		first := paginationMap["first"]
-		if skip >= len(rds) {
+		if skip >= uint64(len(rds)) {
 			return errors.New("invalid pagination skip number for reward distributions")
 		}
-		if len(rds)-skip < first {
-			first = len(rds) - skip
+		if uint64(len(rds))-skip < first {
+			first = uint64(len(rds)) - skip
 		}
 		bookkeepingOutput.RewardDistribution = rds[skip : skip+first]
 	}
@@ -1004,11 +1003,11 @@ func (r *queryResolver) getBucketInfo(ctx context.Context, delegateResponse *Del
 		default:
 			skip := paginationMap["skip"]
 			first := paginationMap["first"]
-			if skip >= len(bucketInfo) {
+			if skip >= uint64(len(bucketInfo)) {
 				return errors.New("invalid pagination skip number for bucket info")
 			}
-			if len(bucketInfo)-skip < first {
-				first = len(bucketInfo) - skip
+			if uint64(len(bucketInfo))-skip < first {
+				first = uint64(len(bucketInfo)) - skip
 			}
 			bucketInfoList.BucketInfo = bucketInfo[skip : skip+first]
 		}
@@ -1132,7 +1131,7 @@ func getBoolArg(argsMap map[string]*ast.Value, argName string) (bool, error) {
 	return boolVal, nil
 }
 
-func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
+func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]uint64, error) {
 	pagination, ok := argsMap["pagination"]
 	if !ok {
 		return nil, ErrPaginationNotFound
@@ -1140,6 +1139,7 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 	childValueList := pagination.Children
 	paginationMap := make(map[string]int)
 	for _, childValue := range childValueList {
+		// cannot parse uint64 here,there's a bug when using positive num after negetive number,e.g. "skip" using 0 after -1,its value still -1
 		intVal, err := strconv.Atoi(childValue.Value.Raw)
 		if err != nil {
 			return nil, errors.Wrap(err, "pagination value must be an integer")
@@ -1148,13 +1148,20 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]int, error) {
 	}
 	offset, ok := paginationMap["skip"]
 	if ok && offset < 0 {
-		return paginationMap, ErrPaginationInvalidOffset
+		return nil, ErrPaginationInvalidOffset
 	}
 	size, ok := paginationMap["first"]
 	if ok && (size <= 0 || size > MaximumPageSize) {
-		return paginationMap, ErrPaginationInvalidSize
+		return nil, ErrPaginationInvalidSize
 	}
-	return paginationMap, nil
+	ret := make(map[string]uint64)
+	for k, v := range paginationMap {
+		if v < 0 {
+			return nil, ErrInvalidParameter
+		}
+		ret[k] = uint64(v)
+	}
+	return ret, nil
 }
 
 func ethAddrToIoAddr(ethAddr string) (string, error) {

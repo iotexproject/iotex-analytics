@@ -120,7 +120,7 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 }
 
 // GetActionsByDates gets actions by start date and end date
-func (p *Protocol) GetActionsByDates(startDate, endDate uint64, offset, size int) ([]*ActionInfo, error) {
+func (p *Protocol) GetActionsByDates(startDate, endDate uint64, offset, size uint64) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -223,7 +223,7 @@ func (p *Protocol) GetActionDetailByHash(actHash string) (*ActionDetail, error) 
 }
 
 // GetActionsByAddress gets action information list by address
-func (p *Protocol) GetActionsByAddress(address string, offset int, size int) ([]*ActionInfo, error) {
+func (p *Protocol) GetActionsByAddress(address string, offset, size uint64) ([]*ActionInfo, error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -267,7 +267,7 @@ func (p *Protocol) GetActionsByAddress(address string, offset int, size int) ([]
 }
 
 // GetEvmTransferDetailListByAddress gets evm transfer detail information list by address
-func (p *Protocol) GetEvmTransferDetailListByAddress(address string, offset, size int) ([]*EvmTransferDetail, error) {
+func (p *Protocol) GetEvmTransferDetailListByAddress(address string, offset, size uint64) ([]*EvmTransferDetail, error) {
 	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
 		return nil, errors.New("accounts protocol is unregistered")
 	}
