@@ -173,7 +173,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
 	}
-	if height == epochHeight {
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == epochHeight {
 		if err := p.rebuildAccountRewardTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild account reward table")
 		}
