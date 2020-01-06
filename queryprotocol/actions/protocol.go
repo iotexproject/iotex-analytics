@@ -537,7 +537,6 @@ func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*st
 		if err != nil {
 			continue
 		}
-		fmt.Println(con.From, ":", con.To)
 		if _, ok := allHolder[con.From]; !ok {
 			holders = append(holders, &con.From)
 			allHolder[con.From] = true
