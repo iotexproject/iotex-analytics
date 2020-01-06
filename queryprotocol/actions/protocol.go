@@ -41,6 +41,7 @@ const (
 		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20AllHistory      = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
@@ -440,6 +441,120 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 		con.Contract = r.Address
 		cons = append(cons, con)
 	}
+	return
+}
+
+// GetXrc20HolderCount gets xrc20 holders's address
+func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return 0, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectXrc20AllHistory, actions.Xrc20HistoryTableName, addr)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret actions.Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return 0, err
+	}
+	allHolder := make(map[string]bool, 0)
+	for _, parsedRow := range parsedRows {
+		con := &Xrc20Info{}
+		r := parsedRow.(*actions.Xrc20History)
+		con.From, con.To, _, err = parseContractData(r.Topics, r.Data)
+		if err != nil {
+			continue
+		}
+		fmt.Println(con.From, ":", con.To)
+		if _, ok := allHolder[con.From]; !ok {
+			count++
+			allHolder[con.From] = true
+		}
+		if _, ok := allHolder[con.To]; !ok {
+			count++
+			allHolder[con.To] = true
+		}
+	}
+	return
+}
+
+// GetXrc20Holders gets xrc20 holders
+func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*string, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	a, err := address.FromString(addr)
+	if err != nil {
+		return nil, errors.New("address is invalid")
+	}
+
+	db := p.indexer.Store.GetDB()
+	if size < 1 {
+		size = 1
+	}
+	getQuery := fmt.Sprintf(selectXrc20AllHistory, actions.Xrc20HistoryTableName, a)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret actions.Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	allHolder := make(map[string]bool, 0)
+	holders := make([]*string, 0)
+	for _, parsedRow := range parsedRows {
+		con := &Xrc20Info{}
+		r := parsedRow.(*actions.Xrc20History)
+		con.From, con.To, _, err = parseContractData(r.Topics, r.Data)
+		if err != nil {
+			continue
+		}
+		fmt.Println(con.From, ":", con.To)
+		if _, ok := allHolder[con.From]; !ok {
+			holders = append(holders, &con.From)
+			allHolder[con.From] = true
+		}
+		if _, ok := allHolder[con.To]; !ok {
+			holders = append(holders, &con.To)
+			allHolder[con.To] = true
+		}
+	}
+	if offset > uint64(len(holders)) {
+		return
+	}
+	if offset+size > uint64(len(holders)) {
+		rets = holders[offset:]
+		return
+	}
+	rets = holders[offset : offset+size]
 	return
 }
 
