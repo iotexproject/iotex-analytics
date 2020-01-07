@@ -1078,6 +1078,15 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					}
 					argsMap[arg.Name].Raw = fmt.Sprintf("%d", value)
 				}
+			case "Boolean":
+				value, ok := val.Variables[arg.Name].(bool)
+				if ok {
+					if value {
+						argsMap[arg.Name].Raw = "true"
+					} else {
+						argsMap[arg.Name].Raw = "false"
+					}
+				}
 			case "Pagination":
 				value, ok := val.Variables[arg.Name].(map[string]interface{})
 				if ok {
