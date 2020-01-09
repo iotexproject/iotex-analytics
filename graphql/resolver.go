@@ -774,6 +774,7 @@ func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse 
 	output.Addresses = holders
 	return nil
 }
+
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -1105,6 +1106,7 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 	parseVariables(ctx, argsMap, arguments)
 	return argsMap
 }
+
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
 	val := graphql.GetRequestContext(ctx)
 	if val != nil {
@@ -1157,6 +1159,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 		}
 	}
 }
+
 func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
 	getStr, err := getStringArg(argsMap, argName)
 	if err != nil {
