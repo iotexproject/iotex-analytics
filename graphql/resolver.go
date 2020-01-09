@@ -730,6 +730,7 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 	}
 	return nil
 }
+
 func (r *queryResolver) xrc20HoldersCount(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "holdersCount", "xrc20")
 	addr, err := getStringArg(argsMap, "tokenAddress")
@@ -743,6 +744,7 @@ func (r *queryResolver) xrc20HoldersCount(ctx context.Context, actionResponse *X
 	actionResponse.HoldersCount = count
 	return nil
 }
+
 func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byTokenAddress", "xrc20")
 	addr, err := getStringArg(argsMap, "tokenAddress")
@@ -761,12 +763,12 @@ func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse 
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
 	}
+	output := &XRC20AddressList{Exist: false}
+	actionResponse.ByTokenAddress = output
 	holders, err := r.AP.GetXrc20Holders(addr, offset, size)
 	if err != nil {
 		return err
 	}
-	output := &XRC20AddressList{Exist: false}
-	actionResponse.ByTokenAddress = output
 	output.Exist = true
 	output.Count = len(holders)
 	output.Addresses = holders

@@ -11,24 +11,34 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
-	"github.com/pkg/errors"
-
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
+	topicsPlusDataLen = 256
+	sha3Len           = 64
+	contractParamsLen = 64
+	addressLen        = 40
 	// Xrc20HistoryTableName is the table name of xrc20 history
 	Xrc20HistoryTableName = "xrc20_history"
+	// Xrc20HoldersTableName is the table name of xrc20 holders
+	Xrc20HoldersTableName = "xrc20_holders"
 	// transferSha3 is sha3 of xrc20's transfer,keccak('Transfer(address,address,uint256)')
 	transferSha3 = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 	createXrc20History = "CREATE TABLE IF NOT EXISTS %s (action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, address VARCHAR(41) NOT NULL,`topics` VARCHAR(192),`data` VARCHAR(192),block_height DECIMAL(65, 0), `index` DECIMAL(65, 0),`timestamp` DECIMAL(65, 0),status VARCHAR(7) NOT NULL, PRIMARY KEY (action_hash,receipt_hash,topics))"
+	createXrc20Holders = "CREATE TABLE IF NOT EXISTS %s (contract VARCHAR(41) NOT NULL,holder VARCHAR(41) NOT NULL,`timestamp` DECIMAL(65, 0), PRIMARY KEY (contract,holder))"
 	insertXrc20History = "INSERT IGNORE INTO %s (action_hash, receipt_hash, address,topics,`data`,block_height, `index`,`timestamp`,status) VALUES %s"
+	insertXrc20Holders = "INSERT IGNORE INTO %s (contract, holder) VALUES %s"
 	selectXrc20History = "SELECT * FROM %s WHERE address=?"
 )
 
@@ -54,7 +64,9 @@ func (p *Protocol) CreateXrc20Tables(ctx context.Context) error {
 		Xrc20HistoryTableName)); err != nil {
 		return err
 	}
-	return nil
+	_, err := p.Store.GetDB().Exec(fmt.Sprintf(createXrc20Holders,
+		Xrc20HoldersTableName))
+	return err
 }
 
 // updateXrc20History stores Xrc20 information into Xrc20 history table
@@ -64,6 +76,8 @@ func (p *Protocol) updateXrc20History(
 ) error {
 	valStrs := make([]string, 0)
 	valArgs := make([]interface{}, 0)
+	holdersStrs := make([]string, 0)
+	holdersArgs := make([]interface{}, 0)
 	for _, receipt := range blk.Receipts {
 		receiptStatus := "failure"
 		if receipt.Status == uint64(1) {
@@ -87,6 +101,15 @@ func (p *Protocol) updateXrc20History(
 			rh := hex.EncodeToString(receiptHash[:])
 			valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			valArgs = append(valArgs, ah, rh, l.Address, topics, data, l.BlockHeight, l.Index, blk.Timestamp().Unix(), receiptStatus)
+
+			from, to, _, err := ParseContractData(topics, data)
+			if err != nil {
+				continue
+			}
+			holdersStrs = append(holdersStrs, "(?, ?)")
+			holdersArgs = append(holdersArgs, l.Address, from)
+			holdersStrs = append(holdersStrs, "(?, ?)")
+			holdersArgs = append(holdersArgs, l.Address, to)
 		}
 	}
 	if len(valArgs) == 0 {
@@ -95,6 +118,12 @@ func (p *Protocol) updateXrc20History(
 	insertQuery := fmt.Sprintf(insertXrc20History, Xrc20HistoryTableName, strings.Join(valStrs, ","))
 
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+		return err
+	}
+
+	insertQuery = fmt.Sprintf(insertXrc20Holders, Xrc20HoldersTableName, strings.Join(holdersStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, holdersArgs...); err != nil {
 		return err
 	}
 	return nil
@@ -133,4 +162,37 @@ func (p *Protocol) getXrc20History(address string) ([]*Xrc20History, error) {
 	}
 
 	return ret, nil
+}
+
+// ParseContractData parse xrc20 topics
+func ParseContractData(topics, data string) (from, to, amount string, err error) {
+	// This should cover input of indexed or not indexed ,i.e., len(topics)==192 len(data)==64 or len(topics)==64 len(data)==192
+	all := topics + data
+	if len(all) != topicsPlusDataLen {
+		err = errors.New("data's len is wrong")
+		return
+	}
+	fromEth := all[sha3Len+contractParamsLen-addressLen : sha3Len+contractParamsLen]
+	ethAddress := common.HexToAddress(fromEth)
+	ioAddress, err := address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return
+	}
+	from = ioAddress.String()
+
+	toEth := all[sha3Len+contractParamsLen*2-addressLen : sha3Len+contractParamsLen*2]
+	ethAddress = common.HexToAddress(toEth)
+	ioAddress, err = address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return
+	}
+	to = ioAddress.String()
+
+	amountBig, ok := new(big.Int).SetString(all[sha3Len+contractParamsLen*2:], 16)
+	if !ok {
+		err = errors.New("amount convert error")
+		return
+	}
+	amount = amountBig.Text(10)
+	return
 }
