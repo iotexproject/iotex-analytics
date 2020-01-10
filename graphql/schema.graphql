@@ -4,6 +4,7 @@ type Query {
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
+    hermesAverageStats(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): AverageHermesStats
     xrc20: Xrc20
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
@@ -95,6 +96,17 @@ type HermesDistribution {
     voterCount: Int!
     waiveServiceFee: Boolean!
     refund: String!
+}
+
+type AverageHermesStats {
+    exist: Boolean!
+    averagePerEpoch: [HermesAverage]!
+}
+
+type HermesAverage {
+    delegateName: String!
+    rewardDistribution: String!
+    totalWeightedVotes: String!
 }
 
 type VotingMeta {

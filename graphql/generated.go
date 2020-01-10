@@ -80,6 +80,11 @@ type ComplexityRoot struct {
 		Exist     func(childComplexity int) int
 	}
 
+	AverageHermesStats struct {
+		AveragePerEpoch func(childComplexity int) int
+		Exist           func(childComplexity int) int
+	}
+
 	Bookkeeping struct {
 		Count              func(childComplexity int) int
 		Exist              func(childComplexity int) int
@@ -177,6 +182,12 @@ type ComplexityRoot struct {
 		HermesDistribution func(childComplexity int) int
 	}
 
+	HermesAverage struct {
+		DelegateName       func(childComplexity int) int
+		RewardDistribution func(childComplexity int) int
+		TotalWeightedVotes func(childComplexity int) int
+	}
+
 	HermesDistribution struct {
 		DelegateName        func(childComplexity int) int
 		Refund              func(childComplexity int) int
@@ -203,14 +214,15 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Account    func(childComplexity int) int
-		Action     func(childComplexity int) int
-		Chain      func(childComplexity int) int
-		Delegate   func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
-		Hermes     func(childComplexity int, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) int
-		TopHolders func(childComplexity int, endEpochNumber int, pagination Pagination) int
-		Voting     func(childComplexity int, startEpoch int, epochCount int) int
-		Xrc20      func(childComplexity int) int
+		Account            func(childComplexity int) int
+		Action             func(childComplexity int) int
+		Chain              func(childComplexity int) int
+		Delegate           func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
+		Hermes             func(childComplexity int, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) int
+		HermesAverageStats func(childComplexity int, startEpoch int, epochCount int, rewardAddress string) int
+		TopHolders         func(childComplexity int, endEpochNumber int, pagination Pagination) int
+		Voting             func(childComplexity int, startEpoch int, epochCount int) int
+		Xrc20              func(childComplexity int) int
 	}
 
 	Reward struct {
@@ -299,6 +311,7 @@ type QueryResolver interface {
 	Delegate(ctx context.Context, startEpoch int, epochCount int, delegateName string) (*Delegate, error)
 	Voting(ctx context.Context, startEpoch int, epochCount int) (*Voting, error)
 	Hermes(ctx context.Context, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) (*Hermes, error)
+	HermesAverageStats(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*AverageHermesStats, error)
 	Xrc20(ctx context.Context) (*Xrc20, error)
 	Action(ctx context.Context) (*Action, error)
 	TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error)
@@ -512,6 +525,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Alias.Exist(childComplexity), true
+
+	case "AverageHermesStats.AveragePerEpoch":
+		if e.complexity.AverageHermesStats.AveragePerEpoch == nil {
+			break
+		}
+
+		return e.complexity.AverageHermesStats.AveragePerEpoch(childComplexity), true
+
+	case "AverageHermesStats.Exist":
+		if e.complexity.AverageHermesStats.Exist == nil {
+			break
+		}
+
+		return e.complexity.AverageHermesStats.Exist(childComplexity), true
 
 	case "Bookkeeping.Count":
 		if e.complexity.Bookkeeping.Count == nil {
@@ -928,6 +955,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Hermes.HermesDistribution(childComplexity), true
 
+	case "HermesAverage.DelegateName":
+		if e.complexity.HermesAverage.DelegateName == nil {
+			break
+		}
+
+		return e.complexity.HermesAverage.DelegateName(childComplexity), true
+
+	case "HermesAverage.RewardDistribution":
+		if e.complexity.HermesAverage.RewardDistribution == nil {
+			break
+		}
+
+		return e.complexity.HermesAverage.RewardDistribution(childComplexity), true
+
+	case "HermesAverage.TotalWeightedVotes":
+		if e.complexity.HermesAverage.TotalWeightedVotes == nil {
+			break
+		}
+
+		return e.complexity.HermesAverage.TotalWeightedVotes(childComplexity), true
+
 	case "HermesDistribution.DelegateName":
 		if e.complexity.HermesDistribution.DelegateName == nil {
 			break
@@ -1063,6 +1111,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Hermes(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["rewardAddress"].(string), args["waiverThreshold"].(int)), true
+
+	case "Query.HermesAverageStats":
+		if e.complexity.Query.HermesAverageStats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_hermesAverageStats_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.HermesAverageStats(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["rewardAddress"].(string)), true
 
 	case "Query.TopHolders":
 		if e.complexity.Query.TopHolders == nil {
@@ -1480,6 +1540,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     delegate(startEpoch: Int!, epochCount: Int!, delegateName: String!): Delegate
     voting(startEpoch: Int!, epochCount: Int!): Voting
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
+    hermesAverageStats(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): AverageHermesStats
     xrc20: Xrc20
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
@@ -1571,6 +1632,17 @@ type HermesDistribution {
     voterCount: Int!
     waiveServiceFee: Boolean!
     refund: String!
+}
+
+type AverageHermesStats {
+    exist: Boolean!
+    averagePerEpoch: [HermesAverage]!
+}
+
+type HermesAverage {
+    delegateName: String!
+    rewardDistribution: String!
+    totalWeightedVotes: String!
 }
 
 type VotingMeta {
@@ -1996,6 +2068,36 @@ func (ec *executionContext) field_Query_delegate_args(ctx context.Context, rawAr
 		}
 	}
 	args["delegateName"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_hermesAverageStats_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["rewardAddress"]; ok {
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["rewardAddress"] = arg2
 	return args, nil
 }
 
@@ -2867,6 +2969,60 @@ func (ec *executionContext) _Alias_aliasName(ctx context.Context, field graphql.
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _AverageHermesStats_exist(ctx context.Context, field graphql.CollectedField, obj *AverageHermesStats) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "AverageHermesStats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _AverageHermesStats_averagePerEpoch(ctx context.Context, field graphql.CollectedField, obj *AverageHermesStats) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "AverageHermesStats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AveragePerEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*HermesAverage)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNHermesAverage2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesAverage(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Bookkeeping_exist(ctx context.Context, field graphql.CollectedField, obj *Bookkeeping) graphql.Marshaler {
@@ -4375,6 +4531,87 @@ func (ec *executionContext) _Hermes_hermesDistribution(ctx context.Context, fiel
 	return ec.marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _HermesAverage_delegateName(ctx context.Context, field graphql.CollectedField, obj *HermesAverage) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesAverage",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DelegateName, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesAverage_rewardDistribution(ctx context.Context, field graphql.CollectedField, obj *HermesAverage) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesAverage",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RewardDistribution, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesAverage_totalWeightedVotes(ctx context.Context, field graphql.CollectedField, obj *HermesAverage) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesAverage",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalWeightedVotes, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _HermesDistribution_delegateName(ctx context.Context, field graphql.CollectedField, obj *HermesDistribution) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -4865,6 +5102,37 @@ func (ec *executionContext) _Query_hermes(ctx context.Context, field graphql.Col
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOHermes2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_hermesAverageStats(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_hermesAverageStats_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().HermesAverageStats(rctx, args["startEpoch"].(int), args["epochCount"].(int), args["rewardAddress"].(string))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*AverageHermesStats)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOAverageHermesStats2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAverageHermesStats(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_xrc20(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -7220,6 +7488,38 @@ func (ec *executionContext) _Alias(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
+var averageHermesStatsImplementors = []string{"AverageHermesStats"}
+
+func (ec *executionContext) _AverageHermesStats(ctx context.Context, sel ast.SelectionSet, obj *AverageHermesStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, averageHermesStatsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AverageHermesStats")
+		case "exist":
+			out.Values[i] = ec._AverageHermesStats_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "averagePerEpoch":
+			out.Values[i] = ec._AverageHermesStats_averagePerEpoch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var bookkeepingImplementors = []string{"Bookkeeping"}
 
 func (ec *executionContext) _Bookkeeping(ctx context.Context, sel ast.SelectionSet, obj *Bookkeeping) graphql.Marshaler {
@@ -7782,6 +8082,43 @@ func (ec *executionContext) _Hermes(ctx context.Context, sel ast.SelectionSet, o
 	return out
 }
 
+var hermesAverageImplementors = []string{"HermesAverage"}
+
+func (ec *executionContext) _HermesAverage(ctx context.Context, sel ast.SelectionSet, obj *HermesAverage) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, hermesAverageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HermesAverage")
+		case "delegateName":
+			out.Values[i] = ec._HermesAverage_delegateName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "rewardDistribution":
+			out.Values[i] = ec._HermesAverage_rewardDistribution(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalWeightedVotes":
+			out.Values[i] = ec._HermesAverage_totalWeightedVotes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var hermesDistributionImplementors = []string{"HermesDistribution"}
 
 func (ec *executionContext) _HermesDistribution(ctx context.Context, sel ast.SelectionSet, obj *HermesDistribution) graphql.Marshaler {
@@ -8003,6 +8340,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_hermes(ctx, field)
+				return res
+			})
+		case "hermesAverageStats":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_hermesAverageStats(ctx, field)
 				return res
 			})
 		case "xrc20":
@@ -9118,6 +9466,43 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 	return graphql.MarshalFloat(v)
 }
 
+func (ec *executionContext) marshalNHermesAverage2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesAverage(ctx context.Context, sel ast.SelectionSet, v []*HermesAverage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOHermesAverage2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesAverage(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v []*HermesDistribution) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -9632,6 +10017,17 @@ func (ec *executionContext) marshalOAlias2ᚖgithubᚗcomᚋiotexprojectᚋiotex
 	return ec._Alias(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOAverageHermesStats2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAverageHermesStats(ctx context.Context, sel ast.SelectionSet, v AverageHermesStats) graphql.Marshaler {
+	return ec._AverageHermesStats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOAverageHermesStats2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐAverageHermesStats(ctx context.Context, sel ast.SelectionSet, v *AverageHermesStats) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AverageHermesStats(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOBookkeeping2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBookkeeping(ctx context.Context, sel ast.SelectionSet, v Bookkeeping) graphql.Marshaler {
 	return ec._Bookkeeping(ctx, sel, &v)
 }
@@ -9819,6 +10215,17 @@ func (ec *executionContext) marshalOHermes2ᚖgithubᚗcomᚋiotexprojectᚋiote
 		return graphql.Null
 	}
 	return ec._Hermes(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHermesAverage2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesAverage(ctx context.Context, sel ast.SelectionSet, v HermesAverage) graphql.Marshaler {
+	return ec._HermesAverage(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOHermesAverage2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesAverage(ctx context.Context, sel ast.SelectionSet, v *HermesAverage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HermesAverage(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOHermesDistribution2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx context.Context, sel ast.SelectionSet, v HermesDistribution) graphql.Marshaler {
