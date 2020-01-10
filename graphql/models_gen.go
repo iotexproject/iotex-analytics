@@ -236,6 +236,8 @@ type Xrc20 struct {
 	ByAddress         *Xrc20List        `json:"byAddress"`
 	ByPage            *Xrc20List        `json:"byPage"`
 	Xrc20Addresses    *XRC20AddressList `json:"xrc20Addresses"`
+	HoldersCount      int               `json:"holdersCount"`
+	ByTokenAddress    *XRC20AddressList `json:"byTokenAddress"`
 }
 
 type Xrc20Info struct {
@@ -251,4 +253,13 @@ type Xrc20List struct {
 	Exist bool         `json:"exist"`
 	Xrc20 []*Xrc20Info `json:"xrc20"`
 	Count int          `json:"count"`
+}
+
+type Xrc721 struct {
+	ByContractAddress *Xrc20List        `json:"byContractAddress"`
+	ByAddress         *Xrc20List        `json:"byAddress"`
+	ByPage            *Xrc20List        `json:"byPage"`
+	Xrc721Addresses   *XRC20AddressList `json:"xrc721Addresses"`
+	HoldersCount      int               `json:"holdersCount"`
+	ByTokenAddress    *XRC20AddressList `json:"byTokenAddress"`
 }

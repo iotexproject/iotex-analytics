@@ -17,11 +17,10 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 	"github.com/vektah/gqlparser/ast"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/iotexproject/iotex-address/address"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
@@ -48,6 +47,14 @@ var (
 	ErrPaginationInvalidSize = errors.New("invalid pagination size number")
 	// ErrInvalidParameter is the error indicating that invalid size
 	ErrInvalidParameter = errors.New("invalid parameter number")
+)
+
+type (
+	xrcaddresses      func(uint64, uint64) ([]*string, error)
+	xrcHoldersCount   func(string) (int, error)
+	xrcByTokenAddress func(string, uint64, uint64) ([]*string, error)
+	xrcbypage         func(uint64, uint64) ([]*actions.Xrc20Info, error)
+	getXrc            func(string, uint64, uint64) ([]*actions.Xrc20Info, error)
 )
 
 // EncodeDelegateName converts a delegate name input to an internal format
@@ -268,6 +275,39 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	}
 	if containField(requestedFields, "xrc20Addresses") {
 		g.Go(func() error { return r.getXrc20Addresses(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "holdersCount") {
+		g.Go(func() error { return r.xrc20HoldersCount(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "byTokenAddress") {
+		g.Go(func() error { return r.xrc20ByTokenAddress(ctx, actionResponse) })
+	}
+	return actionResponse, g.Wait()
+}
+
+// Xrc721 handles Xrc721 requests
+func (r *queryResolver) Xrc721(ctx context.Context) (*Xrc721, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	actionResponse := &Xrc721{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "byContractAddress") {
+		g.Go(func() error { return r.getXrc721ByContractAddress(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "byAddress") {
+		g.Go(func() error { return r.getXrc721ByAddress(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "byPage") {
+		g.Go(func() error { return r.getXrc721ByPage(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "xrc721Addresses") {
+		g.Go(func() error { return r.getXrc721Addresses(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "holdersCount") {
+		g.Go(func() error { return r.xrc721HoldersCount(ctx, actionResponse) })
+	}
+	if containField(requestedFields, "byTokenAddress") {
+		g.Go(func() error { return r.xrc721ByTokenAddress(ctx, actionResponse) })
 	}
 	return actionResponse, g.Wait()
 }
@@ -647,8 +687,8 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 	return nil
 }
 
-func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "byContractAddress", "xrc20")
+func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionResponse interface{}, field string, get getXrc) error {
+	argsMap := parseFieldArguments(ctx, "byContractAddress", field)
 	address, err := getStringArg(argsMap, "address")
 	if err != nil {
 		return errors.Wrap(err, "failed to get address")
@@ -662,8 +702,70 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 		return errors.Wrap(err, "failed to get page")
 	}
 	output := &Xrc20List{Exist: false}
-	actionResponse.ByContractAddress = output
-	xrc20InfoList, err := r.AP.GetXrc20(address, uint64(numPerPage), uint64(page))
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.ByContractAddress = output
+	case *Xrc20:
+		v.ByContractAddress = output
+	default:
+		return errors.New("failed to convert type")
+	}
+
+	xrc20InfoList, err := get(address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	output.Count = len(xrc20InfoList)
+	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	for _, c := range xrc20InfoList {
+		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+			Contract:  c.Contract,
+		})
+	}
+	return nil
+}
+
+func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionResponse *Xrc20) error {
+	return r.getXrcByContractAddress(ctx, actionResponse, "xrc20", r.AP.GetXrc20)
+}
+
+func (r *queryResolver) getXrc721ByContractAddress(ctx context.Context, actionResponse *Xrc721) error {
+	return r.getXrcByContractAddress(ctx, actionResponse, "xrc721", r.AP.GetXrc721)
+}
+
+func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse interface{}, field string, get getXrc) error {
+	argsMap := parseFieldArguments(ctx, "byAddress", field)
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	output := &Xrc20List{Exist: false}
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.ByAddress = output
+	case *Xrc20:
+		v.ByAddress = output
+	default:
+		return errors.New("failed to convert type")
+	}
+	xrc20InfoList, err := get(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -687,22 +789,105 @@ func (r *queryResolver) getXrc20ByContractAddress(ctx context.Context, actionRes
 }
 
 func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "byAddress", "xrc20")
-	address, err := getStringArg(argsMap, "address")
+	return r.getXrcByAddress(ctx, actionResponse, "xrc20", r.AP.GetXrc20ByAddress)
+}
+
+func (r *queryResolver) getXrc721ByAddress(ctx context.Context, actionResponse *Xrc721) error {
+	return r.getXrcByAddress(ctx, actionResponse, "xrc721", r.AP.GetXrc721ByAddress)
+}
+
+func (r *queryResolver) xrcHoldersCount(ctx context.Context, actionResponse interface{}, field string, get xrcHoldersCount) error {
+	argsMap := parseFieldArguments(ctx, "holdersCount", field)
+	addr, err := getStringArg(argsMap, "tokenAddress")
 	if err != nil {
 		return errors.Wrap(err, "failed to get address")
 	}
-	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	count, err := get(addr)
 	if err != nil {
-		return errors.Wrap(err, "failed to get numPerPage")
+		return err
 	}
-	page, err := getIntArg(argsMap, "page")
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.HoldersCount = count
+	case *Xrc20:
+		v.HoldersCount = count
+	default:
+		return errors.New("failed to convert type")
+	}
+	return nil
+}
+
+func (r *queryResolver) xrc20HoldersCount(ctx context.Context, actionResponse *Xrc20) error {
+	return r.xrcHoldersCount(ctx, actionResponse, "xrc20", r.AP.GetXrc20HolderCount)
+}
+
+func (r *queryResolver) xrc721HoldersCount(ctx context.Context, actionResponse *Xrc721) error {
+	return r.xrcHoldersCount(ctx, actionResponse, "xrc721", r.AP.GetXrc721HolderCount)
+}
+
+func (r *queryResolver) xrcByTokenAddress(ctx context.Context, actionResponse interface{}, field string, get xrcByTokenAddress) error {
+	argsMap := parseFieldArguments(ctx, "byTokenAddress", field)
+	addr, err := getStringArg(argsMap, "tokenAddress")
 	if err != nil {
-		return errors.Wrap(err, "failed to get page")
+		return errors.Wrap(err, "failed to get address")
 	}
+	var offset, size uint64
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
+	}
+	output := &XRC20AddressList{Exist: false}
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.ByTokenAddress = output
+	case *Xrc20:
+		v.ByTokenAddress = output
+	default:
+		return errors.New("failed to convert type")
+	}
+	holders, err := get(addr, offset, size)
+	if err != nil {
+		return err
+	}
+	output.Exist = true
+	output.Count = len(holders)
+	output.Addresses = holders
+	return nil
+}
+
+func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse *Xrc20) error {
+	return r.xrcByTokenAddress(ctx, actionResponse, "xrc20", r.AP.GetXrc20Holders)
+}
+
+func (r *queryResolver) xrc721ByTokenAddress(ctx context.Context, actionResponse *Xrc721) error {
+	return r.xrcByTokenAddress(ctx, actionResponse, "xrc721", r.AP.GetXrc721Holders)
+}
+
+func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interface{}, field string, get xrcbypage) error {
+	argsMap := parseFieldArguments(ctx, "byPage", field)
+	paginationMap, err := getPaginationArgs(argsMap)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 ByPage")
+	}
+	skip := paginationMap["skip"]
+	first := paginationMap["first"]
 	output := &Xrc20List{Exist: false}
-	actionResponse.ByAddress = output
-	xrc20InfoList, err := r.AP.GetXrc20ByAddress(address, uint64(numPerPage), uint64(page))
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.ByPage = output
+	case *Xrc20:
+		v.ByPage = output
+	default:
+		return errors.New("failed to convert type")
+	}
+	xrc20InfoList, err := get(skip, first)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -726,40 +911,15 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 }
 
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
-	paginationMap, err := getPaginationArgs(argsMap)
-	if err != nil {
-		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 ByPage")
-	}
-	skip := paginationMap["skip"]
-	first := paginationMap["first"]
-	output := &Xrc20List{Exist: false}
-	actionResponse.ByPage = output
-	xrc20InfoList, err := r.AP.GetXrc20ByPage(skip, first)
-	switch {
-	case errors.Cause(err) == indexprotocol.ErrNotExist:
-		return nil
-	case err != nil:
-		return errors.Wrap(err, "failed to get contract information")
-	}
-	output.Exist = true
-	output.Count = len(xrc20InfoList)
-	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
-	for _, c := range xrc20InfoList {
-		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
-			Hash:      c.Hash,
-			Timestamp: c.Timestamp,
-			From:      c.From,
-			To:        c.To,
-			Quantity:  c.Quantity,
-			Contract:  c.Contract,
-		})
-	}
-	return nil
+	return r.getXrcByPage(ctx, actionResponse, "xrc20", r.AP.GetXrc20ByPage)
 }
 
-func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "xrc20Addresses", "xrc20")
+func (r *queryResolver) getXrc721ByPage(ctx context.Context, actionResponse *Xrc721) error {
+	return r.getXrcByPage(ctx, actionResponse, "xrc721", r.AP.GetXrc721ByPage)
+}
+
+func (r *queryResolver) getXrcAddresses(ctx context.Context, actionResponse interface{}, field string, get xrcaddresses) error {
+	argsMap := parseFieldArguments(ctx, "xrc20Addresses", field)
 	paginationMap, err := getPaginationArgs(argsMap)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 addresses")
@@ -767,8 +927,15 @@ func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *X
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
 	output := &XRC20AddressList{Exist: false}
-	actionResponse.Xrc20Addresses = output
-	addresses, err := r.AP.GetXrc20Addresses(skip, first)
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.Xrc721Addresses = output
+	case *Xrc20:
+		v.Xrc20Addresses = output
+	default:
+		return errors.New("failed to convert type")
+	}
+	addresses, err := get(skip, first)
 	if err != nil {
 		return errors.Wrap(err, "failed to get contract information")
 	}
@@ -778,6 +945,14 @@ func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *X
 		output.Addresses = append(output.Addresses, c)
 	}
 	return nil
+}
+
+func (r *queryResolver) getXrc20Addresses(ctx context.Context, actionResponse *Xrc20) error {
+	return r.getXrcAddresses(ctx, actionResponse, "xrc20", r.AP.GetXrc20Addresses)
+}
+
+func (r *queryResolver) getXrc721Addresses(ctx context.Context, actionResponse *Xrc721) error {
+	return r.getXrcAddresses(ctx, actionResponse, "xrc721", r.AP.GetXrc721Addresses)
 }
 
 func (r *queryResolver) getActionByHash(ctx context.Context, actionResponse *Action) error {
@@ -1056,6 +1231,7 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 	parseVariables(ctx, argsMap, arguments)
 	return argsMap
 }
+
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
 	val := graphql.GetRequestContext(ctx)
 	if val != nil {
@@ -1108,6 +1284,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 		}
 	}
 }
+
 func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
 	getStr, err := getStringArg(argsMap, argName)
 	if err != nil {
