@@ -186,7 +186,10 @@ func (p *Protocol) updateXrc20History(
 }
 
 func (p *Protocol) checkIsErc721(ctx context.Context, addr string) bool {
-	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	indexCtx, ok := ctx.Value(struct{}{}).(indexcontext.IndexCtx)
+	if !ok {
+		return false
+	}
 	if indexCtx.ChainClient == nil {
 		return false
 	}
