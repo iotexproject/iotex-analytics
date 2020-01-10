@@ -251,8 +251,8 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	return &Hermes{Exist: true, HermesDistribution: hermesDistribution}, nil
 }
 
-func (r *queryResolver) AverageHermesStats(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*AverageHermesStats, error) {
-	averageHermesStats, err := r.RP.GetAverageHermesStats(uint64(startEpoch), uint64(epochCount), rewardAddress)
+func (r *queryResolver) HermesAverageStats(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*AverageHermesStats, error) {
+	hermesAverageStats, err := r.RP.GetAverageHermesStats(uint64(startEpoch), uint64(epochCount), rewardAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return &AverageHermesStats{Exist: false}, nil
@@ -260,8 +260,8 @@ func (r *queryResolver) AverageHermesStats(ctx context.Context, startEpoch int, 
 		return nil, errors.Wrap(err, "failed to get Hermes average stats")
 	}
 
-	hermesAverages := make([]*HermesAverage, 0, len(averageHermesStats))
-	for _, ret := range averageHermesStats {
+	hermesAverages := make([]*HermesAverage, 0, len(hermesAverageStats))
+	for _, ret := range hermesAverageStats {
 		aliasString, err := DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode delegate name")
