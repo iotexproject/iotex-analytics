@@ -294,9 +294,6 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	if containField(requestedFields, "xrc20Addresses") {
 		g.Go(func() error { return r.getXrc20Addresses(ctx, actionResponse) })
 	}
-	if containField(requestedFields, "holdersCount") {
-		g.Go(func() error { return r.xrc20HoldersCount(ctx, actionResponse) })
-	}
 	if containField(requestedFields, "byTokenAddress") {
 		g.Go(func() error { return r.xrc20ByTokenAddress(ctx, actionResponse) })
 	}
@@ -756,20 +753,6 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 	return nil
 }
 
-func (r *queryResolver) xrc20HoldersCount(ctx context.Context, actionResponse *Xrc20) error {
-	argsMap := parseFieldArguments(ctx, "holdersCount", "xrc20")
-	addr, err := getStringArg(argsMap, "tokenAddress")
-	if err != nil {
-		return errors.Wrap(err, "failed to get address")
-	}
-	count, err := r.AP.GetXrc20HolderCount(addr)
-	if err != nil {
-		return err
-	}
-	actionResponse.HoldersCount = count
-	return nil
-}
-
 func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byTokenAddress", "xrc20")
 	addr, err := getStringArg(argsMap, "tokenAddress")
@@ -795,7 +778,11 @@ func (r *queryResolver) xrc20ByTokenAddress(ctx context.Context, actionResponse 
 		return err
 	}
 	output.Exist = true
-	output.Count = len(holders)
+	count, err := r.AP.GetXrc20HolderCount(addr)
+	if err != nil {
+		return err
+	}
+	output.Count = count
 	output.Addresses = holders
 	return nil
 }

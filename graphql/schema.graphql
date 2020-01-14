@@ -29,7 +29,6 @@ type Xrc20 {
     byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byPage(pagination: Pagination!): Xrc20List
     xrc20Addresses(pagination: Pagination!): XRC20AddressList
-    holdersCount (tokenAddress:String!): Int!
     byTokenAddress(tokenAddress:String!, pagination:Pagination!): XRC20AddressList
 }
 
