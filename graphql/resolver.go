@@ -251,6 +251,31 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 	return &Hermes{Exist: true, HermesDistribution: hermesDistribution}, nil
 }
 
+func (r *queryResolver) HermesAverageStats(ctx context.Context, startEpoch int, epochCount int, rewardAddress string) (*AverageHermesStats, error) {
+	hermesAverageStats, err := r.RP.GetAverageHermesStats(uint64(startEpoch), uint64(epochCount), rewardAddress)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return &AverageHermesStats{Exist: false}, nil
+	case err != nil:
+		return nil, errors.Wrap(err, "failed to get Hermes average stats")
+	}
+
+	hermesAverages := make([]*HermesAverage, 0, len(hermesAverageStats))
+	for _, ret := range hermesAverageStats {
+		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode delegate name")
+		}
+		hermesAverages = append(hermesAverages, &HermesAverage{
+			DelegateName:       aliasString,
+			RewardDistribution: ret.RewardDistribution,
+			TotalWeightedVotes: ret.TotalWeightedVotes,
+		})
+	}
+	sort.Slice(hermesAverages, func(i, j int) bool { return hermesAverages[i].DelegateName < hermesAverages[j].DelegateName })
+	return &AverageHermesStats{Exist: true, AveragePerEpoch: hermesAverages}, nil
+}
+
 // Xrc20 handles Xrc20 requests
 func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	requestedFields := graphql.CollectAllFields(ctx)

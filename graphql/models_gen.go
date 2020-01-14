@@ -42,6 +42,11 @@ type Alias struct {
 	AliasName string `json:"aliasName"`
 }
 
+type AverageHermesStats struct {
+	Exist           bool             `json:"exist"`
+	AveragePerEpoch []*HermesAverage `json:"averagePerEpoch"`
+}
+
 type Bookkeeping struct {
 	Exist              bool                  `json:"exist"`
 	RewardDistribution []*RewardDistribution `json:"rewardDistribution"`
@@ -142,6 +147,12 @@ type EvmTransferList struct {
 type Hermes struct {
 	Exist              bool                  `json:"exist"`
 	HermesDistribution []*HermesDistribution `json:"hermesDistribution"`
+}
+
+type HermesAverage struct {
+	DelegateName       string `json:"delegateName"`
+	RewardDistribution string `json:"rewardDistribution"`
+	TotalWeightedVotes string `json:"totalWeightedVotes"`
 }
 
 type HermesDistribution struct {

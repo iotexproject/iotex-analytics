@@ -70,6 +70,13 @@ type DelegateHermesDistribution struct {
 	Refund              string
 }
 
+// DelegateHermesAverage defines the Hermes average stats for each delegate
+type DelegateHermesAverage struct {
+	DelegateName       string
+	RewardDistribution string
+	TotalWeightedVotes string
+}
+
 // DelegateAmount defines delegate associated with an amount
 type DelegateAmount struct {
 	DelegateName string
@@ -285,6 +292,66 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 		})
 	}
 	return hermesDistributions, nil
+}
+
+// GetAverageHermesStats gets average stats for all delegates who register Hermes
+func (p *Protocol) GetAverageHermesStats(startEpoch uint64, epochCount uint64, rewardAddress string) ([]*DelegateHermesAverage, error) {
+	endEpoch := startEpoch + epochCount - 1
+
+	distributePlanMap, err := p.distributionPlanByRewardAddress(startEpoch, endEpoch, rewardAddress)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get reward distribution plan")
+	}
+
+	// Form search column pairs
+	searchPairs := make([]string, 0)
+	for delegateName, planMap := range distributePlanMap {
+		for epochNumber := range planMap {
+			searchPairs = append(searchPairs, fmt.Sprintf("(%d, '%s')", epochNumber, delegateName))
+		}
+	}
+	accountRewardsMap, err := p.accountRewards(searchPairs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get account rewards")
+	}
+
+	delegateAverages := make([]*DelegateHermesAverage, 0, len(accountRewardsMap))
+	for delegate, rewardsMap := range accountRewardsMap {
+		planMap := distributePlanMap[delegate]
+		distrRewardSum := big.NewInt(0)
+		totalWeightedVotesSum := big.NewInt(0)
+
+		for epoch, rewards := range rewardsMap {
+			distributePlan := planMap[epoch]
+			totalWeightedVotesSum.Add(totalWeightedVotesSum, distributePlan.TotalWeightedVotes)
+
+			if distributePlan.BlockRewardPercentage > 0 {
+				distrBlockReward := new(big.Int).Set(rewards.BlockReward)
+				distrBlockReward.Mul(distrBlockReward, big.NewInt(int64(distributePlan.BlockRewardPercentage))).Div(distrBlockReward, big.NewInt(100))
+				distrRewardSum.Add(distrRewardSum, distrBlockReward)
+			}
+			if distributePlan.EpochRewardPercentage > 0 {
+				distrEpochReward := new(big.Int).Set(rewards.EpochReward)
+				distrEpochReward.Mul(distrEpochReward, big.NewInt(int64(distributePlan.EpochRewardPercentage))).Div(distrEpochReward, big.NewInt(100))
+				distrRewardSum.Add(distrRewardSum, distrEpochReward)
+			}
+			if distributePlan.FoundationBonusPercentage > 0 {
+				distrFoundationBonus := new(big.Int).Set(rewards.FoundationBonus)
+				distrFoundationBonus.Mul(distrFoundationBonus, big.NewInt(int64(distributePlan.FoundationBonusPercentage))).Div(distrFoundationBonus, big.NewInt(100))
+				distrRewardSum.Add(distrRewardSum, distrFoundationBonus)
+			}
+		}
+
+		avgRewardDistribution := distrRewardSum.Div(distrRewardSum, big.NewInt(int64(len(rewardsMap))))
+		avgTotalWeightedVotes := totalWeightedVotesSum.Div(totalWeightedVotesSum, big.NewInt(int64(len(rewardsMap))))
+
+		delegateAverages = append(delegateAverages, &DelegateHermesAverage{
+			DelegateName:       delegate,
+			RewardDistribution: avgRewardDistribution.String(),
+			TotalWeightedVotes: avgTotalWeightedVotes.String(),
+		})
+	}
+	return delegateAverages, nil
 }
 
 // GetRewardSources gets reward sources given a voter's IoTeX address
