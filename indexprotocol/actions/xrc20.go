@@ -38,7 +38,7 @@ const (
 	createXrc20History = "CREATE TABLE IF NOT EXISTS %s (action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, address VARCHAR(41) NOT NULL,`topics` VARCHAR(192),`data` VARCHAR(192),block_height DECIMAL(65, 0), `index` DECIMAL(65, 0),`timestamp` DECIMAL(65, 0),status VARCHAR(7) NOT NULL, PRIMARY KEY (action_hash,receipt_hash,topics))"
 	createXrc20Holders = "CREATE TABLE IF NOT EXISTS %s (contract VARCHAR(41) NOT NULL,holder VARCHAR(41) NOT NULL,`timestamp` DECIMAL(65, 0), PRIMARY KEY (contract,holder))"
 	insertXrc20History = "INSERT IGNORE INTO %s (action_hash, receipt_hash, address,topics,`data`,block_height, `index`,`timestamp`,status) VALUES %s"
-	insertXrc20Holders = "INSERT IGNORE INTO %s (contract, holder) VALUES %s"
+	insertXrc20Holders = "INSERT IGNORE INTO %s (contract, holder,`timestamp`) VALUES %s"
 	selectXrc20History = "SELECT * FROM %s WHERE address=?"
 )
 
@@ -106,10 +106,10 @@ func (p *Protocol) updateXrc20History(
 			if err != nil {
 				continue
 			}
-			holdersStrs = append(holdersStrs, "(?, ?)")
-			holdersArgs = append(holdersArgs, l.Address, from)
-			holdersStrs = append(holdersStrs, "(?, ?)")
-			holdersArgs = append(holdersArgs, l.Address, to)
+			holdersStrs = append(holdersStrs, "(?, ?, ?)")
+			holdersArgs = append(holdersArgs, l.Address, from, blk.Timestamp().Unix())
+			holdersStrs = append(holdersStrs, "(?, ?, ?)")
+			holdersArgs = append(holdersArgs, l.Address, to, blk.Timestamp().Unix())
 		}
 	}
 	if len(valArgs) == 0 {
