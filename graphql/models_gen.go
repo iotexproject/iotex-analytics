@@ -242,11 +242,17 @@ type XRC20AddressList struct {
 	Count     int       `json:"count"`
 }
 
+type XRC20HolderAddressList struct {
+	Addresses []*string `json:"addresses"`
+	Count     int       `json:"count"`
+}
+
 type Xrc20 struct {
-	ByContractAddress *Xrc20List        `json:"byContractAddress"`
-	ByAddress         *Xrc20List        `json:"byAddress"`
-	ByPage            *Xrc20List        `json:"byPage"`
-	Xrc20Addresses    *XRC20AddressList `json:"xrc20Addresses"`
+	ByContractAddress    *Xrc20List              `json:"byContractAddress"`
+	ByAddress            *Xrc20List              `json:"byAddress"`
+	ByPage               *Xrc20List              `json:"byPage"`
+	Xrc20Addresses       *XRC20AddressList       `json:"xrc20Addresses"`
+	TokenHolderAddresses *XRC20HolderAddressList `json:"tokenHolderAddresses"`
 }
 
 type Xrc20Info struct {

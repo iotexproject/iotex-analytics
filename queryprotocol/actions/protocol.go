@@ -8,7 +8,6 @@ package actions
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -24,10 +23,6 @@ import (
 )
 
 const (
-	topicsPlusDataLen              = 256
-	sha3Len                        = 64
-	contractParamsLen              = 64
-	addressLen                     = 40
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
@@ -41,6 +36,8 @@ const (
 		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HoldersCount    = "SELECT COUNT(*) FROM %s WHERE contract='%s'"
+	selectXrc20Holders         = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
@@ -380,7 +377,7 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 	for _, parsedRow := range parsedRows {
 		con := &Xrc20Info{}
 		r := parsedRow.(*actions.Xrc20History)
-		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
+		con.From, con.To, con.Quantity, err = actions.ParseContractData(r.Topics, r.Data)
 		if err != nil {
 			return
 		}
@@ -431,7 +428,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 	for _, parsedRow := range parsedRows {
 		con := &Xrc20Info{}
 		r := parsedRow.(*actions.Xrc20History)
-		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
+		con.From, con.To, con.Quantity, err = actions.ParseContractData(r.Topics, r.Data)
 		if err != nil {
 			return
 		}
@@ -439,6 +436,87 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 		con.Timestamp = r.Timestamp
 		con.Contract = r.Address
 		cons = append(cons, con)
+	}
+	return
+}
+
+// GetXrc20HolderCount gets xrc20 holders's address
+func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return 0, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectXrc20HoldersCount, actions.Xrc20HoldersTableName, addr)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to execute get query")
+	}
+	type countStruct struct {
+		Count int
+	}
+	var c countStruct
+	parsedRows, err := s.ParseSQLRows(rows, &c)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return 0, err
+	}
+	for _, parsedRow := range parsedRows {
+		r := parsedRow.(*countStruct)
+		count = r.Count
+	}
+	return
+}
+
+// GetXrc20Holders gets xrc20 holders
+func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*string, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	a, err := address.FromString(addr)
+	if err != nil {
+		return nil, errors.New("address is invalid")
+	}
+
+	db := p.indexer.Store.GetDB()
+	if size < 1 {
+		size = 1
+	}
+	getQuery := fmt.Sprintf(selectXrc20Holders, actions.Xrc20HoldersTableName, a, offset, size)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+	type holdersStruct struct {
+		Holder string
+	}
+	var h holdersStruct
+	parsedRows, err := s.ParseSQLRows(rows, &h)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	for _, parsedRow := range parsedRows {
+		r := parsedRow.(*holdersStruct)
+		rets = append(rets, &r.Holder)
 	}
 	return
 }
@@ -474,7 +552,7 @@ func (p *Protocol) GetXrc20ByPage(offset, limit uint64) (cons []*Xrc20Info, err 
 	for _, parsedRow := range parsedRows {
 		con := &Xrc20Info{}
 		r := parsedRow.(*actions.Xrc20History)
-		con.From, con.To, con.Quantity, err = parseContractData(r.Topics, r.Data)
+		con.From, con.To, con.Quantity, err = actions.ParseContractData(r.Topics, r.Data)
 		if err != nil {
 			return
 		}
@@ -546,37 +624,5 @@ func (p *Protocol) GetTopHolders(endEpochNumber, skip, first uint64) (holders []
 	for _, parsedRow := range parsedRows {
 		holders = append(holders, parsedRow.(*TopHolder))
 	}
-	return
-}
-
-func parseContractData(topics, data string) (from, to, amount string, err error) {
-	// This should cover input of indexed or not indexed ,i.e., len(topics)==192 len(data)==64 or len(topics)==64 len(data)==192
-	all := topics + data
-	if len(all) != topicsPlusDataLen {
-		err = errors.New("data's len is wrong")
-		return
-	}
-	fromEth := all[sha3Len+contractParamsLen-addressLen : sha3Len+contractParamsLen]
-	ethAddress := common.HexToAddress(fromEth)
-	ioAddress, err := address.FromBytes(ethAddress.Bytes())
-	if err != nil {
-		return
-	}
-	from = ioAddress.String()
-
-	toEth := all[sha3Len+contractParamsLen*2-addressLen : sha3Len+contractParamsLen*2]
-	ethAddress = common.HexToAddress(toEth)
-	ioAddress, err = address.FromBytes(ethAddress.Bytes())
-	if err != nil {
-		return
-	}
-	to = ioAddress.String()
-
-	amountBig, ok := new(big.Int).SetString(all[sha3Len+contractParamsLen*2:], 16)
-	if !ok {
-		err = errors.New("amount convert error")
-		return
-	}
-	amount = amountBig.Text(10)
 	return
 }

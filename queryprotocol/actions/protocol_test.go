@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
@@ -300,5 +301,31 @@ func TestProtocol(t *testing.T) {
 			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
 			require.Equal(test[k].Contract, testSituation.output[k+2].Contract)
 		}
+	})
+	t.Run("Testing GetXrc20Holders", func(t *testing.T) {
+		_, errXrc := store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (contract VARCHAR(41) NOT NULL,holder VARCHAR(41) NOT NULL,`timestamp` DECIMAL(65, 0), PRIMARY KEY (contract,holder))",
+			actions.Xrc20HoldersTableName))
+		require.NoError(errXrc)
+
+		valStrs := make([]string, 0, len(contract))
+		valArgs := make([]interface{}, 0, len(contract)*2)
+		timeStampList := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+		for i, c := range contract {
+			valStrs = append(valStrs, "(?, ?, ?)")
+			valArgs = append(valArgs, c.Contract, c.From, timeStampList[i*2])
+			valStrs = append(valStrs, "(?, ?, ?)")
+			valArgs = append(valArgs, c.Contract, c.To, timeStampList[i*2+1])
+			insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (contract, holder,`timestamp`) VALUES %s", actions.Xrc20HoldersTableName, strings.Join(valStrs, ","))
+			_, errXrc = store.GetDB().Exec(insertQuery, valArgs...)
+			require.NoError(errXrc)
+		}
+		holders, errXrc := p.GetXrc20Holders(contract[0].Contract, 0, 2)
+		require.NoError(errXrc)
+		count, errXrc := p.GetXrc20HolderCount(contract[0].Contract)
+		require.NoError(errXrc)
+		require.Equal(4, count)
+		//order by timestamp
+		require.Equal(contract[2].To, *holders[0])
+		require.Equal(contract[1].To, *holders[1])
 	})
 }

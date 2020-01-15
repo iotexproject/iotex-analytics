@@ -29,6 +29,7 @@ type Xrc20 {
     byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byPage(pagination: Pagination!): Xrc20List
     xrc20Addresses(pagination: Pagination!): XRC20AddressList
+    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
 }
 
 type Account {
@@ -133,6 +134,11 @@ type Xrc20List {
 
 type XRC20AddressList {
     exist: Boolean!
+    addresses(pagination: Pagination): [String]!
+    count: Int!
+}
+
+type XRC20HolderAddressList {
     addresses(pagination: Pagination): [String]!
     count: Int!
 }

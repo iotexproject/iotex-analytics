@@ -294,6 +294,9 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 	if containField(requestedFields, "xrc20Addresses") {
 		g.Go(func() error { return r.getXrc20Addresses(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "tokenHolderAddresses") {
+		g.Go(func() error { return r.xrc20HoldersByTokenAddress(ctx, actionResponse) })
+	}
 	return actionResponse, g.Wait()
 }
 
@@ -750,6 +753,39 @@ func (r *queryResolver) getXrc20ByAddress(ctx context.Context, actionResponse *X
 	return nil
 }
 
+func (r *queryResolver) xrc20HoldersByTokenAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "tokenHolderAddresses", "addresses")
+	addr, err := getStringArg(argsMap, "tokenAddress")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	var offset, size uint64
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
+	}
+	output := &XRC20HolderAddressList{}
+	actionResponse.TokenHolderAddresses = output
+	holders, err := r.AP.GetXrc20Holders(addr, offset, size)
+	if err != nil {
+		return err
+	}
+	count, err := r.AP.GetXrc20HolderCount(addr)
+	if err != nil {
+		return err
+	}
+	output.Count = count
+	output.Addresses = holders
+	return nil
+}
+
 func (r *queryResolver) getXrc20ByPage(ctx context.Context, actionResponse *Xrc20) error {
 	argsMap := parseFieldArguments(ctx, "byPage", "xrc20")
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -1081,6 +1117,7 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 	parseVariables(ctx, argsMap, arguments)
 	return argsMap
 }
+
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
 	val := graphql.GetRequestContext(ctx)
 	if val != nil {
@@ -1133,6 +1170,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 		}
 	}
 }
+
 func getIntArg(argsMap map[string]*ast.Value, argName string) (int, error) {
 	getStr, err := getStringArg(argsMap, argName)
 	if err != nil {
