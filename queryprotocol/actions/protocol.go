@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	zeroAddress                    = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7"
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
@@ -41,7 +42,7 @@ const (
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
+	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
 )
 
 type activeAccount struct {
@@ -600,7 +601,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, skip, first uint64) (holders []
 		return nil, errors.New("actions protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, skip, first)
+	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, zeroAddress, skip, first)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
