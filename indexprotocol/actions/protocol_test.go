@@ -120,7 +120,7 @@ func TestProtocol(t *testing.T) {
 	}))
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
-		return p.HandleBlock(ctx, tx, blk)
+		return p.HandleBlock(bpctx, tx, blk)
 	}))
 
 	// get action
