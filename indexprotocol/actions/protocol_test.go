@@ -23,6 +23,7 @@ import (
 	"github.com/iotexproject/iotex-election/pb/api"
 	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
@@ -107,7 +108,10 @@ func TestProtocol(t *testing.T) {
 	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,
 	}, nil)
-
+	chainClient.EXPECT().ReadContract(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.ReadContractResponse{
+		Receipt: &iotextypes.Receipt{Status: 1},
+		Data:    "xx",
+	}, nil)
 	blk, err := testutil.BuildCompleteBlock(uint64(180), uint64(361))
 	require.NoError(err)
 
