@@ -40,12 +40,8 @@ const (
 	balanceOfString = "70a08231000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc"
 	//dd62ed3e -> allowance(address,address)
 	allowanceString = "dd62ed3e000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc"
-	//a9059cbb -> transfer(address,uint256)
-	transferString = "a9059cbb000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc0000000000000000000000000000000000000000000000000000000000000001"
 	//095ea7b3 -> approve(address,uint256)
 	approveString = "095ea7b3000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc0000000000000000000000000000000000000000000000000000000000000001"
-	//23b872dd -> transferFrom(address,address,uint256)
-	transferFromString = "23b872dd000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc0000000000000000000000000000000000000000000000000000000000000001"
 
 	// Xrc20HistoryTableName is the table name of xrc20 history
 	Xrc20HistoryTableName = "xrc20_history"
@@ -67,11 +63,9 @@ var (
 	totalSupply, _   = hex.DecodeString(totalSupplyString)
 	balanceOf, _     = hex.DecodeString(balanceOfString)
 	allowance, _     = hex.DecodeString(allowanceString)
-	transfer, _      = hex.DecodeString(transferString)
 	approve, _       = hex.DecodeString(approveString)
-	transferFrom, _  = hex.DecodeString(transferFromString)
-	xrc20contract    = make(map[string]struct{})
-	notxrc20contract = make(map[string]struct{})
+	xrc20Contract    = make(map[string]bool)
+	nonXrc20Contract = make(map[string]bool)
 )
 
 type (
@@ -127,7 +121,7 @@ func (p *Protocol) initContract() (err error) {
 	}
 	for _, parsedRow := range parsedRows {
 		r := parsedRow.(*contractStruct)
-		xrc20contract[r.Contract] = struct{}{}
+		xrc20Contract[r.Contract] = true
 	}
 	return
 }
@@ -197,59 +191,44 @@ func (p *Protocol) updateXrc20History(
 	return nil
 }
 
-func (p *Protocol) checkXrc20InDB(addr string) bool {
-	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectXrc20ContractInDB, ActionHistoryTableName, addr)).Scan(&exist); err != nil {
-		return false
-	}
-	if exist == 0 {
-		return false
-	}
-	return true
-}
-
 func (p *Protocol) checkIsErc20(ctx context.Context, addr string) bool {
-	if _, ok := notxrc20contract[addr]; ok {
+	if _, ok := nonXrc20Contract[addr]; ok {
 		return false
 	}
 	if _, ok := xrc20contract[addr]; ok {
-		return true
-	}
-	if p.checkXrc20InDB(addr) {
-		xrc20contract[addr] = struct{}{}
 		return true
 	}
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	if indexCtx.ChainClient == nil {
 		return false
 	}
-	ret := readContract(indexCtx.ChainClient, addr, 1, totalSupply)
+	ret := readContract(indexCtx.ChainClient, addr, totalSupply)
 	if !ret {
-		notxrc20contract[addr] = struct{}{}
+		nonXrc20Contract[addr] = true
 		return false
 	}
 
-	ret = readContract(indexCtx.ChainClient, addr, 2, balanceOf)
+	ret = readContract(indexCtx.ChainClient, addr, balanceOf)
 	if !ret {
-		notxrc20contract[addr] = struct{}{}
+		nonXrc20Contract[addr] = true
 		return false
 	}
-	ret = readContract(indexCtx.ChainClient, addr, 3, allowance)
+	ret = readContract(indexCtx.ChainClient, addr, allowance)
 	if !ret {
-		notxrc20contract[addr] = struct{}{}
+		nonXrc20Contract[addr] = true
 		return false
 	}
-	ret = readContract(indexCtx.ChainClient, addr, 5, approve)
+	ret = readContract(indexCtx.ChainClient, addr, approve)
 	if !ret {
-		notxrc20contract[addr] = struct{}{}
+		nonXrc20Contract[addr] = true
 		return false
 	}
-	xrc20contract[addr] = struct{}{}
+	nonXrc20Contract[addr] = true
 	return true
 }
 
-func readContract(cli iotexapi.APIServiceClient, addr string, nonce uint64, callData []byte) bool {
-	execution, err := action.NewExecution(addr, nonce, big.NewInt(0), 100000, big.NewInt(10000000), callData)
+func readContract(cli iotexapi.APIServiceClient, addr string, callData []byte) bool {
+	execution, err := action.NewExecution(addr, 1, big.NewInt(0), 100000, big.NewInt(10000000), callData)
 	if err != nil {
 		return false
 	}
@@ -258,13 +237,8 @@ func readContract(cli iotexapi.APIServiceClient, addr string, nonce uint64, call
 		SetGasPrice(big.NewInt(10000000)).
 		SetGasLimit(100000).
 		SetAction(execution).Build()
-	testPrivate := identityset.PrivateKey(30)
-	selp, err := action.Sign(elp, testPrivate)
-	if err != nil {
-		return false
-	}
 	request := &iotexapi.ReadContractRequest{
-		Execution:     selp.Proto().GetCore().GetExecution(),
+		Execution:     elp.Proto().GetExecution(),
 		CallerAddress: identityset.Address(30).String(),
 	}
 
