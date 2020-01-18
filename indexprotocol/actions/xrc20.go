@@ -223,7 +223,7 @@ func (p *Protocol) checkIsErc20(ctx context.Context, addr string) bool {
 		nonXrc20Contract[addr] = true
 		return false
 	}
-	nonXrc20Contract[addr] = true
+	xrc20Contract[addr] = true
 	return true
 }
 
