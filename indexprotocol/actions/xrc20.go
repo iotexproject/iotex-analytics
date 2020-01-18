@@ -195,7 +195,7 @@ func (p *Protocol) checkIsErc20(ctx context.Context, addr string) bool {
 	if _, ok := nonXrc20Contract[addr]; ok {
 		return false
 	}
-	if _, ok := xrc20contract[addr]; ok {
+	if _, ok := xrc20Contract[addr]; ok {
 		return true
 	}
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
