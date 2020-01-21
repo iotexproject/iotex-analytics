@@ -66,6 +66,11 @@ var (
 	approve, _       = hex.DecodeString(approveString)
 	xrc20Contract    = make(map[string]bool)
 	nonXrc20Contract = make(map[string]bool)
+	nonce            = uint64(1)
+	transferAmount   = big.NewInt(0)
+	gasLimit         = uint64(100000)
+	gasPrice         = big.NewInt(10000000)
+	callerAddress    = identityset.Address(30).String()
 )
 
 type (
@@ -228,18 +233,13 @@ func (p *Protocol) checkIsErc20(ctx context.Context, addr string) bool {
 }
 
 func readContract(cli iotexapi.APIServiceClient, addr string, callData []byte) bool {
-	execution, err := action.NewExecution(addr, 1, big.NewInt(0), 100000, big.NewInt(10000000), callData)
+	execution, err := action.NewExecution(addr, nonce, transferAmount, gasLimit, gasPrice, callData)
 	if err != nil {
 		return false
 	}
-	bd := &action.EnvelopeBuilder{}
-	elp := bd.SetNonce(1).
-		SetGasPrice(big.NewInt(10000000)).
-		SetGasLimit(100000).
-		SetAction(execution).Build()
 	request := &iotexapi.ReadContractRequest{
-		Execution:     elp.Proto().GetExecution(),
-		CallerAddress: identityset.Address(30).String(),
+		Execution:     execution.Proto(),
+		CallerAddress: callerAddress,
 	}
 
 	res, err := cli.ReadContract(context.Background(), request)
