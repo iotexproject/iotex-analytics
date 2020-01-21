@@ -147,19 +147,13 @@ func (p *Protocol) updateXrc20History(
 			receiptStatus = "success"
 		}
 		for _, l := range receipt.Logs {
-			isErc20 := p.checkIsErc20(ctx, l.Address)
-			if !isErc20 {
-				continue
-			}
 			data := hex.EncodeToString(l.Data)
 			var topics string
 			for _, t := range l.Topics {
 				topics += hex.EncodeToString(t[:])
 			}
-			if topics == "" || len(topics) > 64*3 || len(data) > 64*3 {
-				continue
-			}
-			if !strings.Contains(topics, transferSha3) {
+			isErc20 := p.checkIsErc20(ctx, l.Address, topics, data)
+			if !isErc20 {
 				continue
 			}
 			ah := hex.EncodeToString(l.ActionHash[:])
@@ -196,7 +190,13 @@ func (p *Protocol) updateXrc20History(
 	return nil
 }
 
-func (p *Protocol) checkIsErc20(ctx context.Context, addr string) bool {
+func (p *Protocol) checkIsErc20(ctx context.Context, addr, topics, data string) bool {
+	if topics == "" || len(topics) > 64*3 || len(data) > 64*3 {
+		return false
+	}
+	if !strings.Contains(topics, transferSha3) {
+		return false
+	}
 	if _, ok := nonXrc20Contract[addr]; ok {
 		return false
 	}
