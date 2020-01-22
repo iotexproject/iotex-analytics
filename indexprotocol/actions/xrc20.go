@@ -250,6 +250,7 @@ func (p *Protocol) updateXrc20History(
 }
 
 func (p *Protocol) checkTopics(topics, data string) bool {
+	fmt.Println("checkTopics:", topics, ":", data)
 	if topics == "" || len(topics) > 64*3 || len(data) > 64*3 {
 		return false
 	}
