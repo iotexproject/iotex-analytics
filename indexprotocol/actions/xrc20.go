@@ -16,10 +16,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-core/test/identityset"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 
@@ -33,6 +35,8 @@ const (
 	sha3Len           = 64
 	contractParamsLen = 64
 	addressLen        = 40
+	successStatus     = uint64(1)
+	revertStatus      = uint64(106)
 	// xrc20 func
 	//18160ddd -> totalSupply()
 	totalSupplyString = "18160ddd"
@@ -172,7 +176,7 @@ func (p *Protocol) updateXrc20History(
 	xrc721HoldersArgs := make([]interface{}, 0)
 	for _, receipt := range blk.Receipts {
 		receiptStatus := "failure"
-		if receipt.Status == uint64(1) {
+		if receipt.Status == successStatus {
 			receiptStatus = "success"
 		}
 		for _, l := range receipt.Logs {
@@ -202,6 +206,7 @@ func (p *Protocol) updateXrc20History(
 
 			from, to, _, err := ParseContractData(topics, data)
 			if err != nil {
+				log.L().Error("parse contract data error", zap.Error(err))
 				continue
 			}
 			if isXrc721 {
@@ -356,7 +361,7 @@ func readContract(cli iotexapi.APIServiceClient, addr string, callData []byte) b
 	if err != nil {
 		return false
 	}
-	if (res.Receipt.Status == uint64(1) || res.Receipt.Status == uint64(106)) && res.Data != "" {
+	if (res.Receipt.Status == successStatus || res.Receipt.Status == revertStatus) && res.Data != "" {
 		return true
 	}
 	return false
