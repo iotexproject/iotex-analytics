@@ -6,6 +6,7 @@ type Query {
     hermes(startEpoch: Int!, epochCount: Int!, rewardAddress: String!, waiverThreshold: Int!): Hermes
     hermesAverageStats(startEpoch: Int!, epochCount: Int!, rewardAddress: String!): AverageHermesStats
     xrc20: Xrc20
+    xrc721: Xrc721
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
 }
@@ -29,6 +30,14 @@ type Xrc20 {
     byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
     byPage(pagination: Pagination!): Xrc20List
     xrc20Addresses(pagination: Pagination!): XRC20AddressList
+    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
+}
+
+type Xrc721 {
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
+    byPage(pagination: Pagination!): Xrc20List
+    xrc721Addresses(pagination: Pagination!): XRC20AddressList
     tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
 }
 

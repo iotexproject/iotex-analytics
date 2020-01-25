@@ -345,6 +345,16 @@ func (p *Protocol) GetActiveAccount(count int) ([]string, error) {
 
 // GetXrc20 gets xrc20 transfer info by contract address
 func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrc(address, actions.Xrc20HistoryTableName, numPerPage, page)
+}
+
+// GetXrc721 gets xrc721 transfer info by contract address
+func (p *Protocol) GetXrc721(address string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrc(address, actions.Xrc721HistoryTableName, numPerPage, page)
+}
+
+// getXrc gets xrc transfer info by contract address
+func (p *Protocol) getXrc(address, table string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -354,7 +364,7 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf(selectXrc20History, actions.Xrc20HistoryTableName, address, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20History, table, address, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -392,6 +402,16 @@ func (p *Protocol) GetXrc20(address string, numPerPage, page uint64) (cons []*Xr
 
 // GetXrc20ByAddress gets xrc20 transfer info by sender or recipient address
 func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrcByAddress(addr, actions.Xrc20HistoryTableName, numPerPage, page)
+}
+
+// GetXrc721ByAddress gets xrc721 transfer info by sender or recipient address
+func (p *Protocol) GetXrc721ByAddress(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrcByAddress(addr, actions.Xrc721HistoryTableName, numPerPage, page)
+}
+
+// getXrcByAddress gets xrc transfer info by sender or recipient address
+func (p *Protocol) getXrcByAddress(addr, table string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -405,7 +425,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 		page = 1
 	}
 	offset := (page - 1) * numPerPage
-	getQuery := fmt.Sprintf(selectXrc20HistoryByTopics, actions.Xrc20HistoryTableName, offset, numPerPage)
+	getQuery := fmt.Sprintf(selectXrc20HistoryByTopics, table, offset, numPerPage)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -443,12 +463,21 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 
 // GetXrc20HolderCount gets xrc20 holders's address
 func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
+	return p.getXrcHolderCount(addr, actions.Xrc20HoldersTableName)
+}
+
+// GetXrc721HolderCount gets xrc721 holders's address
+func (p *Protocol) GetXrc721HolderCount(addr string) (count int, err error) {
+	return p.getXrcHolderCount(addr, actions.Xrc721HoldersTableName)
+}
+
+func (p *Protocol) getXrcHolderCount(addr, table string) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectXrc20HoldersCount, actions.Xrc20HoldersTableName, addr)
+	getQuery := fmt.Sprintf(selectXrc20HoldersCount, table, addr)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to prepare get query")
@@ -480,6 +509,15 @@ func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
 
 // GetXrc20Holders gets xrc20 holders
 func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*string, err error) {
+	return p.getXrcHolders(addr, actions.Xrc20HoldersTableName, offset, size)
+}
+
+// GetXrc721Holders gets xrc721 holders
+func (p *Protocol) GetXrc721Holders(addr string, offset, size uint64) (rets []*string, err error) {
+	return p.getXrcHolders(addr, actions.Xrc721HoldersTableName, offset, size)
+}
+
+func (p *Protocol) getXrcHolders(addr, table string, offset, size uint64) (rets []*string, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
@@ -492,7 +530,7 @@ func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*st
 	if size < 1 {
 		size = 1
 	}
-	getQuery := fmt.Sprintf(selectXrc20Holders, actions.Xrc20HoldersTableName, a, offset, size)
+	getQuery := fmt.Sprintf(selectXrc20Holders, table, a, offset, size)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -524,12 +562,22 @@ func (p *Protocol) GetXrc20Holders(addr string, offset, size uint64) (rets []*st
 
 // GetXrc20ByPage gets xrc20 transfer info by page
 func (p *Protocol) GetXrc20ByPage(offset, limit uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrcByPage(actions.Xrc20HistoryTableName, offset, limit)
+}
+
+// GetXrc721ByPage gets xrc721 transfer info by page
+func (p *Protocol) GetXrc721ByPage(offset, limit uint64) (cons []*Xrc20Info, err error) {
+	return p.getXrcByPage(actions.Xrc721HistoryTableName, offset, limit)
+}
+
+// getXrcByPage gets xrc transfer info by page
+func (p *Protocol) getXrcByPage(table string, offset, limit uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectXrc20HistoryByPage, actions.Xrc20HistoryTableName, offset, limit)
+	getQuery := fmt.Sprintf(selectXrc20HistoryByPage, table, offset, limit)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -567,11 +615,21 @@ func (p *Protocol) GetXrc20ByPage(offset, limit uint64) (cons []*Xrc20Info, err 
 
 // GetXrc20Addresses gets xrc20 addresses by page
 func (p *Protocol) GetXrc20Addresses(offset, limit uint64) (addresses []*string, err error) {
+	return p.getXrcAddresses(actions.Xrc20HistoryTableName, offset, limit)
+}
+
+// GetXrc721Addresses gets xrc721 addresses by page
+func (p *Protocol) GetXrc721Addresses(offset, limit uint64) (addresses []*string, err error) {
+	return p.getXrcAddresses(actions.Xrc721HistoryTableName, offset, limit)
+}
+
+// getXrcAddresses gets xrc addresses by page
+func (p *Protocol) getXrcAddresses(table string, offset, limit uint64) (addresses []*string, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectXrc20AddressesByPage, actions.Xrc20HistoryTableName, offset, limit)
+	getQuery := fmt.Sprintf(selectXrc20AddressesByPage, table, offset, limit)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
