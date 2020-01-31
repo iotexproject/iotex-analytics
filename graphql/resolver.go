@@ -721,7 +721,7 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
-	output := &Xrc20List{Exist: false}
+	output := &XrcList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.ByContractAddress = output
@@ -740,9 +740,9 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 	}
 	output.Exist = true
 	output.Count = len(xrc20InfoList)
-	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+		output.Xrc = append(output.Xrc, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -776,7 +776,7 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
-	output := &Xrc20List{Exist: false}
+	output := &XrcList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.ByAddress = output
@@ -794,9 +794,9 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 	}
 	output.Exist = true
 	output.Count = len(xrc20InfoList)
-	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+		output.Xrc = append(output.Xrc, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -834,7 +834,7 @@ func (r *queryResolver) xrcTokenHolderAddresses(ctx context.Context, actionRespo
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
 	}
-	output := &XRC20HolderAddressList{}
+	output := &XRCHolderAddressList{}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.TokenHolderAddresses = output
@@ -872,7 +872,7 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 	}
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
-	output := &Xrc20List{Exist: false}
+	output := &XrcList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.ByPage = output
@@ -890,9 +890,9 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 	}
 	output.Exist = true
 	output.Count = len(xrc20InfoList)
-	output.Xrc20 = make([]*Xrc20Info, 0, len(xrc20InfoList))
+	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
 	for _, c := range xrc20InfoList {
-		output.Xrc20 = append(output.Xrc20, &Xrc20Info{
+		output.Xrc = append(output.Xrc, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -920,7 +920,7 @@ func (r *queryResolver) getXrcAddresses(ctx context.Context, actionResponse inte
 	}
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
-	output := &XRC20AddressList{Exist: false}
+	output := &XRCAddressList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.Xrc721Addresses = output

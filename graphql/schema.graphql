@@ -16,7 +16,7 @@ type TopHolder{
     balance:String!
 }
 
-type Xrc20Info{
+type XrcInfo{
     contract:String!
     hash:String!
     timestamp:String!
@@ -26,19 +26,19 @@ type Xrc20Info{
 }
 
 type Xrc20 {
-    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byPage(pagination: Pagination!): Xrc20List
-    xrc20Addresses(pagination: Pagination!): XRC20AddressList
-    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byPage(pagination: Pagination!): XrcList
+    xrc20Addresses(pagination: Pagination!): XRCAddressList
+    tokenHolderAddresses(tokenAddress:String!): XRCHolderAddressList
 }
 
 type Xrc721 {
-    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byPage(pagination: Pagination!): Xrc20List
-    xrc721Addresses(pagination: Pagination!): XRC20AddressList
-    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byPage(pagination: Pagination!): XrcList
+    xrc721Addresses(pagination: Pagination!): XRCAddressList
+    tokenHolderAddresses(tokenAddress:String!): XRCHolderAddressList
 }
 
 type Account {
@@ -135,19 +135,19 @@ type ActionList {
     count: Int!
 }
 
-type Xrc20List {
+type XrcList {
     exist: Boolean!
-    xrc20(pagination: Pagination): [Xrc20Info]!
+    xrc(pagination: Pagination): [XrcInfo]!
     count: Int!
 }
 
-type XRC20AddressList {
+type XRCAddressList {
     exist: Boolean!
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
 
-type XRC20HolderAddressList {
+type XRCHolderAddressList {
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
