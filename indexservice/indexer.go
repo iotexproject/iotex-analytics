@@ -87,7 +87,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create tables")
 	}
 
-	if err := idx.Initialize(&idx.Config.Genesis); err != nil {
+	if err := idx.Initialize(ctx, &idx.Config.Genesis); err != nil {
 		return errors.Wrap(err, "failed to initialize the index protocols")
 	}
 	_, lastHeight, err := chainmetautil.GetCurrentEpochAndHeight(idx.Registry, idx.Store)
@@ -137,10 +137,10 @@ func (idx *Indexer) Stop(ctx context.Context) error {
 }
 
 // Initialize initialize the registered protocols
-func (idx *Indexer) Initialize(genesis *indexprotocol.Genesis) error {
+func (idx *Indexer) Initialize(ctx context.Context, genesis *indexprotocol.Genesis) error {
 	if err := idx.Store.Transact(func(tx *sql.Tx) error {
 		for _, p := range idx.IndexProtocols {
-			if err := p.Initialize(context.Background(), tx, genesis); err != nil {
+			if err := p.Initialize(ctx, tx, genesis); err != nil {
 				return errors.Wrap(err, "failed to initialize the protocol")
 			}
 		}

@@ -44,6 +44,7 @@ type (
 	}
 	// GravityChain contains the configs for gravity chain
 	GravityChain struct {
+		GravityChainStartHeight     uint64   `yaml:"gravityChainStartHeight"`
 		GravityChainAPIs            []string `yaml:"gravityChainAPIs"`
 		RegisterContractAddress     string   `yaml:"registerContractAddress"`
 		RewardPercentageStartHeight uint64   `yaml:"rewardPercentageStartHeight"`
