@@ -42,6 +42,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -83,6 +84,7 @@ const (
 	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
 	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
 	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
+	rowExists             = "SELECT * FROM %s WHERE epoch_number = ?"
 )
 
 type (
@@ -237,6 +239,16 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 
 // Initialize initializes votings protocol
 func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexprotocol.Genesis) error {
+	db := p.Store.GetDB()
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(rowExists,
+		VotingResultTableName), uint64(1))
+	if err != nil {
+		return errors.Wrap(err, "failed to check if the row exists")
+	}
+	if exist {
+		return nil
+	}
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	if indexCtx.ConsensusScheme == "ROLLDPOS" {
 		chainClient := indexCtx.ChainClient
