@@ -43,6 +43,7 @@ poll:
   scoreThreshold: "0"
   selfStakingThreshold: "0"
 gravityChain:
+  gravityChainStartHeight: 7614500
   gravityChainAPIs:
     - https://mainnet.infura.io/v3/b355cae6fafc4302b106b937ee6c15af
   registerContractAddress: 0x8619a5c5232c32bae63c442b905a27ae46598566

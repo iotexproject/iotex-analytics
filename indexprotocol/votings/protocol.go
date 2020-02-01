@@ -42,6 +42,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -83,6 +84,7 @@ const (
 	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
 	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
 	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
+	rowExists             = "SELECT * FROM %s WHERE epoch_number = ?"
 )
 
 type (
@@ -236,7 +238,26 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 }
 
 // Initialize initializes votings protocol
-func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
+func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexprotocol.Genesis) error {
+	db := p.Store.GetDB()
+	// Check existence
+	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(rowExists,
+		VotingResultTableName), uint64(1))
+	if err != nil {
+		return errors.Wrap(err, "failed to check if the row exists")
+	}
+	if exist {
+		return nil
+	}
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	if indexCtx.ConsensusScheme == "ROLLDPOS" {
+		chainClient := indexCtx.ChainClient
+		electionClient := indexCtx.ElectionClient
+		if err := p.putVotingTables(tx, electionClient, chainClient, 1, 1,
+			p.GravityChainCfg.GravityChainStartHeight); err != nil {
+			return errors.Wrap(err, "failed to put data into voting tables in the first epoch")
+		}
+	}
 	return nil
 }
 
@@ -244,34 +265,46 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
 	epochNumber := p.epochCtx.GetEpochNumber(height)
+	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
+	nextEpochHeight := p.epochCtx.GetEpochHeight(epochNumber + 1)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == p.epochCtx.GetEpochHeight(epochNumber) {
-		indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == epochHeight+(nextEpochHeight-epochHeight)/2 {
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
-		gravityHeight, err := p.getGravityChainStartHeight(chainClient, height)
+		gravityHeight, err := p.getGravityChainStartHeight(chainClient, epochHeight)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 		}
-		buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
-		}
-		nativeBuckets, err := p.getNativeBucket(chainClient, epochNumber)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get native buckets from chain service in epoch %d", epochNumber)
-		}
-		if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
-			return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
-		}
-		if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
-			return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
-		}
-		if err := p.updateVotingTables(tx, epochNumber, height, gravityHeight); err != nil {
-			return errors.Wrap(err, "failed to update voting tables")
+		if err := p.putVotingTables(tx, electionClient, chainClient, epochNumber+1, nextEpochHeight, gravityHeight); err != nil {
+			return errors.Wrapf(err, "failed to put data into voting tables in epoch %d", epochNumber)
 		}
 	}
 	return nil
+}
+
+func (p *Protocol) putVotingTables(
+	tx *sql.Tx,
+	electionClient api.APIServiceClient,
+	chainClient iotexapi.APIServiceClient,
+	epochNumber uint64,
+	height uint64,
+	gravityHeight uint64,
+) error {
+	buckets, regs, mintTime, err := p.getRawData(electionClient, gravityHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get rawdata from election service in epoch %d", epochNumber)
+	}
+	nativeBuckets, err := p.getNativeBucket(chainClient, epochNumber)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get native buckets from chain service in epoch %d", epochNumber)
+	}
+	if err := p.putPoll(tx, height, mintTime, regs, buckets); err != nil {
+		return errors.Wrapf(err, "failed to put poll in epoch %d", epochNumber)
+	}
+	if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
+		return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
+	}
+	return p.updateVotingTables(tx, epochNumber, height, gravityHeight)
 }
 
 func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
