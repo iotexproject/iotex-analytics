@@ -42,7 +42,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
-	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -238,26 +237,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 }
 
 // Initialize initializes votings protocol
-func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexprotocol.Genesis) error {
-	db := p.Store.GetDB()
-	// Check existence
-	exist, err := queryprotocol.RowExists(db, fmt.Sprintf(rowExists,
-		VotingResultTableName), uint64(1))
-	if err != nil {
-		return errors.Wrap(err, "failed to check if the row exists")
-	}
-	if exist {
-		return nil
-	}
-	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	if indexCtx.ConsensusScheme == "ROLLDPOS" {
-		chainClient := indexCtx.ChainClient
-		electionClient := indexCtx.ElectionClient
-		if err := p.putVotingTables(tx, electionClient, chainClient, 1, 1,
-			p.GravityChainCfg.GravityChainStartHeight); err != nil {
-			return errors.Wrap(err, "failed to put data into voting tables in the first epoch")
-		}
-	}
+func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) error {
 	return nil
 }
 
@@ -265,17 +245,22 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexpro
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
 	epochNumber := p.epochCtx.GetEpochNumber(height)
-	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
-	nextEpochHeight := p.epochCtx.GetEpochHeight(epochNumber + 1)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == epochHeight+(nextEpochHeight-epochHeight)/2 {
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == p.epochCtx.GetEpochHeight(epochNumber) {
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
-		gravityHeight, err := p.getGravityChainStartHeight(chainClient, epochHeight)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
+		var gravityHeight uint64
+		var err error
+		if epochNumber == 1 {
+			gravityHeight = p.GravityChainCfg.GravityChainStartHeight
+		} else {
+			prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+			gravityHeight, err = p.getGravityChainStartHeight(chainClient, prevEpochHeight)
+			if err != nil {
+				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
+			}
 		}
-		if err := p.putVotingTables(tx, electionClient, chainClient, epochNumber+1, nextEpochHeight, gravityHeight); err != nil {
+		if err := p.putVotingTables(tx, electionClient, chainClient, epochNumber, height, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to put data into voting tables in epoch %d", epochNumber)
 		}
 	}

@@ -63,7 +63,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.NoError(p.CreateTables(ctx))
 
-	blk, err := testutil.BuildCompleteBlock(uint64(181), uint64(361))
+	blk, err := testutil.BuildCompleteBlock(uint64(361), uint64(721))
 	require.NoError(err)
 
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
