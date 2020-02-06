@@ -834,7 +834,7 @@ func (r *queryResolver) xrcTokenHolderAddresses(ctx context.Context, actionRespo
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
 	}
-	output := &XRCHolderAddressList{}
+	output := &XrcHolderAddressList{}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.TokenHolderAddresses = output
@@ -920,7 +920,7 @@ func (r *queryResolver) getXrcAddresses(ctx context.Context, actionResponse inte
 	}
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
-	output := &XRCAddressList{Exist: false}
+	output := &XrcAddressList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.Xrc721Addresses = output

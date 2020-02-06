@@ -236,31 +236,31 @@ type VotingResultMeta struct {
 	VotedTokens        string `json:"votedTokens"`
 }
 
-type XRCAddressList struct {
-	Exist     bool      `json:"exist"`
-	Addresses []*string `json:"addresses"`
-	Count     int       `json:"count"`
-}
-
-type XRCHolderAddressList struct {
-	Addresses []*string `json:"addresses"`
-	Count     int       `json:"count"`
-}
-
 type Xrc20 struct {
 	ByContractAddress    *XrcList              `json:"byContractAddress"`
 	ByAddress            *XrcList              `json:"byAddress"`
 	ByPage               *XrcList              `json:"byPage"`
-	Xrc20Addresses       *XRCAddressList       `json:"xrc20Addresses"`
-	TokenHolderAddresses *XRCHolderAddressList `json:"tokenHolderAddresses"`
+	Xrc20Addresses       *XrcAddressList       `json:"xrc20Addresses"`
+	TokenHolderAddresses *XrcHolderAddressList `json:"tokenHolderAddresses"`
 }
 
 type Xrc721 struct {
 	ByContractAddress    *XrcList              `json:"byContractAddress"`
 	ByAddress            *XrcList              `json:"byAddress"`
 	ByPage               *XrcList              `json:"byPage"`
-	Xrc721Addresses      *XRCAddressList       `json:"xrc721Addresses"`
-	TokenHolderAddresses *XRCHolderAddressList `json:"tokenHolderAddresses"`
+	Xrc721Addresses      *XrcAddressList       `json:"xrc721Addresses"`
+	TokenHolderAddresses *XrcHolderAddressList `json:"tokenHolderAddresses"`
+}
+
+type XrcAddressList struct {
+	Exist     bool      `json:"exist"`
+	Addresses []*string `json:"addresses"`
+	Count     int       `json:"count"`
+}
+
+type XrcHolderAddressList struct {
+	Addresses []*string `json:"addresses"`
+	Count     int       `json:"count"`
 }
 
 type XrcInfo struct {

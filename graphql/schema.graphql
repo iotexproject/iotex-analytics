@@ -29,16 +29,16 @@ type Xrc20 {
     byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
     byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
     byPage(pagination: Pagination!): XrcList
-    xrc20Addresses(pagination: Pagination!): XRCAddressList
-    tokenHolderAddresses(tokenAddress:String!): XRCHolderAddressList
+    xrc20Addresses(pagination: Pagination!): XrcAddressList
+    tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
 }
 
 type Xrc721 {
     byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
     byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
     byPage(pagination: Pagination!): XrcList
-    xrc721Addresses(pagination: Pagination!): XRCAddressList
-    tokenHolderAddresses(tokenAddress:String!): XRCHolderAddressList
+    xrc721Addresses(pagination: Pagination!): XrcAddressList
+    tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
 }
 
 type Account {
@@ -141,13 +141,13 @@ type XrcList {
     count: Int!
 }
 
-type XRCAddressList {
+type XrcAddressList {
     exist: Boolean!
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
 
-type XRCHolderAddressList {
+type XrcHolderAddressList {
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
