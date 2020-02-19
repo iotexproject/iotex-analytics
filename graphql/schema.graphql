@@ -52,6 +52,7 @@ type Action {
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
+    byType(type: String!): ActionList
 }
 
 type Delegate {
