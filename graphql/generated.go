@@ -277,17 +277,6 @@ type ComplexityRoot struct {
 		VotedTokens        func(childComplexity int) int
 	}
 
-	XRC20AddressList struct {
-		Addresses func(childComplexity int, pagination *Pagination) int
-		Count     func(childComplexity int) int
-		Exist     func(childComplexity int) int
-	}
-
-	XRC20HolderAddressList struct {
-		Addresses func(childComplexity int, pagination *Pagination) int
-		Count     func(childComplexity int) int
-	}
-
 	Xrc20 struct {
 		ByAddress            func(childComplexity int, address string, numPerPage int, page int) int
 		ByContractAddress    func(childComplexity int, address string, numPerPage int, page int) int
@@ -296,7 +285,26 @@ type ComplexityRoot struct {
 		Xrc20Addresses       func(childComplexity int, pagination Pagination) int
 	}
 
-	Xrc20Info struct {
+	Xrc721 struct {
+		ByAddress            func(childComplexity int, address string, numPerPage int, page int) int
+		ByContractAddress    func(childComplexity int, address string, numPerPage int, page int) int
+		ByPage               func(childComplexity int, pagination Pagination) int
+		TokenHolderAddresses func(childComplexity int, tokenAddress string) int
+		Xrc721Addresses      func(childComplexity int, pagination Pagination) int
+	}
+
+	XrcAddressList struct {
+		Addresses func(childComplexity int, pagination *Pagination) int
+		Count     func(childComplexity int) int
+		Exist     func(childComplexity int) int
+	}
+
+	XrcHolderAddressList struct {
+		Addresses func(childComplexity int, pagination *Pagination) int
+		Count     func(childComplexity int) int
+	}
+
+	XrcInfo struct {
 		Contract  func(childComplexity int) int
 		From      func(childComplexity int) int
 		Hash      func(childComplexity int) int
@@ -305,18 +313,10 @@ type ComplexityRoot struct {
 		To        func(childComplexity int) int
 	}
 
-	Xrc20List struct {
+	XrcList struct {
 		Count func(childComplexity int) int
 		Exist func(childComplexity int) int
-		Xrc20 func(childComplexity int, pagination *Pagination) int
-	}
-
-	Xrc721 struct {
-		ByAddress            func(childComplexity int, address string, numPerPage int, page int) int
-		ByContractAddress    func(childComplexity int, address string, numPerPage int, page int) int
-		ByPage               func(childComplexity int, pagination Pagination) int
-		TokenHolderAddresses func(childComplexity int, tokenAddress string) int
-		Xrc721Addresses      func(childComplexity int, pagination Pagination) int
+		Xrc   func(childComplexity int, pagination *Pagination) int
 	}
 }
 
@@ -1351,51 +1351,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VotingResultMeta.VotedTokens(childComplexity), true
 
-	case "XRC20AddressList.Addresses":
-		if e.complexity.XRC20AddressList.Addresses == nil {
-			break
-		}
-
-		args, err := ec.field_XRC20AddressList_addresses_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.XRC20AddressList.Addresses(childComplexity, args["pagination"].(*Pagination)), true
-
-	case "XRC20AddressList.Count":
-		if e.complexity.XRC20AddressList.Count == nil {
-			break
-		}
-
-		return e.complexity.XRC20AddressList.Count(childComplexity), true
-
-	case "XRC20AddressList.Exist":
-		if e.complexity.XRC20AddressList.Exist == nil {
-			break
-		}
-
-		return e.complexity.XRC20AddressList.Exist(childComplexity), true
-
-	case "XRC20HolderAddressList.Addresses":
-		if e.complexity.XRC20HolderAddressList.Addresses == nil {
-			break
-		}
-
-		args, err := ec.field_XRC20HolderAddressList_addresses_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.XRC20HolderAddressList.Addresses(childComplexity, args["pagination"].(*Pagination)), true
-
-	case "XRC20HolderAddressList.Count":
-		if e.complexity.XRC20HolderAddressList.Count == nil {
-			break
-		}
-
-		return e.complexity.XRC20HolderAddressList.Count(childComplexity), true
-
 	case "Xrc20.ByAddress":
 		if e.complexity.Xrc20.ByAddress == nil {
 			break
@@ -1456,74 +1411,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Xrc20.Xrc20Addresses(childComplexity, args["pagination"].(Pagination)), true
 
-	case "Xrc20Info.Contract":
-		if e.complexity.Xrc20Info.Contract == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.Contract(childComplexity), true
-
-	case "Xrc20Info.From":
-		if e.complexity.Xrc20Info.From == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.From(childComplexity), true
-
-	case "Xrc20Info.Hash":
-		if e.complexity.Xrc20Info.Hash == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.Hash(childComplexity), true
-
-	case "Xrc20Info.Quantity":
-		if e.complexity.Xrc20Info.Quantity == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.Quantity(childComplexity), true
-
-	case "Xrc20Info.Timestamp":
-		if e.complexity.Xrc20Info.Timestamp == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.Timestamp(childComplexity), true
-
-	case "Xrc20Info.To":
-		if e.complexity.Xrc20Info.To == nil {
-			break
-		}
-
-		return e.complexity.Xrc20Info.To(childComplexity), true
-
-	case "Xrc20List.Count":
-		if e.complexity.Xrc20List.Count == nil {
-			break
-		}
-
-		return e.complexity.Xrc20List.Count(childComplexity), true
-
-	case "Xrc20List.Exist":
-		if e.complexity.Xrc20List.Exist == nil {
-			break
-		}
-
-		return e.complexity.Xrc20List.Exist(childComplexity), true
-
-	case "Xrc20List.Xrc20":
-		if e.complexity.Xrc20List.Xrc20 == nil {
-			break
-		}
-
-		args, err := ec.field_Xrc20List_xrc20_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Xrc20List.Xrc20(childComplexity, args["pagination"].(*Pagination)), true
-
 	case "Xrc721.ByAddress":
 		if e.complexity.Xrc721.ByAddress == nil {
 			break
@@ -1583,6 +1470,119 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Xrc721.Xrc721Addresses(childComplexity, args["pagination"].(Pagination)), true
+
+	case "XrcAddressList.Addresses":
+		if e.complexity.XrcAddressList.Addresses == nil {
+			break
+		}
+
+		args, err := ec.field_XrcAddressList_addresses_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.XrcAddressList.Addresses(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "XrcAddressList.Count":
+		if e.complexity.XrcAddressList.Count == nil {
+			break
+		}
+
+		return e.complexity.XrcAddressList.Count(childComplexity), true
+
+	case "XrcAddressList.Exist":
+		if e.complexity.XrcAddressList.Exist == nil {
+			break
+		}
+
+		return e.complexity.XrcAddressList.Exist(childComplexity), true
+
+	case "XrcHolderAddressList.Addresses":
+		if e.complexity.XrcHolderAddressList.Addresses == nil {
+			break
+		}
+
+		args, err := ec.field_XrcHolderAddressList_addresses_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.XrcHolderAddressList.Addresses(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "XrcHolderAddressList.Count":
+		if e.complexity.XrcHolderAddressList.Count == nil {
+			break
+		}
+
+		return e.complexity.XrcHolderAddressList.Count(childComplexity), true
+
+	case "XrcInfo.Contract":
+		if e.complexity.XrcInfo.Contract == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.Contract(childComplexity), true
+
+	case "XrcInfo.From":
+		if e.complexity.XrcInfo.From == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.From(childComplexity), true
+
+	case "XrcInfo.Hash":
+		if e.complexity.XrcInfo.Hash == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.Hash(childComplexity), true
+
+	case "XrcInfo.Quantity":
+		if e.complexity.XrcInfo.Quantity == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.Quantity(childComplexity), true
+
+	case "XrcInfo.Timestamp":
+		if e.complexity.XrcInfo.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.Timestamp(childComplexity), true
+
+	case "XrcInfo.To":
+		if e.complexity.XrcInfo.To == nil {
+			break
+		}
+
+		return e.complexity.XrcInfo.To(childComplexity), true
+
+	case "XrcList.Count":
+		if e.complexity.XrcList.Count == nil {
+			break
+		}
+
+		return e.complexity.XrcList.Count(childComplexity), true
+
+	case "XrcList.Exist":
+		if e.complexity.XrcList.Exist == nil {
+			break
+		}
+
+		return e.complexity.XrcList.Exist(childComplexity), true
+
+	case "XrcList.Xrc":
+		if e.complexity.XrcList.Xrc == nil {
+			break
+		}
+
+		args, err := ec.field_XrcList_xrc_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.XrcList.Xrc(childComplexity, args["pagination"].(*Pagination)), true
 
 	}
 	return 0, false
@@ -1666,7 +1666,7 @@ type TopHolder{
     balance:String!
 }
 
-type Xrc20Info{
+type XrcInfo{
     contract:String!
     hash:String!
     timestamp:String!
@@ -1676,19 +1676,19 @@ type Xrc20Info{
 }
 
 type Xrc20 {
-    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byPage(pagination: Pagination!): Xrc20List
-    xrc20Addresses(pagination: Pagination!): XRC20AddressList
-    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byPage(pagination: Pagination!): XrcList
+    xrc20Addresses(pagination: Pagination!): XrcAddressList
+    tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
 }
 
 type Xrc721 {
-    byContractAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byAddress(address:String!,numPerPage:Int!,page:Int!): Xrc20List
-    byPage(pagination: Pagination!): Xrc20List
-    xrc721Addresses(pagination: Pagination!): XRC20AddressList
-    tokenHolderAddresses(tokenAddress:String!): XRC20HolderAddressList
+    byContractAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byAddress(address:String!,numPerPage:Int!,page:Int!): XrcList
+    byPage(pagination: Pagination!): XrcList
+    xrc721Addresses(pagination: Pagination!): XrcAddressList
+    tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
 }
 
 type Account {
@@ -1785,19 +1785,19 @@ type ActionList {
     count: Int!
 }
 
-type Xrc20List {
+type XrcList {
     exist: Boolean!
-    xrc20(pagination: Pagination): [Xrc20Info]!
+    xrc(pagination: Pagination): [XrcInfo]!
     count: Int!
 }
 
-type XRC20AddressList {
+type XrcAddressList {
     exist: Boolean!
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
 
-type XRC20HolderAddressList {
+type XrcHolderAddressList {
     addresses(pagination: Pagination): [String]!
     count: Int!
 }
@@ -2326,48 +2326,6 @@ func (ec *executionContext) field_Voting_rewardSources_args(ctx context.Context,
 	return args, nil
 }
 
-func (ec *executionContext) field_XRC20AddressList_addresses_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *Pagination
-	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pagination"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_XRC20HolderAddressList_addresses_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *Pagination
-	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pagination"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Xrc20List_xrc20_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 *Pagination
-	if tmp, ok := rawArgs["pagination"]; ok {
-		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pagination"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Xrc20_byAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -2564,6 +2522,48 @@ func (ec *executionContext) field_Xrc721_xrc721Addresses_args(ctx context.Contex
 	var arg0 Pagination
 	if tmp, ok := rawArgs["pagination"]; ok {
 		arg0, err = ec.unmarshalNPagination2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_XrcAddressList_addresses_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_XrcHolderAddressList_addresses_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_XrcList_xrc_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -6204,155 +6204,6 @@ func (ec *executionContext) _VotingResultMeta_votedTokens(ctx context.Context, f
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _XRC20AddressList_exist(ctx context.Context, field graphql.CollectedField, obj *XRC20AddressList) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "XRC20AddressList",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Exist, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _XRC20AddressList_addresses(ctx context.Context, field graphql.CollectedField, obj *XRC20AddressList) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "XRC20AddressList",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_XRC20AddressList_addresses_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	rctx.Args = args
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Addresses, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2ᚕᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _XRC20AddressList_count(ctx context.Context, field graphql.CollectedField, obj *XRC20AddressList) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "XRC20AddressList",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Count, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _XRC20HolderAddressList_addresses(ctx context.Context, field graphql.CollectedField, obj *XRC20HolderAddressList) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "XRC20HolderAddressList",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_XRC20HolderAddressList_addresses_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	rctx.Args = args
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Addresses, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2ᚕᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _XRC20HolderAddressList_count(ctx context.Context, field graphql.CollectedField, obj *XRC20HolderAddressList) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "XRC20HolderAddressList",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Count, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Xrc20_byContractAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6378,10 +6229,10 @@ func (ec *executionContext) _Xrc20_byContractAddress(ctx context.Context, field 
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc20_byAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
@@ -6409,10 +6260,10 @@ func (ec *executionContext) _Xrc20_byAddress(ctx context.Context, field graphql.
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc20_byPage(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
@@ -6440,10 +6291,10 @@ func (ec *executionContext) _Xrc20_byPage(ctx context.Context, field graphql.Col
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc20_xrc20Addresses(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
@@ -6471,10 +6322,10 @@ func (ec *executionContext) _Xrc20_xrc20Addresses(ctx context.Context, field gra
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*XRC20AddressList)
+	res := resTmp.(*XrcAddressList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXRC20AddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20AddressList(ctx, field.Selections, res)
+	return ec.marshalOXrcAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcAddressList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc20_tokenHolderAddresses(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
@@ -6502,260 +6353,10 @@ func (ec *executionContext) _Xrc20_tokenHolderAddresses(ctx context.Context, fie
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*XRC20HolderAddressList)
+	res := resTmp.(*XrcHolderAddressList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXRC20HolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20HolderAddressList(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_contract(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Contract, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_hash(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Hash, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_timestamp(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Timestamp, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_from(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.From, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_to(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.To, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20Info_quantity(ctx context.Context, field graphql.CollectedField, obj *Xrc20Info) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20Info",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Quantity, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20List_exist(ctx context.Context, field graphql.CollectedField, obj *Xrc20List) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20List",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Exist, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(bool)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20List_xrc20(ctx context.Context, field graphql.CollectedField, obj *Xrc20List) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20List",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Xrc20List_xrc20_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	rctx.Args = args
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Xrc20, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*Xrc20Info)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNXrc20Info2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20Info(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Xrc20List_count(ctx context.Context, field graphql.CollectedField, obj *Xrc20List) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "Xrc20List",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Count, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalOXrcHolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcHolderAddressList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc721_byContractAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
@@ -6783,10 +6384,10 @@ func (ec *executionContext) _Xrc721_byContractAddress(ctx context.Context, field
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc721_byAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
@@ -6814,10 +6415,10 @@ func (ec *executionContext) _Xrc721_byAddress(ctx context.Context, field graphql
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc721_byPage(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
@@ -6845,10 +6446,10 @@ func (ec *executionContext) _Xrc721_byPage(ctx context.Context, field graphql.Co
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*Xrc20List)
+	res := resTmp.(*XrcList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx, field.Selections, res)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc721_xrc721Addresses(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
@@ -6876,10 +6477,10 @@ func (ec *executionContext) _Xrc721_xrc721Addresses(ctx context.Context, field g
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*XRC20AddressList)
+	res := resTmp.(*XrcAddressList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXRC20AddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20AddressList(ctx, field.Selections, res)
+	return ec.marshalOXrcAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcAddressList(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Xrc721_tokenHolderAddresses(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
@@ -6907,10 +6508,409 @@ func (ec *executionContext) _Xrc721_tokenHolderAddresses(ctx context.Context, fi
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*XRC20HolderAddressList)
+	res := resTmp.(*XrcHolderAddressList)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOXRC20HolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20HolderAddressList(ctx, field.Selections, res)
+	return ec.marshalOXrcHolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcHolderAddressList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcAddressList_exist(ctx context.Context, field graphql.CollectedField, obj *XrcAddressList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcAddressList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcAddressList_addresses(ctx context.Context, field graphql.CollectedField, obj *XrcAddressList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcAddressList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_XrcAddressList_addresses_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Addresses, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2ᚕᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcAddressList_count(ctx context.Context, field graphql.CollectedField, obj *XrcAddressList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcAddressList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcHolderAddressList_addresses(ctx context.Context, field graphql.CollectedField, obj *XrcHolderAddressList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcHolderAddressList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_XrcHolderAddressList_addresses_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Addresses, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2ᚕᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcHolderAddressList_count(ctx context.Context, field graphql.CollectedField, obj *XrcHolderAddressList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcHolderAddressList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_contract(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Contract, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_hash(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Hash, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_timestamp(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Timestamp, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_from(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.From, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_to(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.To, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcInfo_quantity(ctx context.Context, field graphql.CollectedField, obj *XrcInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Quantity, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcList_exist(ctx context.Context, field graphql.CollectedField, obj *XrcList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcList_xrc(ctx context.Context, field graphql.CollectedField, obj *XrcList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_XrcList_xrc_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Xrc, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*XrcInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNXrcInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _XrcList_count(ctx context.Context, field graphql.CollectedField, obj *XrcList) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "XrcList",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) graphql.Marshaler {
@@ -9257,75 +9257,6 @@ func (ec *executionContext) _VotingResultMeta(ctx context.Context, sel ast.Selec
 	return out
 }
 
-var xRC20AddressListImplementors = []string{"XRC20AddressList"}
-
-func (ec *executionContext) _XRC20AddressList(ctx context.Context, sel ast.SelectionSet, obj *XRC20AddressList) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, xRC20AddressListImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("XRC20AddressList")
-		case "exist":
-			out.Values[i] = ec._XRC20AddressList_exist(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "addresses":
-			out.Values[i] = ec._XRC20AddressList_addresses(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "count":
-			out.Values[i] = ec._XRC20AddressList_count(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
-var xRC20HolderAddressListImplementors = []string{"XRC20HolderAddressList"}
-
-func (ec *executionContext) _XRC20HolderAddressList(ctx context.Context, sel ast.SelectionSet, obj *XRC20HolderAddressList) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, xRC20HolderAddressListImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("XRC20HolderAddressList")
-		case "addresses":
-			out.Values[i] = ec._XRC20HolderAddressList_addresses(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "count":
-			out.Values[i] = ec._XRC20HolderAddressList_count(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
 var xrc20Implementors = []string{"Xrc20"}
 
 func (ec *executionContext) _Xrc20(ctx context.Context, sel ast.SelectionSet, obj *Xrc20) graphql.Marshaler {
@@ -9358,95 +9289,6 @@ func (ec *executionContext) _Xrc20(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var xrc20InfoImplementors = []string{"Xrc20Info"}
-
-func (ec *executionContext) _Xrc20Info(ctx context.Context, sel ast.SelectionSet, obj *Xrc20Info) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, xrc20InfoImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Xrc20Info")
-		case "contract":
-			out.Values[i] = ec._Xrc20Info_contract(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "hash":
-			out.Values[i] = ec._Xrc20Info_hash(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "timestamp":
-			out.Values[i] = ec._Xrc20Info_timestamp(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "from":
-			out.Values[i] = ec._Xrc20Info_from(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "to":
-			out.Values[i] = ec._Xrc20Info_to(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "quantity":
-			out.Values[i] = ec._Xrc20Info_quantity(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
-var xrc20ListImplementors = []string{"Xrc20List"}
-
-func (ec *executionContext) _Xrc20List(ctx context.Context, sel ast.SelectionSet, obj *Xrc20List) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, xrc20ListImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Xrc20List")
-		case "exist":
-			out.Values[i] = ec._Xrc20List_exist(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "xrc20":
-			out.Values[i] = ec._Xrc20List_xrc20(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "count":
-			out.Values[i] = ec._Xrc20List_count(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
 var xrc721Implementors = []string{"Xrc721"}
 
 func (ec *executionContext) _Xrc721(ctx context.Context, sel ast.SelectionSet, obj *Xrc721) graphql.Marshaler {
@@ -9468,6 +9310,164 @@ func (ec *executionContext) _Xrc721(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Xrc721_xrc721Addresses(ctx, field, obj)
 		case "tokenHolderAddresses":
 			out.Values[i] = ec._Xrc721_tokenHolderAddresses(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var xrcAddressListImplementors = []string{"XrcAddressList"}
+
+func (ec *executionContext) _XrcAddressList(ctx context.Context, sel ast.SelectionSet, obj *XrcAddressList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, xrcAddressListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("XrcAddressList")
+		case "exist":
+			out.Values[i] = ec._XrcAddressList_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "addresses":
+			out.Values[i] = ec._XrcAddressList_addresses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._XrcAddressList_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var xrcHolderAddressListImplementors = []string{"XrcHolderAddressList"}
+
+func (ec *executionContext) _XrcHolderAddressList(ctx context.Context, sel ast.SelectionSet, obj *XrcHolderAddressList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, xrcHolderAddressListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("XrcHolderAddressList")
+		case "addresses":
+			out.Values[i] = ec._XrcHolderAddressList_addresses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._XrcHolderAddressList_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var xrcInfoImplementors = []string{"XrcInfo"}
+
+func (ec *executionContext) _XrcInfo(ctx context.Context, sel ast.SelectionSet, obj *XrcInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, xrcInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("XrcInfo")
+		case "contract":
+			out.Values[i] = ec._XrcInfo_contract(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "hash":
+			out.Values[i] = ec._XrcInfo_hash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "timestamp":
+			out.Values[i] = ec._XrcInfo_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "from":
+			out.Values[i] = ec._XrcInfo_from(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "to":
+			out.Values[i] = ec._XrcInfo_to(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "quantity":
+			out.Values[i] = ec._XrcInfo_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var xrcListImplementors = []string{"XrcList"}
+
+func (ec *executionContext) _XrcList(ctx context.Context, sel ast.SelectionSet, obj *XrcList) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, xrcListImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("XrcList")
+		case "exist":
+			out.Values[i] = ec._XrcList_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "xrc":
+			out.Values[i] = ec._XrcList_xrc(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._XrcList_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10307,7 +10307,7 @@ func (ec *executionContext) marshalNTopHolder2ᚕᚖgithubᚗcomᚋiotexproject�
 	return ret
 }
 
-func (ec *executionContext) marshalNXrc20Info2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20Info(ctx context.Context, sel ast.SelectionSet, v []*Xrc20Info) graphql.Marshaler {
+func (ec *executionContext) marshalNXrcInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcInfo(ctx context.Context, sel ast.SelectionSet, v []*XrcInfo) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -10331,7 +10331,7 @@ func (ec *executionContext) marshalNXrc20Info2ᚕᚖgithubᚗcomᚋiotexproject�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOXrc20Info2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20Info(ctx, sel, v[i])
+			ret[i] = ec.marshalOXrcInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcInfo(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -11045,28 +11045,6 @@ func (ec *executionContext) marshalOVotingResultMeta2ᚖgithubᚗcomᚋiotexproj
 	return ec._VotingResultMeta(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOXRC20AddressList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20AddressList(ctx context.Context, sel ast.SelectionSet, v XRC20AddressList) graphql.Marshaler {
-	return ec._XRC20AddressList(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOXRC20AddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20AddressList(ctx context.Context, sel ast.SelectionSet, v *XRC20AddressList) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._XRC20AddressList(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOXRC20HolderAddressList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20HolderAddressList(ctx context.Context, sel ast.SelectionSet, v XRC20HolderAddressList) graphql.Marshaler {
-	return ec._XRC20HolderAddressList(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOXRC20HolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXRC20HolderAddressList(ctx context.Context, sel ast.SelectionSet, v *XRC20HolderAddressList) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._XRC20HolderAddressList(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalOXrc202githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20(ctx context.Context, sel ast.SelectionSet, v Xrc20) graphql.Marshaler {
 	return ec._Xrc20(ctx, sel, &v)
 }
@@ -11078,28 +11056,6 @@ func (ec *executionContext) marshalOXrc202ᚖgithubᚗcomᚋiotexprojectᚋiotex
 	return ec._Xrc20(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOXrc20Info2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20Info(ctx context.Context, sel ast.SelectionSet, v Xrc20Info) graphql.Marshaler {
-	return ec._Xrc20Info(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOXrc20Info2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20Info(ctx context.Context, sel ast.SelectionSet, v *Xrc20Info) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Xrc20Info(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOXrc20List2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx context.Context, sel ast.SelectionSet, v Xrc20List) graphql.Marshaler {
-	return ec._Xrc20List(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOXrc20List2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc20List(ctx context.Context, sel ast.SelectionSet, v *Xrc20List) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Xrc20List(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalOXrc7212githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrc721(ctx context.Context, sel ast.SelectionSet, v Xrc721) graphql.Marshaler {
 	return ec._Xrc721(ctx, sel, &v)
 }
@@ -11109,6 +11065,50 @@ func (ec *executionContext) marshalOXrc7212ᚖgithubᚗcomᚋiotexprojectᚋiote
 		return graphql.Null
 	}
 	return ec._Xrc721(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOXrcAddressList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcAddressList(ctx context.Context, sel ast.SelectionSet, v XrcAddressList) graphql.Marshaler {
+	return ec._XrcAddressList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOXrcAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcAddressList(ctx context.Context, sel ast.SelectionSet, v *XrcAddressList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._XrcAddressList(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOXrcHolderAddressList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcHolderAddressList(ctx context.Context, sel ast.SelectionSet, v XrcHolderAddressList) graphql.Marshaler {
+	return ec._XrcHolderAddressList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOXrcHolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcHolderAddressList(ctx context.Context, sel ast.SelectionSet, v *XrcHolderAddressList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._XrcHolderAddressList(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOXrcInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcInfo(ctx context.Context, sel ast.SelectionSet, v XrcInfo) graphql.Marshaler {
+	return ec._XrcInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOXrcInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcInfo(ctx context.Context, sel ast.SelectionSet, v *XrcInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._XrcInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOXrcList2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx context.Context, sel ast.SelectionSet, v XrcList) graphql.Marshaler {
+	return ec._XrcList(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx context.Context, sel ast.SelectionSet, v *XrcList) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._XrcList(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {
