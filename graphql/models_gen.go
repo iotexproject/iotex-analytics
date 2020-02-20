@@ -3,9 +3,10 @@
 package graphql
 
 type Account struct {
-	ActiveAccounts  []string         `json:"activeAccounts"`
-	Alias           *Alias           `json:"alias"`
-	OperatorAddress *OperatorAddress `json:"operatorAddress"`
+	ActiveAccounts       []string         `json:"activeAccounts"`
+	Alias                *Alias           `json:"alias"`
+	OperatorAddress      *OperatorAddress `json:"operatorAddress"`
+	TotalNumberOfHolders int              `json:"totalNumberOfHolders"`
 }
 
 type Action struct {

@@ -41,9 +41,10 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Account struct {
-		ActiveAccounts  func(childComplexity int, count int) int
-		Alias           func(childComplexity int, operatorAddress string) int
-		OperatorAddress func(childComplexity int, aliasName string) int
+		ActiveAccounts       func(childComplexity int, count int) int
+		Alias                func(childComplexity int, operatorAddress string) int
+		OperatorAddress      func(childComplexity int, aliasName string) int
+		TotalNumberOfHolders func(childComplexity int) int
 	}
 
 	Action struct {
@@ -383,6 +384,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Account.OperatorAddress(childComplexity, args["aliasName"].(string)), true
+
+	case "Account.TotalNumberOfHolders":
+		if e.complexity.Account.TotalNumberOfHolders == nil {
+			break
+		}
+
+		return e.complexity.Account.TotalNumberOfHolders(childComplexity), true
 
 	case "Action.ByAddress":
 		if e.complexity.Action.ByAddress == nil {
@@ -1695,6 +1703,7 @@ type Account {
     activeAccounts(count: Int!): [String!]
     alias(operatorAddress: String!): Alias
     operatorAddress(aliasName: String!): OperatorAddress
+    totalNumberOfHolders: Int!
 }
 
 type Action {
@@ -2695,6 +2704,33 @@ func (ec *executionContext) _Account_operatorAddress(ctx context.Context, field 
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOOperatorAddress2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐOperatorAddress(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Account_totalNumberOfHolders(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Account",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalNumberOfHolders, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Action_byDates(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
@@ -7817,6 +7853,11 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Account_alias(ctx, field, obj)
 		case "operatorAddress":
 			out.Values[i] = ec._Account_operatorAddress(ctx, field, obj)
+		case "totalNumberOfHolders":
+			out.Values[i] = ec._Account_totalNumberOfHolders(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
