@@ -479,7 +479,7 @@ func (p *Protocol) GetEvmTransferCount() (count int, err error) {
 	return p.getCount("", selectEvmTransferCount, actions.ActionHistoryTableName)
 }
 
-func (p *Protocol) getCount(addr, selectSql, table string) (count int, err error) {
+func (p *Protocol) getCount(addr, selectSQL, table string) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
@@ -487,9 +487,9 @@ func (p *Protocol) getCount(addr, selectSql, table string) (count int, err error
 	db := p.indexer.Store.GetDB()
 	var getQuery string
 	if !strings.EqualFold(addr, "") {
-		getQuery = fmt.Sprintf(selectSql, table, addr)
+		getQuery = fmt.Sprintf(selectSQL, table, addr)
 	} else {
-		getQuery = fmt.Sprintf(selectSql, table)
+		getQuery = fmt.Sprintf(selectSQL, table)
 	}
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
