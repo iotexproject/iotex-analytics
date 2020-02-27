@@ -623,7 +623,7 @@ func (r *queryResolver) getActionsByType(ctx context.Context, actionResponse *Ac
 		return errors.Wrap(err, "failed to get type")
 	}
 	switch actionType {
-	case "grantReward", "putPollResult", "claimFromRewardingFund", "transfer", "execution":
+	case "transfer", "execution", "startSubChain", "stopSubChain", "putBlock", "createDeposit", "settleDeposit", "createPlumChain", "terminatePlumChain", "plumPutBlock", "plumCreateDeposit", "plumStartExit", "plumChallengeExit", "plumResponseChallengeExit", "plumFinalizeExit", "plumSettleDeposit", "plumTransfer", "depositToRewardingFund", "claimFromRewardingFund", "grantReward", "stakeCreate", "stakeUnstake", "stakeWithdraw", "stakeAddDeposit", "stakeRestake", "stakeChangeCandidate", "stakeTransferOwnership", "candidateRegister", "candidateUpdate", "putPollResult":
 	default:
 		return ErrActionTypeNotSupported
 	}
