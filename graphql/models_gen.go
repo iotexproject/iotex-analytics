@@ -13,6 +13,7 @@ type Action struct {
 	ByHash                *ActionDetail    `json:"byHash"`
 	ByAddress             *ActionList      `json:"byAddress"`
 	EvmTransfersByAddress *EvmTransferList `json:"evmTransfersByAddress"`
+	ByType                *ActionList      `json:"byType"`
 }
 
 type ActionDetail struct {
