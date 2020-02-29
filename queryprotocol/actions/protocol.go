@@ -29,6 +29,7 @@ const (
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
+	selectActionHistoryByType = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_type =? ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
@@ -148,6 +149,40 @@ func (p *Protocol) GetActionsByDates(startDate, endDate uint64, offset, size uin
 	if len(parsedRows) == 0 {
 		err = indexprotocol.ErrNotExist
 		return nil, err
+	}
+
+	actionInfoList := make([]*ActionInfo, 0)
+	for _, parsedRow := range parsedRows {
+		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
+	}
+	return actionInfoList, nil
+}
+
+// GetActionsByType gets actions by type
+func (p *Protocol) GetActionsByType(actionType string, offset, size uint64) ([]*ActionInfo, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectActionHistoryByType, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(actionType, offset, size)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var actInfo ActionInfo
+	parsedRows, err := s.ParseSQLRows(rows, &actInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	actionInfoList := make([]*ActionInfo, 0)
