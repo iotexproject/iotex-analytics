@@ -9,7 +9,6 @@ package actions
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -37,7 +36,7 @@ const (
 	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
-	selectEvmTransferCount     = "SELECT COUNT(*) FROM %s WHERE action_type='execution'"
+	selectEvmTransferCount     = "SELECT COUNT(*) FROM %s WHERE action_type='execution' AND (`from` = '%s' OR `to` = '%s')"
 	selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
 	selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HoldersCount    = "SELECT COUNT(*) FROM %s WHERE contract='%s'"
@@ -466,30 +465,30 @@ func (p *Protocol) getXrcByAddress(addr, table string, numPerPage, page uint64) 
 
 // GetXrc20HolderCount gets xrc20 holders's address
 func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
-	return p.getCount(addr, selectXrc20HoldersCount, actions.Xrc20HoldersTableName)
+	return p.getCount(selectXrc20HoldersCount, actions.Xrc20HoldersTableName, addr)
 }
 
 // GetXrc721HolderCount gets xrc721 holders's address
 func (p *Protocol) GetXrc721HolderCount(addr string) (count int, err error) {
-	return p.getCount(addr, selectXrc20HoldersCount, actions.Xrc721HoldersTableName)
+	return p.getCount(selectXrc20HoldersCount, actions.Xrc721HoldersTableName, addr)
 }
 
 // GetEvmTransferCount gets execution count
-func (p *Protocol) GetEvmTransferCount() (count int, err error) {
-	return p.getCount("", selectEvmTransferCount, actions.ActionHistoryTableName)
+func (p *Protocol) GetEvmTransferCount(addr string) (count int, err error) {
+	return p.getCount(selectEvmTransferCount, accounts.BalanceHistoryTableName, addr, addr)
 }
 
-func (p *Protocol) getCount(addr, selectSQL, table string) (count int, err error) {
+func (p *Protocol) getCount(selectSQL, table string, addr ...string) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
 	var getQuery string
-	if !strings.EqualFold(addr, "") {
-		getQuery = fmt.Sprintf(selectSQL, table, addr)
+	if len(addr) == 1 {
+		getQuery = fmt.Sprintf(selectSQL, table, addr[0])
 	} else {
-		getQuery = fmt.Sprintf(selectSQL, table)
+		getQuery = fmt.Sprintf(selectSQL, table, addr[0], addr[1])
 	}
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {

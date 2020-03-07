@@ -682,7 +682,7 @@ func (r *queryResolver) getEvmTransfersByAddress(ctx context.Context, actionResp
 	}
 	etl := &EvmTransferList{Exist: false}
 	actionResponse.EvmTransfersByAddress = etl
-	count, err := r.AP.GetEvmTransferCount()
+	count, err := r.AP.GetEvmTransferCount(addr)
 	if err != nil {
 		return errors.Wrap(err, "failed to get execution count for actions")
 	}
