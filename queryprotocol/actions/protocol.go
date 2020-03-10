@@ -46,6 +46,7 @@ const (
 	selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
 	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
+	selectTotalNumberOfHolders = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
 )
 
 type activeAccount struct {
@@ -729,6 +730,38 @@ func (p *Protocol) GetTopHolders(endEpochNumber, skip, first uint64) (holders []
 	}
 	for _, parsedRow := range parsedRows {
 		holders = append(holders, parsedRow.(*TopHolder))
+	}
+	return
+}
+
+// GetTotalNumberOfHolders gets total num of holders
+func (p *Protocol) GetTotalNumberOfHolders() (count int, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return 0, errors.New("actions protocol is unregistered")
+	}
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectTotalNumberOfHolders, accounts.AccountIncomeTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to execute get query")
+	}
+	type countStruct struct {
+		Count int
+	}
+	var c countStruct
+	parsedRows, err := s.ParseSQLRows(rows, &c)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse results")
+	}
+	for _, parsedRow := range parsedRows {
+		r := parsedRow.(*countStruct)
+		count = r.Count
 	}
 	return
 }
