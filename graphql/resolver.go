@@ -127,7 +127,9 @@ func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
 	if containField(requestedFields, "operatorAddress") {
 		g.Go(func() error { return r.getOperatorAddress(ctx, accountResponse) })
 	}
-
+	if containField(requestedFields, "totalNumberOfHolders") {
+		g.Go(func() error { return r.getTotalNumberOfHolders(ctx, accountResponse) })
+	}
 	return accountResponse, g.Wait()
 }
 
@@ -382,6 +384,15 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 		Exist:           true,
 		OperatorAddress: opAddress,
 	}
+	return nil
+}
+
+func (r *queryResolver) getTotalNumberOfHolders(ctx context.Context, accountResponse *Account) error {
+	num, err := r.AP.GetTotalNumberOfHolders()
+	if err != nil {
+		return errors.Wrap(err, "failed to get total num of holders")
+	}
+	accountResponse.TotalNumberOfHolders = num
 	return nil
 }
 
