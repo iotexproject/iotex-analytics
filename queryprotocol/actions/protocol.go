@@ -9,6 +9,7 @@ package actions
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -511,20 +512,20 @@ func (p *Protocol) GetXrc721HolderCount(addr string) (count int, err error) {
 
 // GetEvmTransferCount gets execution count
 func (p *Protocol) GetEvmTransferCount(addr string) (count int, err error) {
-	return p.getCount(selectEvmTransferCount, accounts.BalanceHistoryTableName, addr, addr)
+	return p.getCount(selectEvmTransferCount, accounts.BalanceHistoryTableName, addr)
 }
 
-func (p *Protocol) getCount(selectSQL, table string, addr ...string) (count int, err error) {
+func (p *Protocol) getCount(selectSQL, table string, addr string) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
 	var getQuery string
-	if len(addr) == 1 {
-		getQuery = fmt.Sprintf(selectSQL, table, addr[0])
+	if strings.Count(selectSQL, "%s") == 2 {
+		getQuery = fmt.Sprintf(selectSQL, table, addr)
 	} else {
-		getQuery = fmt.Sprintf(selectSQL, table, addr[0], addr[1])
+		getQuery = fmt.Sprintf(selectSQL, table, addr, addr)
 	}
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
