@@ -9,7 +9,6 @@ package actions
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -502,27 +501,27 @@ func (p *Protocol) getXrcByAddress(addr, table string, numPerPage, page uint64) 
 
 // GetXrc20HolderCount gets xrc20 holders's address
 func (p *Protocol) GetXrc20HolderCount(addr string) (count int, err error) {
-	return p.getCount(selectXrc20HoldersCount, actions.Xrc20HoldersTableName, addr)
+	return p.getCount(selectXrc20HoldersCount, actions.Xrc20HoldersTableName, addr, false)
 }
 
 // GetXrc721HolderCount gets xrc721 holders's address
 func (p *Protocol) GetXrc721HolderCount(addr string) (count int, err error) {
-	return p.getCount(selectXrc20HoldersCount, actions.Xrc721HoldersTableName, addr)
+	return p.getCount(selectXrc20HoldersCount, actions.Xrc721HoldersTableName, addr, false)
 }
 
 // GetEvmTransferCount gets execution count
 func (p *Protocol) GetEvmTransferCount(addr string) (count int, err error) {
-	return p.getCount(selectEvmTransferCount, accounts.BalanceHistoryTableName, addr)
+	return p.getCount(selectEvmTransferCount, accounts.BalanceHistoryTableName, addr, true)
 }
 
-func (p *Protocol) getCount(selectSQL, table string, addr string) (count int, err error) {
+func (p *Protocol) getCount(selectSQL, table, addr string, evmTransfer bool) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
 
 	db := p.indexer.Store.GetDB()
 	var getQuery string
-	if strings.Count(selectSQL, "%s") == 2 {
+	if !evmTransfer {
 		getQuery = fmt.Sprintf(selectSQL, table, addr)
 	} else {
 		getQuery = fmt.Sprintf(selectSQL, table, addr, addr)
