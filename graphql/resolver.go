@@ -50,6 +50,8 @@ var (
 	ErrInvalidParameter = errors.New("invalid parameter number")
 	// ErrActionTypeNotSupported is the error indicating that invalid action type
 	ErrActionTypeNotSupported = errors.New("action type is not supported")
+	// ErrXrcTypeNotSupported is the error indicating that invalid xrc type
+	ErrXrcTypeNotSupported = errors.New("xrc type is not supported")
 )
 
 type (
@@ -808,12 +810,15 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 	}
 	var xrcGetter getXrc
 	var xrcCount xrcCount
-	if xrcType == "xrc20" {
+	switch xrcType {
+	case "xrc20":
 		xrcGetter = r.AP.GetXrc20
 		xrcCount = r.AP.GetXrc20TransactionCount
-	} else {
+	case "xrc721":
 		xrcGetter = r.AP.GetXrc721
 		xrcCount = r.AP.GetXrc721TransactionCount
+	default:
+		return ErrXrcTypeNotSupported
 	}
 	count, err := xrcCount(address)
 	if err != nil {
@@ -870,12 +875,15 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 		xrcGetter getXrc
 		xrcCount  xrcCount
 	)
-	if xrcType == "xrc20" {
+	switch xrcType {
+	case "xrc20":
 		xrcGetter = r.AP.GetXrc20ByAddress
 		xrcCount = r.AP.GetXrc20HistoryCount
-	} else {
+	case "xrc721":
 		xrcGetter = r.AP.GetXrc721ByAddress
 		xrcCount = r.AP.GetXrc721HistoryCount
+	default:
+		return ErrXrcTypeNotSupported
 	}
 	count, err := xrcCount(address)
 	if err != nil {
@@ -936,12 +944,15 @@ func (r *queryResolver) xrcTokenHolderAddresses(ctx context.Context, actionRespo
 		xrcGetter   xrcHolders
 		holderCount xrcCount
 	)
-	if xrcType == "xrc20" {
+	switch xrcType {
+	case "xrc20":
 		xrcGetter = r.AP.GetXrc20Holders
 		holderCount = r.AP.GetXrc20HolderCount
-	} else {
+	case "xrc721":
 		xrcGetter = r.AP.GetXrc721Holders
 		holderCount = r.AP.GetXrc721HolderCount
+	default:
+		return ErrXrcTypeNotSupported
 	}
 	holders, err := xrcGetter(addr, offset, size)
 	if err != nil {
@@ -977,13 +988,15 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 		xrcGetter xrcbypage
 		xrcCount  xrcCount
 	)
-
-	if xrcType == "xrc20" {
+	switch xrcType {
+	case "xrc20":
 		xrcGetter = r.AP.GetXrc20ByPage
 		xrcCount = r.AP.GetXrc20Count
-	} else {
+	case "xrc721":
 		xrcGetter = r.AP.GetXrc721ByPage
 		xrcCount = r.AP.GetXrc721Count
+	default:
+		return ErrXrcTypeNotSupported
 	}
 	count, err := xrcCount("")
 	if err != nil {
@@ -1034,12 +1047,15 @@ func (r *queryResolver) getXrcAddresses(ctx context.Context, actionResponse inte
 		xrcGetter xrcaddresses
 		xrcCount  xrcCount
 	)
-	if xrcType == "xrc20" {
+	switch xrcType {
+	case "xrc20":
 		xrcGetter = r.AP.GetXrc20Addresses
 		xrcCount = r.AP.GetXrc20AddressesCount
-	} else {
+	case "xrc721":
 		xrcGetter = r.AP.GetXrc721Addresses
 		xrcCount = r.AP.GetXrc721AddressesCount
+	default:
+		return ErrXrcTypeNotSupported
 	}
 	count, err := xrcCount("")
 	if err != nil {
