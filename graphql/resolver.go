@@ -50,8 +50,6 @@ var (
 	ErrInvalidParameter = errors.New("invalid parameter number")
 	// ErrActionTypeNotSupported is the error indicating that invalid action type
 	ErrActionTypeNotSupported = errors.New("action type is not supported")
-	// ErrXrcTypeNotSupported is the error indicating that invalid xrc type
-	ErrXrcTypeNotSupported = errors.New("xrc type is not supported")
 )
 
 type (
@@ -799,26 +797,22 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
+	var (
+		xrcGetter getXrc
+		xrcCount  xrcCount
+	)
 	output := &XrcList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.ByContractAddress = output
-	case *Xrc20:
-		v.ByContractAddress = output
-	default:
-		return errors.New("failed to convert type")
-	}
-	var xrcGetter getXrc
-	var xrcCount xrcCount
-	switch xrcType {
-	case "xrc20":
-		xrcGetter = r.AP.GetXrc20
-		xrcCount = r.AP.GetXrc20TransactionCount
-	case "xrc721":
 		xrcGetter = r.AP.GetXrc721
 		xrcCount = r.AP.GetXrc721TransactionCount
+	case *Xrc20:
+		v.ByContractAddress = output
+		xrcGetter = r.AP.GetXrc20
+		xrcCount = r.AP.GetXrc20TransactionCount
 	default:
-		return ErrXrcTypeNotSupported
+		return errors.New("failed to convert type")
 	}
 	count, err := xrcCount(address)
 	if err != nil {
@@ -861,29 +855,22 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 	if err != nil {
 		return errors.Wrap(err, "failed to get page")
 	}
-	output := &XrcList{Exist: false}
-	switch v := actionResponse.(type) {
-	case *Xrc721:
-		v.ByAddress = output
-	case *Xrc20:
-		v.ByAddress = output
-	default:
-		return errors.New("failed to convert type")
-	}
-
 	var (
 		xrcGetter getXrc
 		xrcCount  xrcCount
 	)
-	switch xrcType {
-	case "xrc20":
-		xrcGetter = r.AP.GetXrc20ByAddress
-		xrcCount = r.AP.GetXrc20HistoryCount
-	case "xrc721":
+	output := &XrcList{Exist: false}
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.ByAddress = output
 		xrcGetter = r.AP.GetXrc721ByAddress
 		xrcCount = r.AP.GetXrc721HistoryCount
+	case *Xrc20:
+		v.ByAddress = output
+		xrcGetter = r.AP.GetXrc20ByAddress
+		xrcCount = r.AP.GetXrc20HistoryCount
 	default:
-		return ErrXrcTypeNotSupported
+		return errors.New("failed to convert type")
 	}
 	count, err := xrcCount(address)
 	if err != nil {
@@ -930,29 +917,22 @@ func (r *queryResolver) xrcTokenHolderAddresses(ctx context.Context, actionRespo
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for xrc20 ByTokenAddress")
 	}
-	output := &XrcHolderAddressList{}
-	switch v := actionResponse.(type) {
-	case *Xrc721:
-		v.TokenHolderAddresses = output
-	case *Xrc20:
-		v.TokenHolderAddresses = output
-	default:
-		return errors.New("failed to convert type")
-	}
-
 	var (
 		xrcGetter   xrcHolders
 		holderCount xrcCount
 	)
-	switch xrcType {
-	case "xrc20":
-		xrcGetter = r.AP.GetXrc20Holders
-		holderCount = r.AP.GetXrc20HolderCount
-	case "xrc721":
+	output := &XrcHolderAddressList{}
+	switch v := actionResponse.(type) {
+	case *Xrc721:
+		v.TokenHolderAddresses = output
 		xrcGetter = r.AP.GetXrc721Holders
 		holderCount = r.AP.GetXrc721HolderCount
+	case *Xrc20:
+		v.TokenHolderAddresses = output
+		xrcGetter = r.AP.GetXrc20Holders
+		holderCount = r.AP.GetXrc20HolderCount
 	default:
-		return ErrXrcTypeNotSupported
+		return errors.New("failed to convert type")
 	}
 	holders, err := xrcGetter(addr, offset, size)
 	if err != nil {
@@ -973,30 +953,24 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 	if err != nil {
 		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 ByPage")
 	}
+	var (
+		xrcGetter xrcbypage
+		xrcCount  xrcCount
+	)
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
 	output := &XrcList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.ByPage = output
-	case *Xrc20:
-		v.ByPage = output
-	default:
-		return errors.New("failed to convert type")
-	}
-	var (
-		xrcGetter xrcbypage
-		xrcCount  xrcCount
-	)
-	switch xrcType {
-	case "xrc20":
-		xrcGetter = r.AP.GetXrc20ByPage
-		xrcCount = r.AP.GetXrc20Count
-	case "xrc721":
 		xrcGetter = r.AP.GetXrc721ByPage
 		xrcCount = r.AP.GetXrc721Count
+	case *Xrc20:
+		v.ByPage = output
+		xrcGetter = r.AP.GetXrc20ByPage
+		xrcCount = r.AP.GetXrc20Count
 	default:
-		return ErrXrcTypeNotSupported
+		return errors.New("failed to convert type")
 	}
 	count, err := xrcCount("")
 	if err != nil {
@@ -1031,31 +1005,24 @@ func (r *queryResolver) getXrcAddresses(ctx context.Context, actionResponse inte
 	if err != nil {
 		return errors.Wrap(err, "failed to get pagination arguments for get xrc20 addresses")
 	}
+	var (
+		xrcGetter xrcaddresses
+		xrcCount  xrcCount
+	)
 	skip := paginationMap["skip"]
 	first := paginationMap["first"]
 	output := &XrcAddressList{Exist: false}
 	switch v := actionResponse.(type) {
 	case *Xrc721:
 		v.Xrc721Addresses = output
-	case *Xrc20:
-		v.Xrc20Addresses = output
-	default:
-		return errors.New("failed to convert type")
-	}
-
-	var (
-		xrcGetter xrcaddresses
-		xrcCount  xrcCount
-	)
-	switch xrcType {
-	case "xrc20":
-		xrcGetter = r.AP.GetXrc20Addresses
-		xrcCount = r.AP.GetXrc20AddressesCount
-	case "xrc721":
 		xrcGetter = r.AP.GetXrc721Addresses
 		xrcCount = r.AP.GetXrc721AddressesCount
+	case *Xrc20:
+		v.Xrc20Addresses = output
+		xrcGetter = r.AP.GetXrc20Addresses
+		xrcCount = r.AP.GetXrc20AddressesCount
 	default:
-		return ErrXrcTypeNotSupported
+		return errors.New("failed to convert type")
 	}
 	count, err := xrcCount("")
 	if err != nil {
