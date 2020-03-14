@@ -77,6 +77,18 @@ type BucketInfoOutput struct {
 	BucketInfoList []*BucketInfoList `json:"bucketInfoList"`
 }
 
+type ByDelegateResponse struct {
+	Exist         bool         `json:"exist"`
+	VoterInfoList []*VoterInfo `json:"voterInfoList"`
+	Count         int          `json:"count"`
+}
+
+type ByVoterResponse struct {
+	Exist            bool            `json:"exist"`
+	DelegateInfoList []*DelegateInfo `json:"delegateInfoList"`
+	Count            int             `json:"count"`
+}
+
 type CandidateInfo struct {
 	Name               string `json:"name"`
 	Address            string `json:"address"`
@@ -120,6 +132,11 @@ type DelegateAmount struct {
 	Amount       string `json:"amount"`
 }
 
+type DelegateInfo struct {
+	DelegateName string `json:"delegateName"`
+	Amount       int    `json:"amount"`
+}
+
 type EpochRange struct {
 	StartEpoch int `json:"startEpoch"`
 	EpochCount int `json:"epochCount"`
@@ -149,6 +166,11 @@ type EvmTransferList struct {
 type Hermes struct {
 	Exist              bool                  `json:"exist"`
 	HermesDistribution []*HermesDistribution `json:"hermesDistribution"`
+}
+
+type Hermes2 struct {
+	ByDelegate *ByDelegateResponse `json:"byDelegate"`
+	ByVoter    *ByVoterResponse    `json:"byVoter"`
 }
 
 type HermesAverage struct {
@@ -219,6 +241,11 @@ type StakingOutput struct {
 type TopHolder struct {
 	Address string `json:"address"`
 	Balance string `json:"balance"`
+}
+
+type VoterInfo struct {
+	VoterAddress string `json:"voterAddress"`
+	Amount       int    `json:"amount"`
 }
 
 type Voting struct {

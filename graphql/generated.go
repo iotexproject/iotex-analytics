@@ -115,6 +115,18 @@ type ComplexityRoot struct {
 		Exist          func(childComplexity int) int
 	}
 
+	ByDelegateResponse struct {
+		Count         func(childComplexity int) int
+		Exist         func(childComplexity int) int
+		VoterInfoList func(childComplexity int, pagination *Pagination) int
+	}
+
+	ByVoterResponse struct {
+		Count            func(childComplexity int) int
+		DelegateInfoList func(childComplexity int, pagination *Pagination) int
+		Exist            func(childComplexity int) int
+	}
+
 	CandidateInfo struct {
 		Address            func(childComplexity int) int
 		Name               func(childComplexity int) int
@@ -158,6 +170,11 @@ type ComplexityRoot struct {
 		DelegateName func(childComplexity int) int
 	}
 
+	DelegateInfo struct {
+		Amount       func(childComplexity int) int
+		DelegateName func(childComplexity int) int
+	}
+
 	EvmTransfer struct {
 		From     func(childComplexity int) int
 		Quantity func(childComplexity int) int
@@ -182,6 +199,11 @@ type ComplexityRoot struct {
 	Hermes struct {
 		Exist              func(childComplexity int) int
 		HermesDistribution func(childComplexity int) int
+	}
+
+	Hermes2 struct {
+		ByDelegate func(childComplexity int, delegateName string) int
+		ByVoter    func(childComplexity int, voterName string) int
 	}
 
 	HermesAverage struct {
@@ -221,6 +243,7 @@ type ComplexityRoot struct {
 		Chain              func(childComplexity int) int
 		Delegate           func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
 		Hermes             func(childComplexity int, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) int
+		Hermes2            func(childComplexity int, startEpoch int, epochCount int) int
 		HermesAverageStats func(childComplexity int, startEpoch int, epochCount int, rewardAddress string) int
 		TopHolders         func(childComplexity int, endEpochNumber int, pagination Pagination) int
 		Voting             func(childComplexity int, startEpoch int, epochCount int) int
@@ -260,6 +283,11 @@ type ComplexityRoot struct {
 	TopHolder struct {
 		Address func(childComplexity int) int
 		Balance func(childComplexity int) int
+	}
+
+	VoterInfo struct {
+		Amount       func(childComplexity int) int
+		VoterAddress func(childComplexity int) int
 	}
 
 	Voting struct {
@@ -333,6 +361,7 @@ type QueryResolver interface {
 	Xrc721(ctx context.Context) (*Xrc721, error)
 	Action(ctx context.Context) (*Action, error)
 	TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error)
+	Hermes2(ctx context.Context, startEpoch int, epochCount int) (*Hermes2, error)
 }
 
 type executableSchema struct {
@@ -699,6 +728,58 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.BucketInfoOutput.Exist(childComplexity), true
 
+	case "ByDelegateResponse.Count":
+		if e.complexity.ByDelegateResponse.Count == nil {
+			break
+		}
+
+		return e.complexity.ByDelegateResponse.Count(childComplexity), true
+
+	case "ByDelegateResponse.Exist":
+		if e.complexity.ByDelegateResponse.Exist == nil {
+			break
+		}
+
+		return e.complexity.ByDelegateResponse.Exist(childComplexity), true
+
+	case "ByDelegateResponse.VoterInfoList":
+		if e.complexity.ByDelegateResponse.VoterInfoList == nil {
+			break
+		}
+
+		args, err := ec.field_ByDelegateResponse_voterInfoList_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.ByDelegateResponse.VoterInfoList(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "ByVoterResponse.Count":
+		if e.complexity.ByVoterResponse.Count == nil {
+			break
+		}
+
+		return e.complexity.ByVoterResponse.Count(childComplexity), true
+
+	case "ByVoterResponse.DelegateInfoList":
+		if e.complexity.ByVoterResponse.DelegateInfoList == nil {
+			break
+		}
+
+		args, err := ec.field_ByVoterResponse_delegateInfoList_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.ByVoterResponse.DelegateInfoList(childComplexity, args["pagination"].(*Pagination)), true
+
+	case "ByVoterResponse.Exist":
+		if e.complexity.ByVoterResponse.Exist == nil {
+			break
+		}
+
+		return e.complexity.ByVoterResponse.Exist(childComplexity), true
+
 	case "CandidateInfo.Address":
 		if e.complexity.CandidateInfo.Address == nil {
 			break
@@ -889,6 +970,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DelegateAmount.DelegateName(childComplexity), true
 
+	case "DelegateInfo.Amount":
+		if e.complexity.DelegateInfo.Amount == nil {
+			break
+		}
+
+		return e.complexity.DelegateInfo.Amount(childComplexity), true
+
+	case "DelegateInfo.DelegateName":
+		if e.complexity.DelegateInfo.DelegateName == nil {
+			break
+		}
+
+		return e.complexity.DelegateInfo.DelegateName(childComplexity), true
+
 	case "EvmTransfer.From":
 		if e.complexity.EvmTransfer.From == nil {
 			break
@@ -991,6 +1086,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Hermes.HermesDistribution(childComplexity), true
+
+	case "Hermes2.ByDelegate":
+		if e.complexity.Hermes2.ByDelegate == nil {
+			break
+		}
+
+		args, err := ec.field_Hermes2_byDelegate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Hermes2.ByDelegate(childComplexity, args["delegateName"].(string)), true
+
+	case "Hermes2.ByVoter":
+		if e.complexity.Hermes2.ByVoter == nil {
+			break
+		}
+
+		args, err := ec.field_Hermes2_byVoter_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Hermes2.ByVoter(childComplexity, args["voterName"].(string)), true
 
 	case "HermesAverage.DelegateName":
 		if e.complexity.HermesAverage.DelegateName == nil {
@@ -1148,6 +1267,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Hermes(childComplexity, args["startEpoch"].(int), args["epochCount"].(int), args["rewardAddress"].(string), args["waiverThreshold"].(int)), true
+
+	case "Query.Hermes2":
+		if e.complexity.Query.Hermes2 == nil {
+			break
+		}
+
+		args, err := ec.field_Query_hermes2_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Hermes2(childComplexity, args["startEpoch"].(int), args["epochCount"].(int)), true
 
 	case "Query.HermesAverageStats":
 		if e.complexity.Query.HermesAverageStats == nil {
@@ -1310,6 +1441,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.TopHolder.Balance(childComplexity), true
+
+	case "VoterInfo.Amount":
+		if e.complexity.VoterInfo.Amount == nil {
+			break
+		}
+
+		return e.complexity.VoterInfo.Amount(childComplexity), true
+
+	case "VoterInfo.VoterAddress":
+		if e.complexity.VoterInfo.VoterAddress == nil {
+			break
+		}
+
+		return e.complexity.VoterInfo.VoterAddress(childComplexity), true
 
 	case "Voting.CandidateInfo":
 		if e.complexity.Voting.CandidateInfo == nil {
@@ -1680,6 +1825,7 @@ var parsedSchema = gqlparser.MustLoadSchema(
     xrc721: Xrc721
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
+    hermes2(startEpoch: Int!, epochCount: Int!): Hermes2
 }
 
 type TopHolder{
@@ -1960,7 +2106,35 @@ input Pagination{
 input EpochRange{
     startEpoch: Int!
     epochCount: Int!
-}`},
+}
+
+type Hermes2 {
+    byDelegate(delegateName: String!): ByDelegateResponse
+    byVoter(voterName: String!): ByVoterResponse
+}
+
+type VoterInfo {
+    voterAddress: String!
+    amount: Int!
+}
+
+type ByDelegateResponse {
+    exist: Boolean!
+    voterInfoList(pagination: Pagination): [VoterInfo]!
+    count: Int!
+}
+
+type DelegateInfo {
+    delegateName: String!
+    amount: Int!
+}
+
+type ByVoterResponse {
+    exist: Boolean!
+    delegateInfoList(pagination: Pagination): [DelegateInfo]!
+    count: Int!
+}
+`},
 )
 
 // endregion ************************** generated!.gotpl **************************
@@ -2129,6 +2303,34 @@ func (ec *executionContext) field_BucketInfoOutput_bucketInfoList_args(ctx conte
 	return args, nil
 }
 
+func (ec *executionContext) field_ByDelegateResponse_voterInfoList_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_ByVoterResponse_delegateInfoList_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Chain_mostRecentTPS_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -2193,6 +2395,34 @@ func (ec *executionContext) field_EvmTransferList_evmTransfers_args(ctx context.
 	return args, nil
 }
 
+func (ec *executionContext) field_Hermes2_byDelegate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["delegateName"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["delegateName"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Hermes2_byVoter_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["voterName"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["voterName"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -2234,6 +2464,28 @@ func (ec *executionContext) field_Query_delegate_args(ctx context.Context, rawAr
 		}
 	}
 	args["delegateName"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_hermes2_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["startEpoch"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["startEpoch"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["epochCount"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["epochCount"] = arg1
 	return args, nil
 }
 
@@ -3825,6 +4077,182 @@ func (ec *executionContext) _BucketInfoOutput_bucketInfoList(ctx context.Context
 	return ec.marshalNBucketInfoList2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfoList(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _ByDelegateResponse_exist(ctx context.Context, field graphql.CollectedField, obj *ByDelegateResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByDelegateResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByDelegateResponse_voterInfoList(ctx context.Context, field graphql.CollectedField, obj *ByDelegateResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByDelegateResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_ByDelegateResponse_voterInfoList_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterInfoList, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*VoterInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNVoterInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoterInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByDelegateResponse_count(ctx context.Context, field graphql.CollectedField, obj *ByDelegateResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByDelegateResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByVoterResponse_exist(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByVoterResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByVoterResponse_delegateInfoList(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByVoterResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_ByVoterResponse_delegateInfoList_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DelegateInfoList, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*DelegateInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNDelegateInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByVoterResponse_count(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByVoterResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _CandidateInfo_name(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -4500,6 +4928,60 @@ func (ec *executionContext) _DelegateAmount_amount(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _DelegateInfo_delegateName(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "DelegateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DelegateName, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _DelegateInfo_amount(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "DelegateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _EvmTransfer_from(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -4883,6 +5365,68 @@ func (ec *executionContext) _Hermes_hermesDistribution(ctx context.Context, fiel
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNHermesDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesDistribution(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Hermes2_byDelegate(ctx context.Context, field graphql.CollectedField, obj *Hermes2) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Hermes2",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Hermes2_byDelegate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByDelegate, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ByDelegateResponse)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOByDelegateResponse2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByDelegateResponse(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Hermes2_byVoter(ctx context.Context, field graphql.CollectedField, obj *Hermes2) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Hermes2",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Hermes2_byVoter_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByVoter, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ByVoterResponse)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOByVoterResponse2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByVoterResponse(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _HermesAverage_delegateName(ctx context.Context, field graphql.CollectedField, obj *HermesAverage) graphql.Marshaler {
@@ -5595,6 +6139,37 @@ func (ec *executionContext) _Query_topHolders(ctx context.Context, field graphql
 	return ec.marshalNTopHolder2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_hermes2(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_hermes2_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Hermes2(rctx, args["startEpoch"].(int), args["epochCount"].(int))
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*Hermes2)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOHermes22ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes2(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6080,6 +6655,60 @@ func (ec *executionContext) _TopHolder_balance(ctx context.Context, field graphq
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VoterInfo_voterAddress(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VoterInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VoterAddress, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VoterInfo_amount(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VoterInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Voting_candidateInfo(ctx context.Context, field graphql.CollectedField, obj *Voting) graphql.Marshaler {
@@ -8320,6 +8949,80 @@ func (ec *executionContext) _BucketInfoOutput(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var byDelegateResponseImplementors = []string{"ByDelegateResponse"}
+
+func (ec *executionContext) _ByDelegateResponse(ctx context.Context, sel ast.SelectionSet, obj *ByDelegateResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, byDelegateResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ByDelegateResponse")
+		case "exist":
+			out.Values[i] = ec._ByDelegateResponse_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "voterInfoList":
+			out.Values[i] = ec._ByDelegateResponse_voterInfoList(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._ByDelegateResponse_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var byVoterResponseImplementors = []string{"ByVoterResponse"}
+
+func (ec *executionContext) _ByVoterResponse(ctx context.Context, sel ast.SelectionSet, obj *ByVoterResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, byVoterResponseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ByVoterResponse")
+		case "exist":
+			out.Values[i] = ec._ByVoterResponse_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "delegateInfoList":
+			out.Values[i] = ec._ByVoterResponse_delegateInfoList(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "count":
+			out.Values[i] = ec._ByVoterResponse_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var candidateInfoImplementors = []string{"CandidateInfo"}
 
 func (ec *executionContext) _CandidateInfo(ctx context.Context, sel ast.SelectionSet, obj *CandidateInfo) graphql.Marshaler {
@@ -8556,6 +9259,38 @@ func (ec *executionContext) _DelegateAmount(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var delegateInfoImplementors = []string{"DelegateInfo"}
+
+func (ec *executionContext) _DelegateInfo(ctx context.Context, sel ast.SelectionSet, obj *DelegateInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, delegateInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DelegateInfo")
+		case "delegateName":
+			out.Values[i] = ec._DelegateInfo_delegateName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "amount":
+			out.Values[i] = ec._DelegateInfo_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var evmTransferImplementors = []string{"EvmTransfer"}
 
 func (ec *executionContext) _EvmTransfer(ctx context.Context, sel ast.SelectionSet, obj *EvmTransfer) graphql.Marshaler {
@@ -8703,6 +9438,32 @@ func (ec *executionContext) _Hermes(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var hermes2Implementors = []string{"Hermes2"}
+
+func (ec *executionContext) _Hermes2(ctx context.Context, sel ast.SelectionSet, obj *Hermes2) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, hermes2Implementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Hermes2")
+		case "byDelegate":
+			out.Values[i] = ec._Hermes2_byDelegate(ctx, field, obj)
+		case "byVoter":
+			out.Values[i] = ec._Hermes2_byVoter(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9032,6 +9793,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "hermes2":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_hermes2(ctx, field)
+				return res
+			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -9245,6 +10017,38 @@ func (ec *executionContext) _TopHolder(ctx context.Context, sel ast.SelectionSet
 			}
 		case "balance":
 			out.Values[i] = ec._TopHolder_balance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var voterInfoImplementors = []string{"VoterInfo"}
+
+func (ec *executionContext) _VoterInfo(ctx context.Context, sel ast.SelectionSet, obj *VoterInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, voterInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VoterInfo")
+		case "voterAddress":
+			out.Values[i] = ec._VoterInfo_voterAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "amount":
+			out.Values[i] = ec._VoterInfo_amount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -10093,6 +10897,43 @@ func (ec *executionContext) marshalNDelegateAmount2ᚕᚖgithubᚗcomᚋiotexpro
 	return ret
 }
 
+func (ec *executionContext) marshalNDelegateInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateInfo(ctx context.Context, sel ast.SelectionSet, v []*DelegateInfo) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalODelegateInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateInfo(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNEvmTransfer2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEvmTransfer(ctx context.Context, sel ast.SelectionSet, v []*EvmTransfer) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -10397,6 +11238,43 @@ func (ec *executionContext) marshalNTopHolder2ᚕᚖgithubᚗcomᚋiotexproject�
 				defer wg.Done()
 			}
 			ret[i] = ec.marshalOTopHolder2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐTopHolder(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNVoterInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoterInfo(ctx context.Context, sel ast.SelectionSet, v []*VoterInfo) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOVoterInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoterInfo(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -10804,6 +11682,28 @@ func (ec *executionContext) marshalOBucketInfoOutput2ᚖgithubᚗcomᚋiotexproj
 	return ec._BucketInfoOutput(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOByDelegateResponse2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByDelegateResponse(ctx context.Context, sel ast.SelectionSet, v ByDelegateResponse) graphql.Marshaler {
+	return ec._ByDelegateResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOByDelegateResponse2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByDelegateResponse(ctx context.Context, sel ast.SelectionSet, v *ByDelegateResponse) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ByDelegateResponse(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOByVoterResponse2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByVoterResponse(ctx context.Context, sel ast.SelectionSet, v ByVoterResponse) graphql.Marshaler {
+	return ec._ByVoterResponse(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOByVoterResponse2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByVoterResponse(ctx context.Context, sel ast.SelectionSet, v *ByVoterResponse) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ByVoterResponse(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOCandidateInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐCandidateInfo(ctx context.Context, sel ast.SelectionSet, v CandidateInfo) graphql.Marshaler {
 	return ec._CandidateInfo(ctx, sel, &v)
 }
@@ -10870,6 +11770,17 @@ func (ec *executionContext) marshalODelegateAmount2ᚖgithubᚗcomᚋiotexprojec
 	return ec._DelegateAmount(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalODelegateInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateInfo(ctx context.Context, sel ast.SelectionSet, v DelegateInfo) graphql.Marshaler {
+	return ec._DelegateInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalODelegateInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐDelegateInfo(ctx context.Context, sel ast.SelectionSet, v *DelegateInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DelegateInfo(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOEpochRange2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEpochRange(ctx context.Context, v interface{}) (EpochRange, error) {
 	return ec.unmarshalInputEpochRange(ctx, v)
 }
@@ -10913,6 +11824,17 @@ func (ec *executionContext) marshalOEvmTransferList2ᚖgithubᚗcomᚋiotexproje
 		return graphql.Null
 	}
 	return ec._EvmTransferList(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHermes22githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes2(ctx context.Context, sel ast.SelectionSet, v Hermes2) graphql.Marshaler {
+	return ec._Hermes2(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOHermes22ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes2(ctx context.Context, sel ast.SelectionSet, v *Hermes2) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Hermes2(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOHermes2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes(ctx context.Context, sel ast.SelectionSet, v Hermes) graphql.Marshaler {
@@ -11112,6 +12034,17 @@ func (ec *executionContext) marshalOTopHolder2ᚖgithubᚗcomᚋiotexprojectᚋi
 		return graphql.Null
 	}
 	return ec._TopHolder(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOVoterInfo2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoterInfo(ctx context.Context, sel ast.SelectionSet, v VoterInfo) graphql.Marshaler {
+	return ec._VoterInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOVoterInfo2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoterInfo(ctx context.Context, sel ast.SelectionSet, v *VoterInfo) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._VoterInfo(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOVoting2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐVoting(ctx context.Context, sel ast.SelectionSet, v Voting) graphql.Marshaler {
