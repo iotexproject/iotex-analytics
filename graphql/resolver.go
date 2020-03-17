@@ -53,10 +53,10 @@ var (
 )
 
 type (
-	xrcaddresses   func(uint64, uint64) ([]*string, error)
-	xrcHolders     func(string, uint64, uint64) ([]*string, error)
-	xrcbypage      func(uint64, uint64) ([]*actions.Xrc20Info, error)
-	getXrc         func(string, uint64, uint64) ([]*actions.Xrc20Info, error)
+	xrcaddresses func(uint64, uint64) ([]*string, error)
+	xrcHolders   func(string, uint64, uint64) ([]*string, error)
+	xrcbypage    func(uint64, uint64) ([]*actions.Xrc20Info, error)
+	getXrc       func(string, uint64, uint64) ([]*actions.Xrc20Info, error)
 	xrcCount     func(string) (int, error)
 )
 
