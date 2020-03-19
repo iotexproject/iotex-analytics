@@ -396,7 +396,8 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		return errors.Wrap(err, "failed to parse results")
 	}
 	if len(parsedRows) == 0 {
-		return indexprotocol.ErrNotExist
+		log.S().Warnf("No reward history for epoch %s", lastEpoch)
+		return nil
 	}
 
 	exemptionMap := make(map[string]bool)
