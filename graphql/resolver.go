@@ -26,6 +26,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/hermes2"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
@@ -103,6 +104,7 @@ type Resolver struct {
 	AP *actions.Protocol
 	VP *votings.Protocol
 	CP *chainmeta.Protocol
+	HP *hermes2.Protocol
 }
 
 // Query returns a query resolver
@@ -1442,4 +1444,111 @@ func ethAddrToIoAddr(ethAddr string) (string, error) {
 		return "", err
 	}
 	return ioAddress.String(), nil
+}
+
+func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int, epochCount int, actionResponse *Hermes2) error {
+	argsMap := parseFieldArguments(ctx, "byDelegate", "voterInfoList")
+	delegateName, err := getStringArg(argsMap, "delegateName")
+	if err != nil {
+		return errors.Wrap(err, "delegateName is required")
+	}
+	var offset, size uint64
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+
+	harg := hermes2.HermesArg{
+		StartEpoch: startEpoch,
+		EpochCount: epochCount,
+		Offset:     offset,
+		Size:       size,
+	}
+
+	res, err := r.HP.GetHermes2ByDelegate(harg, delegateName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get Hermes2ByDelegate")
+	}
+	voterInfoList := make([]*VoterInfo, 0)
+	for _, voterInfo := range res.VoterInfoList {
+		info := &VoterInfo{
+			VoterAddress: voterInfo.VoterAddress,
+			Amount:       voterInfo.Amount,
+		}
+		voterInfoList = append(voterInfoList, info)
+	}
+	actionResponse.ByDelegate = &ByDelegateResponse{
+		Exist:         res.Exist,
+		VoterInfoList: voterInfoList,
+		Count:         res.Count,
+	}
+	return nil
+}
+
+func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, epochCount int, actionResponse *Hermes2) error {
+	argsMap := parseFieldArguments(ctx, "byVoter", "delegateInfoList")
+	voterName, err := getStringArg(argsMap, "voterName")
+	if err != nil {
+		return errors.Wrap(err, "voterName is required")
+	}
+	var offset, size uint64
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+
+	harg := hermes2.HermesArg{
+		StartEpoch: startEpoch,
+		EpochCount: epochCount,
+		Offset:     offset,
+		Size:       size,
+	}
+
+	res, err := r.HP.GetHermes2ByVoter(harg, voterName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get Hermes2ByVoter")
+	}
+	delegateInfoList := make([]*DelegateInfo, 0)
+	for _, delegateInfo := range res.DelegateInfoList {
+		info := &DelegateInfo{
+			DelegateName: delegateInfo.DelegateName,
+			Amount:       delegateInfo.Amount,
+		}
+		delegateInfoList = append(delegateInfoList, info)
+	}
+	actionResponse.ByVoter = &ByVoterResponse{
+		Exist:            res.Exist,
+		DelegateInfoList: delegateInfoList,
+		Count:            res.Count,
+	}
+	return nil
+}
+
+// Hermes2 handles Hermes2 requests
+func (r *queryResolver) Hermes2(ctx context.Context, startEpoch int, epochCount int) (*Hermes2, error) {
+	requestedFields := graphql.CollectAllFields(ctx)
+	actionResponse := &Hermes2{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	if containField(requestedFields, "byDelegate") {
+		g.Go(func() error { return r.getHermes2ByDelegate(ctx, startEpoch, epochCount, actionResponse) })
+	}
+	if containField(requestedFields, "byVoter") {
+		g.Go(func() error { return r.getHermes2ByVoter(ctx, startEpoch, epochCount, actionResponse) })
+	}
+	return actionResponse, g.Wait()
 }

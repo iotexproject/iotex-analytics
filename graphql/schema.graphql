@@ -9,6 +9,7 @@ type Query {
     xrc721: Xrc721
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
+    hermes2(startEpoch: Int!, epochCount: Int!): Hermes2
 }
 
 type TopHolder{
@@ -289,4 +290,31 @@ input Pagination{
 input EpochRange{
     startEpoch: Int!
     epochCount: Int!
+}
+
+type Hermes2 {
+    byDelegate(delegateName: String!): ByDelegateResponse
+    byVoter(voterName: String!): ByVoterResponse
+}
+
+type VoterInfo {
+    voterAddress: String!
+    amount: Int!
+}
+
+type ByDelegateResponse {
+    exist: Boolean!
+    voterInfoList(pagination: Pagination): [VoterInfo]!
+    count: Int!
+}
+
+type DelegateInfo {
+    delegateName: String!
+    amount: Int!
+}
+
+type ByVoterResponse {
+    exist: Boolean!
+    delegateInfoList(pagination: Pagination): [DelegateInfo]!
+    count: Int!
 }

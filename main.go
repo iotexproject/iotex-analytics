@@ -29,6 +29,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
+	"github.com/iotexproject/iotex-analytics/queryprotocol/hermes2"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
@@ -91,6 +92,7 @@ func main() {
 		VP: votings.NewProtocol(idx),
 		AP: actions.NewProtocol(idx),
 		CP: chainmeta.NewProtocol(idx),
+		HP: hermes2.NewProtocol(idx),
 	}}))))
 
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
