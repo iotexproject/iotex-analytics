@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 
@@ -73,16 +74,31 @@ func TestProtocol(t *testing.T) {
 		ElectionClient:  electionClient,
 		ConsensusScheme: "ROLLDPOS",
 	})
+	// first call KickoutListByEpoch
+	kickoutListByEpochRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("KickoutListByEpoch"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(2)},
+	}
+	pb := &iotextypes.KickoutCandidateList{}
+	data, err := proto.Marshal(pb)
+	first := chainClient.EXPECT().ReadState(gomock.Any(), kickoutListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: data,
+	}, nil)
+
+	// second call GetGravityChainStartHeight
 	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(1)},
 	}
-
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
+	second := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
-
+	gomock.InOrder(
+		first,
+		second,
+	)
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)
 
