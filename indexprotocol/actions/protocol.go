@@ -178,7 +178,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	}
 
 	hashToReceiptInfo := make(map[hash.Hash256]*ReceiptInfo)
-	contractList := make([]HermesContractInfo, 0)
 	for _, receipt := range blk.Receipts {
 		// map receipt to action
 		actionInfo, ok := hashToActionInfo[receipt.ActionHash]
@@ -198,22 +197,15 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			GasConsumed:   receipt.GasConsumed,
 			ReceiptStatus: receiptStatus,
 		}
-		delegateName, err := p.getDelegateNameFromLog(receipt.Logs)
-		if err != nil {
-			continue
-		}
-		contract := HermesContractInfo{
-			ActionHash:   hex.EncodeToString(receiptHash[:]),
-			DelegateName: delegateName,
-		}
-		contractList = append(contractList, contract)
 	}
 
-	err := p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
+	err := p.updateHermes(tx, blk.Receipts)
 	if err != nil {
 		return err
 	}
-	if err = p.insertHermesContract(tx, contractList); err != nil {
+
+	err = p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
+	if err != nil {
 		return err
 	}
 	return p.updateXrc20History(ctx, tx, blk)

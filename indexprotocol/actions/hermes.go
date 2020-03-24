@@ -1,4 +1,4 @@
-// Copyright (c) 2019 IoTeX
+// Copyright (c) 2020 IoTeX
 // This is an alpha (internal) release and is not suitable for production. This source code is provided 'as is' and no
 // warranties are given as to title or non-infringement, merchantability or fitness for purpose and, to the extent
 // permitted by law, all liability for your use of the code is disclaimed. This source code is governed by Apache
@@ -9,11 +9,11 @@ package actions
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"github.com/iotexproject/iotex-core/action"
-	//s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -48,6 +48,26 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createHermesContractActionHashIndex, actionHashIndexName, HermesContractTableName)); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (p *Protocol) updateHermes(tx *sql.Tx, receipts []*action.Receipt) error {
+	contractList := make([]HermesContractInfo, 0)
+	for _, receipt := range receipts {
+		delegateName, err := p.getDelegateNameFromLog(receipt.Logs)
+		if err != nil {
+			continue
+		}
+		receiptHash := receipt.Hash()
+		contract := HermesContractInfo{
+			ActionHash:   hex.EncodeToString(receiptHash[:]),
+			DelegateName: delegateName,
+		}
+		contractList = append(contractList, contract)
+	}
+	if err := p.insertHermesContract(tx, contractList); err != nil {
+		return err
 	}
 	return nil
 }
