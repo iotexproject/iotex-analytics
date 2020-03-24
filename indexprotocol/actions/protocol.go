@@ -118,7 +118,12 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		}
 	}
 
-	return p.CreateXrc20Tables(ctx)
+	// Prepare Xrc20 tables
+	if err := p.CreateXrc20Tables(ctx); err != nil {
+		return err
+	}
+
+	return p.CreateHermesTables(ctx)
 }
 
 // Initialize initializes actions protocol
@@ -194,7 +199,12 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 	}
 
-	err := p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
+	err := p.updateHermes(tx, blk.Receipts)
+	if err != nil {
+		return err
+	}
+
+	err = p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
 	if err != nil {
 		return err
 	}
