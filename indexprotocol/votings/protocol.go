@@ -267,7 +267,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to put data into voting tables in epoch %d", epochNumber)
 		}
 		if err := p.updateKickoutListTable(chainClient, epochNumber, tx); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to put data into kickout tables in epoch %d", epochNumber)
 		}
 	}
 	return nil

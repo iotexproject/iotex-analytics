@@ -289,12 +289,15 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 //GetKickoutHistoricalRate gets kickout rate
 func (p *Protocol) GetKickoutHistoricalRate(startEpoch int, epochCount int, delegateName string) (string, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
-		return "0", errors.New("votings protocol is unregistered")
+		return "", errors.New("votings protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
 	appearingCount, err := p.getAppearingCount(db, startEpoch, epochCount, delegateName)
 	if err != nil {
-		return "0", errors.New("get Kickout Count error")
+		return "0", errors.New("get Appearing Count error")
+	}
+	if appearingCount == 0 {
+		return "0", nil
 	}
 	kickoutCount := uint64(0)
 	for i := startEpoch; i < startEpoch+epochCount; i++ {
@@ -310,9 +313,6 @@ func (p *Protocol) GetKickoutHistoricalRate(startEpoch int, epochCount int, dele
 		if exist {
 			kickoutCount++
 		}
-	}
-	if appearingCount == 0 {
-		return "0", nil
 	}
 	rate := float64(kickoutCount) / float64(appearingCount)
 	return fmt.Sprintf("%0.2f", rate), nil
