@@ -10,9 +10,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-core/action"
 )
 
@@ -27,6 +30,9 @@ const (
 	createHermesContract                = "CREATE TABLE IF NOT EXISTS %s " +
 		"(action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(256) NOT NULL)"
 	insertHermesContract = "INSERT INTO %s (action_hash, delegate_name) VALUES %s"
+
+	// HermesMsgEmiter is the function name for emiting contract info
+	HermesMsgEmiter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
 )
 
 // HermesContractInfo defines a contract info for hermes
@@ -55,7 +61,7 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 func (p *Protocol) updateHermes(tx *sql.Tx, receipts []*action.Receipt) error {
 	contractList := make([]HermesContractInfo, 0)
 	for _, receipt := range receipts {
-		delegateName, err := p.getDelegateNameFromLog(receipt.Logs)
+		delegateName, err := getDelegateNameFromLog(receipt.Logs)
 		if err != nil {
 			continue
 		}
@@ -87,7 +93,40 @@ func (p *Protocol) insertHermesContract(tx *sql.Tx, contractList []HermesContrac
 	return nil
 }
 
-func (p *Protocol) getDelegateNameFromLog(logs []*action.Log) (string, error) {
-	// TODO
-	return "", nil
+func emiterIsHermes(receiptHash hash.Hash256) bool {
+	now := string(receiptHash[:])
+	emiter := string(crypto.Keccak256([]byte(HermesMsgEmiter))[:])
+	if strings.Compare(emiter, now) != 0 {
+		return false
+	}
+	return true
+}
+
+func getDelegateNameFromTopic(receiptHash hash.Hash256) string {
+	var buf []byte
+	for _, b := range receiptHash {
+		if b == 0 {
+			break
+		}
+		buf = append(buf, b)
+	}
+	return string(buf[:])
+}
+
+func getDelegateNameFromLog(logs []*action.Log) (string, error) {
+	num := len(logs)
+	for num >= 0 {
+		log := logs[num-1]
+		if len(log.Topics) < 2 {
+			continue
+		}
+		emiter := log.Topics[0]
+		delegateNameHash := log.Topics[1]
+		if emiterIsHermes(emiter) == false {
+			continue
+		}
+		delegateName := getDelegateNameFromTopic(delegateNameHash)
+		return delegateName, nil
+	}
+	return "", errors.New("not found delegateName")
 }

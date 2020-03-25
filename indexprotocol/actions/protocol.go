@@ -199,16 +199,17 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 	}
 
-	err := p.updateHermes(tx, blk.Receipts)
+	err := p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
 	if err != nil {
 		return err
 	}
 
-	err = p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
+	err = p.updateXrc20History(ctx, tx, blk)
 	if err != nil {
 		return err
 	}
-	return p.updateXrc20History(ctx, tx, blk)
+
+	return p.updateHermes(tx, blk.Receipts)
 }
 
 // getActionHistory returns action history by action hash
