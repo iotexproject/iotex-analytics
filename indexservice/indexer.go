@@ -56,6 +56,7 @@ type Config struct {
 	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`
 	Rewarding               indexprotocol.Rewarding    `yaml:"rewarding"`
 	Poll                    indexprotocol.Poll         `yaml:"poll"`
+	HermesContractAddress   string                     `yaml:"hermes_contract_address"`
 }
 
 // NewIndexer creates a new indexer
@@ -173,7 +174,7 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.Store)
+	actionsProtocol := actions.NewProtocol(idx.Store, idx.Config.HermesContractAddress)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
