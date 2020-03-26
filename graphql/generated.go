@@ -158,11 +158,12 @@ type ComplexityRoot struct {
 	}
 
 	Delegate struct {
-		Bookkeeping  func(childComplexity int, percentage int, includeFoundationBonus bool) int
-		BucketInfo   func(childComplexity int) int
-		Productivity func(childComplexity int) int
-		Reward       func(childComplexity int) int
-		Staking      func(childComplexity int) int
+		Bookkeeping           func(childComplexity int, percentage int, includeFoundationBonus bool) int
+		BucketInfo            func(childComplexity int) int
+		KickoutHistoricalRate func(childComplexity int) int
+		Productivity          func(childComplexity int) int
+		Reward                func(childComplexity int) int
+		Staking               func(childComplexity int) int
 	}
 
 	DelegateAmount struct {
@@ -934,6 +935,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Delegate.BucketInfo(childComplexity), true
+
+	case "Delegate.KickoutHistoricalRate":
+		if e.complexity.Delegate.KickoutHistoricalRate == nil {
+			break
+		}
+
+		return e.complexity.Delegate.KickoutHistoricalRate(childComplexity), true
 
 	case "Delegate.Productivity":
 		if e.complexity.Delegate.Productivity == nil {
@@ -1879,6 +1887,7 @@ type Delegate {
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
     staking: StakingOutput
+    kickoutHistoricalRate: String!
 }
 
 type StakingOutput{
@@ -4872,6 +4881,33 @@ func (ec *executionContext) _Delegate_staking(ctx context.Context, field graphql
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalOStakingOutput2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐStakingOutput(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Delegate_kickoutHistoricalRate(ctx context.Context, field graphql.CollectedField, obj *Delegate) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Delegate",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.KickoutHistoricalRate, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _DelegateAmount_delegateName(ctx context.Context, field graphql.CollectedField, obj *DelegateAmount) graphql.Marshaler {
@@ -9216,6 +9252,11 @@ func (ec *executionContext) _Delegate(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._Delegate_bucketInfo(ctx, field, obj)
 		case "staking":
 			out.Values[i] = ec._Delegate_staking(ctx, field, obj)
+		case "kickoutHistoricalRate":
+			out.Values[i] = ec._Delegate_kickoutHistoricalRate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
