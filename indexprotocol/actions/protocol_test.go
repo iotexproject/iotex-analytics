@@ -56,7 +56,7 @@ func TestProtocol(t *testing.T) {
 	}()
 
 	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15))
-	p := NewProtocol(store)
+	p := NewProtocol(store, "testAddr")
 
 	require.NoError(bp.CreateTables(ctx))
 	require.NoError(p.CreateTables(ctx))
