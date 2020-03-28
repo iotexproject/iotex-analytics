@@ -120,12 +120,12 @@ type Chain struct {
 }
 
 type Delegate struct {
-	Reward                *Reward           `json:"reward"`
-	Productivity          *Productivity     `json:"productivity"`
-	Bookkeeping           *Bookkeeping      `json:"bookkeeping"`
-	BucketInfo            *BucketInfoOutput `json:"bucketInfo"`
-	Staking               *StakingOutput    `json:"staking"`
-	KickoutHistoricalRate string            `json:"kickoutHistoricalRate"`
+	Reward                  *Reward           `json:"reward"`
+	Productivity            *Productivity     `json:"productivity"`
+	Bookkeeping             *Bookkeeping      `json:"bookkeeping"`
+	BucketInfo              *BucketInfoOutput `json:"bucketInfo"`
+	Staking                 *StakingOutput    `json:"staking"`
+	ProbationHistoricalRate string            `json:"probationHistoricalRate"`
 }
 
 type DelegateAmount struct {

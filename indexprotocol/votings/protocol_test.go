@@ -85,15 +85,15 @@ func TestProtocol(t *testing.T) {
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
 
-	// second call KickoutListByEpoch
-	kickoutListByEpochRequest := &iotexapi.ReadStateRequest{
+	// second call ProbationListByEpoch
+	probationListByEpochRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
-		MethodName: []byte("KickoutListByEpoch"),
+		MethodName: []byte("ProbationListByEpoch"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(2)},
 	}
-	pb := &iotextypes.KickoutCandidateList{}
+	pb := &iotextypes.ProbationCandidateList{}
 	data, err := proto.Marshal(pb)
-	second := chainClient.EXPECT().ReadState(gomock.Any(), kickoutListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+	second := chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,
 	}, nil)
 	gomock.InOrder(

@@ -20,18 +20,18 @@ import (
 )
 
 const (
-	// KickoutListTableName is the table name of kickout list
-	KickoutListTableName = "kickout_list"
-	// EpochAddressIndexName is the index name of epoch number and address on kickout table
+	// ProbationListTableName is the table name of probation list
+	ProbationListTableName = "probation_list"
+	// EpochAddressIndexName is the index name of epoch number and address on probation table
 	EpochAddressIndexName = "epoch_address_index"
-	createKickoutList     = "CREATE TABLE IF NOT EXISTS %s " +
+	createProbationList   = "CREATE TABLE IF NOT EXISTS %s " +
 		"(epoch_number DECIMAL(65, 0) NOT NULL,intensity_rate DECIMAL(65, 0) NOT NULL,address VARCHAR(41) NOT NULL, count DECIMAL(65, 0) NOT NULL,PRIMARY KEY (`epoch_number`, `address`), UNIQUE KEY %s (epoch_number, address))"
-	insertKickoutList = "INSERT IGNORE INTO %s (epoch_number,intensity_rate,address,count) VALUES (?, ?, ?, ?)"
+	insertProbationList = "INSERT IGNORE INTO %s (epoch_number,intensity_rate,address,count) VALUES (?, ?, ?, ?)"
 )
 
 type (
-	// KickoutList defines the schema of "kickout_list" table
-	KickoutList struct {
+	// ProbationList defines the schema of "probation_list" table
+	ProbationList struct {
 		EpochNumber   uint64
 		IntensityRate uint64
 		Address       string
@@ -39,38 +39,38 @@ type (
 	}
 )
 
-func (p *Protocol) createKickoutListTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf(createKickoutList, KickoutListTableName, EpochAddressIndexName)); err != nil {
+func (p *Protocol) createProbationListTable(tx *sql.Tx) error {
+	if _, err := tx.Exec(fmt.Sprintf(createProbationList, ProbationListTableName, EpochAddressIndexName)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *Protocol) updateKickoutListTable(cli iotexapi.APIServiceClient, epochNum uint64, tx *sql.Tx) error {
-	kickoutList, err := p.getKickoutList(cli, epochNum)
+func (p *Protocol) updateProbationListTable(cli iotexapi.APIServiceClient, epochNum uint64, tx *sql.Tx) error {
+	probationList, err := p.getProbationList(cli, epochNum)
 	if err != nil {
 		return err
 	}
-	insertQuery := fmt.Sprintf(insertKickoutList, KickoutListTableName)
-	for _, k := range kickoutList.Blacklists {
-		if _, err := tx.Exec(insertQuery, epochNum, kickoutList.IntensityRate, k.Address, k.Count); err != nil {
-			return errors.Wrap(err, "failed to update kickout list table")
+	insertQuery := fmt.Sprintf(insertProbationList, ProbationListTableName)
+	for _, k := range probationList.ProbationList {
+		if _, err := tx.Exec(insertQuery, epochNum, probationList.IntensityRate, k.Address, k.Count); err != nil {
+			return errors.Wrap(err, "failed to update probation list table")
 		}
 	}
 	return nil
 }
 
-func (p *Protocol) getKickoutList(cli iotexapi.APIServiceClient, epochNum uint64) (*iotextypes.KickoutCandidateList, error) {
+func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint64) (*iotextypes.ProbationCandidateList, error) {
 	request := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte("poll"),
-		MethodName: []byte("KickoutListByEpoch"),
+		MethodName: []byte("ProbationListByEpoch"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(epochNum)},
 	}
 	out, err := cli.ReadState(context.Background(), request)
 	if err != nil {
 		return nil, err
 	}
-	pb := &iotextypes.KickoutCandidateList{}
+	pb := &iotextypes.ProbationCandidateList{}
 	if err := proto.Unmarshal(out.Data, pb); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal candidate")
 	}
