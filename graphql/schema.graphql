@@ -63,7 +63,7 @@ type Delegate {
     bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
     staking: StakingOutput
-    kickoutHistoricalRate: String!
+    probationHistoricalRate: String!
 }
 
 type StakingOutput{

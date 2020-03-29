@@ -27,7 +27,7 @@ const (
 	selectDelegate             = "SELECT delegate_name FROM %s WHERE operator_address=? ORDER BY epoch_number DESC LIMIT 1"
 	selectOperator             = "SELECT operator_address FROM %s WHERE delegate_name=? ORDER BY epoch_number DESC LIMIT 1"
 	selectOperatorOfEpoch      = "SELECT operator_address FROM %s WHERE delegate_name=? and epoch_number<=? order by epoch_number DESC LIMIT 1"
-	selectKickoutExist         = "select * from %s where epoch_number=%d and address='%s'"
+	selectProbationExist       = "select * from %s where epoch_number=%d and address='%s'"
 	selectAppearingCount       = "select count(epoch_number) from %s where epoch_number>=%d and epoch_number<%d and delegate_name=?"
 )
 
@@ -286,8 +286,8 @@ func (p *Protocol) GetOperatorAddress(aliasName string) (string, error) {
 	return address, nil
 }
 
-//GetKickoutHistoricalRate gets kickout rate
-func (p *Protocol) GetKickoutHistoricalRate(startEpoch int, epochCount int, delegateName string) (string, error) {
+//GetProbationHistoricalRate gets probation rate
+func (p *Protocol) GetProbationHistoricalRate(startEpoch int, epochCount int, delegateName string) (string, error) {
 	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
 		return "", errors.New("votings protocol is unregistered")
 	}
@@ -299,7 +299,7 @@ func (p *Protocol) GetKickoutHistoricalRate(startEpoch int, epochCount int, dele
 	if appearingCount == 0 {
 		return "0", nil
 	}
-	kickoutCount := uint64(0)
+	probationCount := uint64(0)
 	for i := startEpoch; i < startEpoch+epochCount; i++ {
 		address, err := p.getOperatorAddress(delegateName, i)
 		switch {
@@ -308,13 +308,13 @@ func (p *Protocol) GetKickoutHistoricalRate(startEpoch int, epochCount int, dele
 		case err != nil:
 			return "0", err
 		}
-		exist, _ := queryprotocol.RowExists(db, fmt.Sprintf(selectKickoutExist,
-			votings.KickoutListTableName, i, address))
+		exist, _ := queryprotocol.RowExists(db, fmt.Sprintf(selectProbationExist,
+			votings.ProbationListTableName, i, address))
 		if exist {
-			kickoutCount++
+			probationCount++
 		}
 	}
-	rate := float64(kickoutCount) / float64(appearingCount)
+	rate := float64(probationCount) / float64(appearingCount)
 	return fmt.Sprintf("%0.2f", rate), nil
 }
 
