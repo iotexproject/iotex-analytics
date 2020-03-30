@@ -173,6 +173,7 @@ type ComplexityRoot struct {
 	DelegateInfo struct {
 		Amount       func(childComplexity int) int
 		DelegateName func(childComplexity int) int
+		Timestamp    func(childComplexity int) int
 	}
 
 	EvmTransfer struct {
@@ -287,6 +288,7 @@ type ComplexityRoot struct {
 
 	VoterInfo struct {
 		Amount       func(childComplexity int) int
+		Timestamp    func(childComplexity int) int
 		VoterAddress func(childComplexity int) int
 	}
 
@@ -984,6 +986,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DelegateInfo.DelegateName(childComplexity), true
 
+	case "DelegateInfo.Timestamp":
+		if e.complexity.DelegateInfo.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.DelegateInfo.Timestamp(childComplexity), true
+
 	case "EvmTransfer.From":
 		if e.complexity.EvmTransfer.From == nil {
 			break
@@ -1448,6 +1457,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.VoterInfo.Amount(childComplexity), true
+
+	case "VoterInfo.Timestamp":
+		if e.complexity.VoterInfo.Timestamp == nil {
+			break
+		}
+
+		return e.complexity.VoterInfo.Timestamp(childComplexity), true
 
 	case "VoterInfo.VoterAddress":
 		if e.complexity.VoterInfo.VoterAddress == nil {
@@ -2116,6 +2132,7 @@ type Hermes2 {
 type VoterInfo {
     voterAddress: String!
     amount: Int!
+    timestamp: String!
 }
 
 type ByDelegateResponse {
@@ -2127,6 +2144,7 @@ type ByDelegateResponse {
 type DelegateInfo {
     delegateName: String!
     amount: Int!
+    timestamp: String!
 }
 
 type ByVoterResponse {
@@ -4982,6 +5000,33 @@ func (ec *executionContext) _DelegateInfo_amount(ctx context.Context, field grap
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _DelegateInfo_timestamp(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "DelegateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Timestamp, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _EvmTransfer_from(ctx context.Context, field graphql.CollectedField, obj *EvmTransfer) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6709,6 +6754,33 @@ func (ec *executionContext) _VoterInfo_amount(ctx context.Context, field graphql
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VoterInfo_timestamp(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VoterInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Timestamp, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Voting_candidateInfo(ctx context.Context, field graphql.CollectedField, obj *Voting) graphql.Marshaler {
@@ -9280,6 +9352,11 @@ func (ec *executionContext) _DelegateInfo(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "timestamp":
+			out.Values[i] = ec._DelegateInfo_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10049,6 +10126,11 @@ func (ec *executionContext) _VoterInfo(ctx context.Context, sel ast.SelectionSet
 			}
 		case "amount":
 			out.Values[i] = ec._VoterInfo_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "timestamp":
+			out.Values[i] = ec._VoterInfo_timestamp(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

@@ -17,6 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-core/action"
+	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/pkg/errors"
+
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -28,8 +33,21 @@ const (
 	actionHashIndexName                 = "action_hash_index"
 	createHermesContractActionHashIndex = "CREATE INDEX %s ON %s (`action_hash`)"
 	createHermesContract                = "CREATE TABLE IF NOT EXISTS %s " +
-		"(action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(256) NOT NULL)"
-	insertHermesContract = "INSERT INTO %s (action_hash, delegate_name) VALUES %s"
+		"(action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(256) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
+	insertHermesContract = "INSERT INTO %s (action_hash, delegate_name, timestamp) VALUES %s"
+
+	// HermesDistributionTableName is the table name of hermes distribution
+	HermesDistributionTableName = "hemes_distributition"
+
+	createHermesDistribution = "CREATE TABLE IF NOT EXISTS %s " +
+		"(epoch_number INT(64) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
+		"delegate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(41) NOT NULL, " +
+		"amount INT(64) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
+	insertHermesDistribution = "NSERT INTO %s (epoch_number, action_hash, delegate_name, voter_address," +
+		"amount, timestamp) VALUES %s"
+
+	hermesJoin = "SELECT %s.epoch_number, %s.action_hash, %s.delegate_name, %s.to, " +
+		"%s.amount, %s.timestamp FROM %s INNER JOIN %s WHERE %s.action_hash = %s.action_hash AND %s.from = %s"
 
 	// HermesMsgEmiter is the function name for emiting contract info
 	HermesMsgEmiter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
@@ -39,6 +57,17 @@ const (
 type HermesContractInfo struct {
 	ActionHash   string
 	DelegateName string
+	Timestamp    string
+}
+
+// HermesDistributionInfo defines HermesDistribution records
+type HermesDistributionInfo struct {
+	EpochNumber  uint64
+	ActionHash   string
+	DelegateName string
+	VoterAddress string
+	Amount       uint64
+	Timestamp    string
 }
 
 // CreateHermesTables creates tables
@@ -55,13 +84,17 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 			return err
 		}
 	}
+	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createHermesDistribution, HermesDistributionTableName)); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (p *Protocol) updateHermes(tx *sql.Tx, receipts []*action.Receipt) error {
+func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
+	timestamp := blk.Timestamp().String()
 	contractList := make([]HermesContractInfo, 0)
-	for _, receipt := range receipts {
-		if strings.Compare(receipt.ContractAddress, p.HermesContractAddress) != 0 {
+	for _, receipt := range blk.Receipts {
+		if strings.Compare(receipt.ContractAddress, p.hermesAddress.HermesContractAddress) != 0 {
 			continue
 		}
 		delegateName, exist := getDelegateNameFromLog(receipt.Logs)
@@ -72,6 +105,7 @@ func (p *Protocol) updateHermes(tx *sql.Tx, receipts []*action.Receipt) error {
 		contract := HermesContractInfo{
 			ActionHash:   hex.EncodeToString(receiptHash[:]),
 			DelegateName: delegateName,
+			Timestamp:    timestamp,
 		}
 		contractList = append(contractList, contract)
 	}
@@ -81,12 +115,68 @@ func (p *Protocol) updateHermes(tx *sql.Tx, receipts []*action.Receipt) error {
 	return p.insertHermesContract(tx, contractList)
 }
 
+func (p *Protocol) joinHermes(tx *sql.Tx) error {
+	btName := accounts.BalanceHistoryTableName
+	/*
+		hermesJoin = "SELECT %s.epoch_number, %s.action_hash, %s.delegate_name, %s.to, " +
+			"%s.amount, %s.timestamp FROM %s INNER JOIN %s WHERE %s.action_hash = %s.action_hash AND %s.from = %s"
+	*/
+	joinSQL := fmt.Sprintf(hermesJoin, btName, btName, HermesContractTableName, btName,
+		btName, HermesContractTableName, HermesContractTableName, btName,
+		HermesContractTableName, btName, btName, p.hermesAddress.MultiSendContractAddress)
+
+	db := p.Store.GetDB()
+	stmt, err := db.Prepare(joinSQL)
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(joinSQL)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute get query")
+	}
+
+	var info HermesDistributionInfo
+	parsedRows, err := s.ParseSQLRows(rows, &info)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		// no need to join
+		return nil
+	}
+
+	infoList := make([]*HermesDistributionInfo, 0)
+	for _, parsedRow := range parsedRows {
+		infoList = append(infoList, parsedRow.(*HermesDistributionInfo))
+	}
+
+	return p.insertHermesDistribution(tx, infoList)
+}
+
+func (p *Protocol) insertHermesDistribution(tx *sql.Tx, infoList []*HermesDistributionInfo) error {
+	valStrs := make([]string, 0, len(infoList))
+	valArgs := make([]interface{}, 0, len(infoList))
+	for _, list := range infoList {
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, list.EpochNumber, list.ActionHash,
+			list.DelegateName, list.VoterAddress, list.Amount, list.Timestamp)
+	}
+	insertQuery := fmt.Sprintf(insertHermesDistribution, HermesDistributionTableName, strings.Join(valStrs, ","))
+
+	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *Protocol) insertHermesContract(tx *sql.Tx, contractList []HermesContractInfo) error {
 	valStrs := make([]string, 0, len(contractList))
 	valArgs := make([]interface{}, 0, len(contractList))
 	for _, list := range contractList {
-		valStrs = append(valStrs, "(?, ?)")
-		valArgs = append(valArgs, list.ActionHash, list.DelegateName)
+		valStrs = append(valStrs, "(?, ?, ?)")
+		valArgs = append(valArgs, list.ActionHash, list.DelegateName, list.Timestamp)
 	}
 	insertQuery := fmt.Sprintf(insertHermesContract, HermesContractTableName, strings.Join(valStrs, ","))
 
