@@ -303,7 +303,8 @@ type XrcInfo struct {
 }
 
 type XrcList struct {
-	Exist bool       `json:"exist"`
-	Xrc   []*XrcInfo `json:"xrc"`
-	Count int        `json:"count"`
+	Exist  bool       `json:"exist"`
+	Xrc20  []*XrcInfo `json:"xrc20"`
+	Xrc721 []*XrcInfo `json:"xrc721"`
+	Count  int        `json:"count"`
 }
