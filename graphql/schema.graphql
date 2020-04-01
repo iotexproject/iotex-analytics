@@ -141,7 +141,8 @@ type ActionList {
 
 type XrcList {
     exist: Boolean!
-    xrc(pagination: Pagination): [XrcInfo]!
+    xrc20(pagination: Pagination): [XrcInfo]!
+    xrc721(pagination: Pagination): [XrcInfo]!
     count: Int!
 }
 
