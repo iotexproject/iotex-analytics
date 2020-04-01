@@ -830,7 +830,7 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 		return errors.Wrap(err, "failed to get contract transaction count")
 	}
 	output.Count = count
-	xrc20InfoList, err := xrcGetter(address, uint64(numPerPage), uint64(page))
+	xrcInfoList, err := xrcGetter(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -838,9 +838,9 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 		return errors.Wrap(err, "failed to get contract information")
 	}
 	output.Exist = true
-	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
-	for _, c := range xrc20InfoList {
-		output.Xrc = append(output.Xrc, &XrcInfo{
+	out := make([]*XrcInfo, 0, len(xrcInfoList))
+	for _, c := range xrcInfoList {
+		out = append(out, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -848,6 +848,12 @@ func (r *queryResolver) getXrcByContractAddress(ctx context.Context, actionRespo
 			Quantity:  c.Quantity,
 			Contract:  c.Contract,
 		})
+	}
+	switch actionResponse.(type) {
+	case *Xrc721:
+		output.Xrc721 = out
+	case *Xrc20:
+		output.Xrc20 = out
 	}
 	return nil
 }
@@ -888,7 +894,7 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 		return errors.Wrap(err, "failed to get contract transaction count")
 	}
 	output.Count = count
-	xrc20InfoList, err := xrcGetter(address, uint64(numPerPage), uint64(page))
+	xrcInfoList, err := xrcGetter(address, uint64(numPerPage), uint64(page))
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -896,9 +902,9 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 		return errors.Wrap(err, "failed to get contract information")
 	}
 	output.Exist = true
-	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
-	for _, c := range xrc20InfoList {
-		output.Xrc = append(output.Xrc, &XrcInfo{
+	out := make([]*XrcInfo, 0, len(xrcInfoList))
+	for _, c := range xrcInfoList {
+		out = append(out, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -906,6 +912,12 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 			Quantity:  c.Quantity,
 			Contract:  c.Contract,
 		})
+	}
+	switch actionResponse.(type) {
+	case *Xrc721:
+		output.Xrc721 = out
+	case *Xrc20:
+		output.Xrc20 = out
 	}
 	return nil
 }
@@ -988,7 +1000,7 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 		return errors.Wrap(err, "failed to get contract transaction count")
 	}
 	output.Count = count
-	xrc20InfoList, err := xrcGetter(skip, first)
+	xrcInfoList, err := xrcGetter(skip, first)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		return nil
@@ -996,9 +1008,9 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 		return errors.Wrap(err, "failed to get contract information")
 	}
 	output.Exist = true
-	output.Xrc = make([]*XrcInfo, 0, len(xrc20InfoList))
-	for _, c := range xrc20InfoList {
-		output.Xrc = append(output.Xrc, &XrcInfo{
+	out := make([]*XrcInfo, 0, len(xrcInfoList))
+	for _, c := range xrcInfoList {
+		out = append(out, &XrcInfo{
 			Hash:      c.Hash,
 			Timestamp: c.Timestamp,
 			From:      c.From,
@@ -1006,6 +1018,12 @@ func (r *queryResolver) getXrcByPage(ctx context.Context, actionResponse interfa
 			Quantity:  c.Quantity,
 			Contract:  c.Contract,
 		})
+	}
+	switch actionResponse.(type) {
+	case *Xrc721:
+		output.Xrc721 = out
+	case *Xrc20:
+		output.Xrc20 = out
 	}
 	return nil
 }
