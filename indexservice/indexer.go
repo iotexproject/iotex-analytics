@@ -40,6 +40,7 @@ type Indexer struct {
 	lastHeight     uint64
 	terminate      chan bool
 	epochCtx       *epochctx.EpochCtx
+	hermesConfig   indexprotocol.HermesConfig
 }
 
 // Config contains indexer configs
@@ -56,7 +57,7 @@ type Config struct {
 	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`
 	Rewarding               indexprotocol.Rewarding    `yaml:"rewarding"`
 	Poll                    indexprotocol.Poll         `yaml:"poll"`
-	HermesContractAddress   string                     `yaml:"hermes_contract_address"`
+	HermesConfig            indexprotocol.HermesConfig `yaml:"hermesConfig"`
 }
 
 // NewIndexer creates a new indexer
@@ -72,6 +73,10 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 			cfg.NumSubEpochs,
 			epochctx.EnableDardanellesSubEpoch(cfg.DardanellesHeight, cfg.NumSubEpochsDardanelles),
 		),
+		hermesConfig: indexprotocol.HermesConfig{
+			HermesContractAddress:    cfg.HermesConfig.HermesContractAddress,
+			MultiSendContractAddress: cfg.HermesConfig.MultiSendContractAddress,
+		},
 	}
 }
 
@@ -174,7 +179,7 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.Store, idx.Config.HermesContractAddress)
+	actionsProtocol := actions.NewProtocol(idx.Store, idx.hermesConfig, idx.epochCtx)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)

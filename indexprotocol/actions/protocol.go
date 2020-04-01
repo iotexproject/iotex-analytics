@@ -20,6 +20,7 @@ import (
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 
+	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -85,15 +86,17 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                 s.Store
-	HermesContractAddress string
+	Store        s.Store
+	hermesConfig indexprotocol.HermesConfig
+	epochCtx     *epochctx.EpochCtx
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, addr string) *Protocol {
+func NewProtocol(store s.Store, addr indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
-		Store:                 store,
-		HermesContractAddress: addr,
+		Store:        store,
+		hermesConfig: addr,
+		epochCtx:     epochCtx,
 	}
 }
 
@@ -137,6 +140,13 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
+
+	height := blk.Height()
+	epochNumber := p.epochCtx.GetEpochNumber(height)
+	if epochNumber%24 == 0 {
+		go p.joinHermes(tx)
+	}
+
 	hashToActionInfo := make(map[hash.Hash256]*ActionInfo)
 
 	// log action index
@@ -213,7 +223,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return err
 	}
 
-	return p.updateHermes(tx, blk.Receipts)
+	return p.updateHermes(tx, blk)
 }
 
 // getActionHistory returns action history by action hash

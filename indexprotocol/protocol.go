@@ -57,6 +57,11 @@ type (
 		ProductivityThreshold           uint64   `yaml:"productivityThreshold"`
 		ExemptCandidatesFromEpochReward []string `yaml:"exemptCandidatesFromEpochReward"`
 	}
+	// HermesConfig defines hermes addr
+	HermesConfig struct {
+		HermesContractAddress    string `yaml:"hermesContractAddress"`
+		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer

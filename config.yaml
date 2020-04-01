@@ -91,4 +91,6 @@ rewarding:
     - "696f726f626f746270303239"
     - "696f726f626f746270303330"
 
-hermes_contract_address: "io1fqulsuv8p820wmr0yd39jzx0m3pnpmuzzcywh8" 
+hermesConfig:
+  hermesContractAddress: "io1fqulsuv8p820wmr0yd39jzx0m3pnpmuzzcywh8"
+  multiSendContractAddress: "io1lvemm43lz6np0hzcqlpk0kpxxww623z5hs4mwu"
