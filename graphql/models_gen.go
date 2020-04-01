@@ -136,6 +136,7 @@ type DelegateAmount struct {
 type DelegateInfo struct {
 	DelegateName string `json:"delegateName"`
 	Amount       int    `json:"amount"`
+	ActionHash   string `json:"actionHash"`
 	Timestamp    string `json:"timestamp"`
 }
 
@@ -248,6 +249,7 @@ type TopHolder struct {
 type VoterInfo struct {
 	VoterAddress string `json:"voterAddress"`
 	Amount       int    `json:"amount"`
+	ActionHash   string `json:"actionHash"`
 	Timestamp    string `json:"timestamp"`
 }
 

@@ -57,8 +57,8 @@ type (
 		ProductivityThreshold           uint64   `yaml:"productivityThreshold"`
 		ExemptCandidatesFromEpochReward []string `yaml:"exemptCandidatesFromEpochReward"`
 	}
-	// HermesAddressConfig defines hermes addr
-	HermesAddressConfig struct {
+	// HermesConfig defines hermes addr
+	HermesConfig struct {
 		HermesContractAddress    string `yaml:"hermesContractAddress"`
 		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
 	}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
@@ -50,7 +51,10 @@ func TestXrc20(t *testing.T) {
 	}()
 
 	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15))
-	p := NewProtocol(store, "testAddr")
+	p := NewProtocol(store, indexprotocol.HermesConfig{
+		HermesContractAddress:    "testAddr",
+		MultiSendContractAddress: "testAddr",
+	}, epochctx.NewEpochCtx(36, 24, 15))
 
 	require.NoError(bp.CreateTables(ctx))
 	require.NoError(p.CreateTables(ctx))
