@@ -86,17 +86,17 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store         s.Store
-	hermesAddress indexprotocol.HermesAddressConfig
-	epochCtx      *epochctx.EpochCtx
+	Store        s.Store
+	hermesConfig indexprotocol.HermesConfig
+	epochCtx     *epochctx.EpochCtx
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, addr indexprotocol.HermesAddressConfig, epochCtx *epochctx.EpochCtx) *Protocol {
+func NewProtocol(store s.Store, addr indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
-		Store:         store,
-		hermesAddress: addr,
-		epochCtx:      epochCtx,
+		Store:        store,
+		hermesConfig: addr,
+		epochCtx:     epochCtx,
 	}
 }
 

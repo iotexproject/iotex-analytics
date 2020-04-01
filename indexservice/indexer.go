@@ -33,31 +33,31 @@ import (
 
 // Indexer handles the index build for blocks
 type Indexer struct {
-	Store               s.Store
-	Registry            *indexprotocol.Registry
-	IndexProtocols      []indexprotocol.Protocol
-	Config              Config
-	lastHeight          uint64
-	terminate           chan bool
-	epochCtx            *epochctx.EpochCtx
-	hermesAddressConfig indexprotocol.HermesAddressConfig
+	Store          s.Store
+	Registry       *indexprotocol.Registry
+	IndexProtocols []indexprotocol.Protocol
+	Config         Config
+	lastHeight     uint64
+	terminate      chan bool
+	epochCtx       *epochctx.EpochCtx
+	hermesConfig   indexprotocol.HermesConfig
 }
 
 // Config contains indexer configs
 type Config struct {
-	NumDelegates            uint64                            `yaml:"numDelegates"`
-	NumCandidateDelegates   uint64                            `yaml:"numCandidateDelegates"`
-	NumSubEpochs            uint64                            `yaml:"numSubEpochs"`
-	NumSubEpochsDardanelles uint64                            `yaml:"numSubEpochsDardanelles"`
-	DardanellesHeight       uint64                            `yaml:"dardanellesHeight"`
-	DardanellesOn           bool                              `yaml:"dardanellesOn"`
-	ConsensusScheme         string                            `yaml:"consensusScheme"`
-	RangeQueryLimit         uint64                            `yaml:"rangeQueryLimit"`
-	Genesis                 indexprotocol.Genesis             `yaml:"genesis"`
-	GravityChain            indexprotocol.GravityChain        `yaml:"gravityChain"`
-	Rewarding               indexprotocol.Rewarding           `yaml:"rewarding"`
-	Poll                    indexprotocol.Poll                `yaml:"poll"`
-	HermesAddressConfig     indexprotocol.HermesAddressConfig `yaml:"hermesAddressConfig"`
+	NumDelegates            uint64                     `yaml:"numDelegates"`
+	NumCandidateDelegates   uint64                     `yaml:"numCandidateDelegates"`
+	NumSubEpochs            uint64                     `yaml:"numSubEpochs"`
+	NumSubEpochsDardanelles uint64                     `yaml:"numSubEpochsDardanelles"`
+	DardanellesHeight       uint64                     `yaml:"dardanellesHeight"`
+	DardanellesOn           bool                       `yaml:"dardanellesOn"`
+	ConsensusScheme         string                     `yaml:"consensusScheme"`
+	RangeQueryLimit         uint64                     `yaml:"rangeQueryLimit"`
+	Genesis                 indexprotocol.Genesis      `yaml:"genesis"`
+	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`
+	Rewarding               indexprotocol.Rewarding    `yaml:"rewarding"`
+	Poll                    indexprotocol.Poll         `yaml:"poll"`
+	HermesConfig            indexprotocol.HermesConfig `yaml:"hermesConfig"`
 }
 
 // NewIndexer creates a new indexer
@@ -73,9 +73,9 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 			cfg.NumSubEpochs,
 			epochctx.EnableDardanellesSubEpoch(cfg.DardanellesHeight, cfg.NumSubEpochsDardanelles),
 		),
-		hermesAddressConfig: indexprotocol.HermesAddressConfig{
-			HermesContractAddress:    cfg.HermesAddressConfig.HermesContractAddress,
-			MultiSendContractAddress: cfg.HermesAddressConfig.MultiSendContractAddress,
+		hermesConfig: indexprotocol.HermesConfig{
+			HermesContractAddress:    cfg.HermesConfig.HermesContractAddress,
+			MultiSendContractAddress: cfg.HermesConfig.MultiSendContractAddress,
 		},
 	}
 }
@@ -179,7 +179,7 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.Store, idx.hermesAddressConfig, idx.epochCtx)
+	actionsProtocol := actions.NewProtocol(idx.Store, idx.hermesConfig, idx.epochCtx)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)

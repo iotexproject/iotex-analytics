@@ -12,7 +12,7 @@ import (
 const (
 	selectHermesDistributionByDelegateName = "SELECT voter_address, amount, timestamp WHERE epoch_number > ? AND " +
 		"epoch_number < ? AND delegate_name = ? desc limit ?,?"
-	selectHermesDistributionByVoterAddress = "SELECT delegateName, amount, timestamp WHERE epoch_number > ? AND " +
+	selectHermesDistributionByVoterAddress = "SELECT delegateName, amount, action_hash, timestamp WHERE epoch_number > ? AND " +
 		"epoch_number < ? AND voter_address = ? desc limit ?,?"
 )
 
@@ -28,6 +28,7 @@ type HermesArg struct {
 type VoterInfo struct {
 	VoterAddress string
 	Amount       int
+	ActionHash   string
 	Timestamp    string
 }
 
@@ -42,6 +43,7 @@ type ByDelegateResponse struct {
 type DelegateInfo struct {
 	DelegateName string
 	Amount       int
+	ActionHash   string
 	Timestamp    string
 }
 
