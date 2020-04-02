@@ -102,7 +102,7 @@ func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
 		if !exist {
 			continue
 		}
-		receiptHash := receipt.Hash()
+		receiptHash := receipt.ActionHash
 		contract := HermesContractInfo{
 			ActionHash:   hex.EncodeToString(receiptHash[:]),
 			DelegateName: delegateName,
@@ -201,8 +201,10 @@ func getDelegateNameFromTopic(logTopic hash.Hash256) string {
 
 func getDelegateNameFromLog(logs []*action.Log) (string, bool) {
 	num := len(logs)
-	for num >= 0 {
-		log := logs[num-1]
+	// reverse range
+	for num > 0 {
+		num--
+		log := logs[num]
 		if len(log.Topics) < 2 {
 			continue
 		}
