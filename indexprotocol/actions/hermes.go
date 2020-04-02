@@ -48,7 +48,7 @@ const (
 
 	hermesJoin = "SELECT t1.epoch_number, t1.action_hash, t2.delegate_name, t1.to, " +
 		"t1.amount, t2.timestamp FROM %s AS t1 INNER JOIN %s AS t2 WHERE t1.action_hash = t2.action_hash AND t1.from = %s" +
-		" t1.epoch_number >= %d AND t1.epoch_number < %d"
+		" AND t1.epoch_number >= %d AND t1.epoch_number < %d"
 
 	// HermesMsgEmiter is the function name for emiting contract info
 	HermesMsgEmiter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
@@ -102,9 +102,9 @@ func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
 		if !exist {
 			continue
 		}
-		receiptHash := receipt.ActionHash
+		actionHash := receipt.ActionHash
 		contract := HermesContractInfo{
-			ActionHash:   hex.EncodeToString(receiptHash[:]),
+			ActionHash:   hex.EncodeToString(actionHash[:]),
 			DelegateName: delegateName,
 			Timestamp:    timestamp,
 		}
@@ -119,10 +119,11 @@ func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
 func (p *Protocol) joinHermes(tx *sql.Tx, epochNumber uint64) error {
 	/*
 		hermesJoin = "SELECT t1.epoch_number, t1.action_hash, t2.delegate_name, t1.to, " +
-			"t1.amount, t2.timestamp FROM %s AS t1 INNER JOIN %s AS t2 WHERE t1.action_hash = t2.action_hash AND t1.from = %s"
+			"t1.amount, t2.timestamp FROM %s AS t1 INNER JOIN %s AS t2 WHERE t1.action_hash = t2.action_hash AND t1.from = %s" +
+			" AND t1.epoch_number >= %d AND t1.epoch_number < %d"
 	*/
 	joinSQL := fmt.Sprintf(hermesJoin, accounts.BalanceHistoryTableName, HermesContractTableName,
-		p.hermesConfig.MultiSendContractAddress, epochNumber-24, epochNumber)
+		p.hermesConfig.MultiSendContractAddress, epochNumber-p.hermesConfig.HermesJoinPeriod, epochNumber)
 
 	db := p.Store.GetDB()
 	stmt, err := db.Prepare(joinSQL)
