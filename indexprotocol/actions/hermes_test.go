@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/iotexproject/go-pkgs/hash"
+	"github.com/iotexproject/iotex-core/action"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,4 +48,20 @@ func TestEmiterIsHermesByTopic(t *testing.T) {
 	emiterTopic, err = stringToHash256("6a5c4f52260adc90a8637fe2d8fbbc4141b625fa6840fca5f3e5cef6a4992293")
 	require.NoError(err)
 	require.False(emiterIsHermesByTopic(emiterTopic))
+}
+
+func TestGetDelegateNameFromLog(t *testing.T) {
+	require := require.New(t)
+	topic1, err := stringToHash256("7de680eab607fdcc6137464e40d375ad63446cf255dcea9bd4a19676f7f24f56")
+	require.NoError(err)
+	topic2, err := stringToHash256("746865626f74746f6b656e230000000000000000000000000000000000000000")
+	require.NoError(err)
+	logs := []*action.Log{
+		&action.Log{
+			Topics: []hash.Hash256{topic1, topic2},
+		},
+	}
+	delegateName, exist := getDelegateNameFromLog(logs)
+	require.True(exist)
+	require.Equal("thebottoken#", delegateName)
 }

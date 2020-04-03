@@ -141,12 +141,6 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 
-	height := blk.Height()
-	epochNumber := p.epochCtx.GetEpochNumber(height)
-	if epochNumber%24 == 0 {
-		go p.joinHermes(tx)
-	}
-
 	hashToActionInfo := make(map[hash.Hash256]*ActionInfo)
 
 	// log action index
@@ -221,6 +215,14 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	err = p.updateXrc20History(ctx, tx, blk)
 	if err != nil {
 		return err
+	}
+
+	height := blk.Height()
+	epochNumber := p.epochCtx.GetEpochNumber(height)
+	if epochNumber%p.hermesConfig.HermesJoinPeriod == 0 {
+		if err = p.joinHermes(tx, epochNumber); err != nil {
+			return err
+		}
 	}
 
 	return p.updateHermes(tx, blk)
