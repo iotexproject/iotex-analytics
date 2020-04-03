@@ -266,10 +266,9 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.putVotingTables(tx, electionClient, chainClient, epochNumber, height, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to put data into voting tables in epoch %d", epochNumber)
 		}
-		// TODO: Temporarily disable this feature since ReadState is not ready
-		//if err := p.updateProbationListTable(chainClient, epochNumber, tx); err != nil {
-		//	return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
-		//}
+		if err := p.updateProbationListTable(chainClient, epochNumber, tx); err != nil {
+			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
+		}
 	}
 	return nil
 }
