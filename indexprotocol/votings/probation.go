@@ -13,6 +13,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/iotexproject/go-pkgs/byteutil"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
@@ -48,8 +50,11 @@ func (p *Protocol) createProbationListTable(tx *sql.Tx) error {
 
 func (p *Protocol) updateProbationListTable(cli iotexapi.APIServiceClient, epochNum uint64, tx *sql.Tx) error {
 	probationList, err := p.getProbationList(cli, epochNum)
-	if err != nil {
+	if err != nil && status.Code(err) != codes.NotFound {
 		return err
+	}
+	if probationList == nil {
+		return nil
 	}
 	insertQuery := fmt.Sprintf(insertProbationList, ProbationListTableName)
 	for _, k := range probationList.ProbationList {

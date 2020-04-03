@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 
@@ -80,26 +81,25 @@ func TestProtocol(t *testing.T) {
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{byteutil.Uint64ToBytes(1)},
 	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
+	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: byteutil.Uint64ToBytes(uint64(1000)),
 	}, nil)
 
-	// TODO: Temporarily disable this feature since ReadState is not ready
 	// second call ProbationListByEpoch
-	//probationListByEpochRequest := &iotexapi.ReadStateRequest{
-	//	ProtocolID: []byte(poll.ProtocolID),
-	//	MethodName: []byte("ProbationListByEpoch"),
-	//	Arguments:  [][]byte{byteutil.Uint64ToBytes(2)},
-	//}
-	//pb := &iotextypes.ProbationCandidateList{}
-	//data, err := proto.Marshal(pb)
-	//second := chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-	//	Data: data,
-	//}, nil)
-	//gomock.InOrder(
-	//	first,
-	//	second,
-	//)
+	probationListByEpochRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(poll.ProtocolID),
+		MethodName: []byte("ProbationListByEpoch"),
+		Arguments:  [][]byte{byteutil.Uint64ToBytes(2)},
+	}
+	pb := &iotextypes.ProbationCandidateList{}
+	data, err := proto.Marshal(pb)
+	second := chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: data,
+	}, nil)
+	gomock.InOrder(
+		first,
+		second,
+	)
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)
 
