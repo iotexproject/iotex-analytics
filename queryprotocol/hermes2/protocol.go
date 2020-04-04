@@ -11,9 +11,9 @@ import (
 
 const (
 	selectHermesDistributionByDelegateName = "SELECT voter_address, amount, timestamp WHERE epoch_number > ? AND " +
-		"epoch_number < ? AND delegate_name = ? desc limit ?,?"
-	selectHermesDistributionByVoterAddress = "SELECT delegateName, amount, action_hash, timestamp WHERE epoch_number > ? AND " +
-		"epoch_number < ? AND voter_address = ? desc limit ?,?"
+		"epoch_number < ? AND delegate_name = ? ORDER BY `timestamp` desc limit ?,?"
+	selectHermesDistributionByVoterAddress = "SELECT delegate_name, amount, action_hash, timestamp WHERE epoch_number > ? AND " +
+		"epoch_number < ? AND voter_address = ? ORDER BY `timestamp` desc limit ?,?"
 )
 
 // HermesArg defines hermes request parameters
@@ -27,7 +27,7 @@ type HermesArg struct {
 // VoterInfo defines voter information
 type VoterInfo struct {
 	VoterAddress string
-	Amount       int
+	Amount       string
 	ActionHash   string
 	Timestamp    string
 }
@@ -42,7 +42,7 @@ type ByDelegateResponse struct {
 // DelegateInfo defines delegate information
 type DelegateInfo struct {
 	DelegateName string
-	Amount       int
+	Amount       string
 	ActionHash   string
 	Timestamp    string
 }
@@ -115,8 +115,8 @@ func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterName string) (ByVoterRe
 		return ByVoterResponse{}, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var deletegateInfo DelegateInfo
-	parsedRows, err := s.ParseSQLRows(rows, &deletegateInfo)
+	var delegateInfo DelegateInfo
+	parsedRows, err := s.ParseSQLRows(rows, &delegateInfo)
 	if err != nil {
 		return ByVoterResponse{}, errors.Wrap(err, "failed to parse results")
 	}

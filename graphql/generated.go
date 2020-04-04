@@ -2170,7 +2170,7 @@ type Hermes2 {
 
 type VoterInfo {
     voterAddress: String!
-    amount: Int!
+    amount: String!
     actionHash: String!
     timestamp: String!
 }
@@ -2183,7 +2183,7 @@ type ByDelegateResponse {
 
 type DelegateInfo {
     delegateName: String!
-    amount: Int!
+    amount: String!
     actionHash: String!
     timestamp: String!
 }
@@ -5076,10 +5076,10 @@ func (ec *executionContext) _DelegateInfo_amount(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(string)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _DelegateInfo_actionHash(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
@@ -6859,10 +6859,10 @@ func (ec *executionContext) _VoterInfo_amount(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(string)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _VoterInfo_actionHash(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {

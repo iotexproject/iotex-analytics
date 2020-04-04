@@ -12,16 +12,22 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/iotexproject/go-pkgs/hash"
-	"github.com/iotexproject/iotex-core/action"
-	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/go-pkgs/hash"
+	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-antenna-go/v2/account"
+	"github.com/iotexproject/iotex-antenna-go/v2/iotex"
+	"github.com/iotexproject/iotex-core/action"
+	"github.com/iotexproject/iotex-core/pkg/log"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
-	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -31,27 +37,517 @@ const (
 	selectHermesContractInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	actionHashIndexName                 = "action_hash_index"
-	createHermesContractActionHashIndex = "CREATE INDEX %s ON %s (`action_hash`)"
+	createHermesContractActionHashIndex = "CREATE UNIQUE INDEX %s ON %s (`action_hash`)"
 	createHermesContract                = "CREATE TABLE IF NOT EXISTS %s " +
-		"(action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(256) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
+		"(action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(255) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
 	insertHermesContract = "INSERT INTO %s (action_hash, delegate_name, timestamp) VALUES %s"
 
 	// HermesDistributionTableName is the table name of hermes distribution
-	HermesDistributionTableName = "hemes_distributition"
+	HermesDistributionTableName = "hermes_distribution"
 
 	createHermesDistribution = "CREATE TABLE IF NOT EXISTS %s " +
-		"(epoch_number INT(64) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
-		"delegate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(41) NOT NULL, " +
-		"amount INT(64) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
-	insertHermesDistribution = "INSERT INTO %s (epoch_number, action_hash, delegate_name, voter_address," +
-		"amount, timestamp) VALUES %s"
+		"(epoch_number DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
+		"delegate_name VARCHAR(255) NOT NULL, voter_address VARCHAR(40) NOT NULL, " +
+		"amount DECIMAL(65, 0) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
 
-	hermesJoin = "SELECT t1.epoch_number, t1.action_hash, t2.delegate_name, t1.to, " +
-		"t1.amount, t2.timestamp FROM %s AS t1 INNER JOIN %s AS t2 WHERE t1.action_hash = t2.action_hash AND t1.from = %s" +
-		" AND t1.epoch_number >= %d AND t1.epoch_number < %d"
+	insertHermesDistribution = "INSERT INTO %s SELECT t1.epoch_number, t1.action_hash, t2.delegate_name, t1.to, " +
+		"t1.amount, t2.timestamp FROM (SELECT * FROM %s WHERE epoch_number > ? AND epoch_number <= ? AND `from` = ?) " +
+		"AS t1 INNER JOIN %s AS t2 ON t1.action_hash = t2.action_hash"
 
-	// HermesMsgEmiter is the function name for emiting contract info
-	HermesMsgEmiter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
+	// DistributeMsgEmitter represents the distribute event in hermes contract
+	DistributeMsgEmitter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
+
+	// CommitMsgEmitter represents the commit event in hermes contract
+	CommitMsgEmitter = "CommitDistributions(uint256,bytes32[])"
+
+	// HermesABI defines the ABI of Hermes contract
+	HermesABI = `[
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "distributedAmount",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "forwardRegistration",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "multisender",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "addrs",
+          "type": "address[]"
+        }
+      ],
+      "name": "removeAddressesFromWhitelist",
+      "outputs": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "removeAddressFromWhitelist",
+      "outputs": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "analyticsEndpoint",
+      "outputs": [
+        {
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "endEpochs",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "addAddressToWhitelist",
+      "outputs": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "distributedCount",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "whitelist",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "contractStartEpoch",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "distributions",
+      "outputs": [
+        {
+          "name": "distributedCount",
+          "type": "uint256"
+        },
+        {
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        },
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "recipientEpochTracker",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "addrs",
+          "type": "address[]"
+        }
+      ],
+      "name": "addAddressesToWhitelist",
+      "outputs": [
+        {
+          "name": "success",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "name": "_contractStartEpoch",
+          "type": "uint256"
+        },
+        {
+          "name": "_multisendAddress",
+          "type": "address"
+        },
+        {
+          "name": "_forwardRegistrationAddress",
+          "type": "address"
+        },
+        {
+          "name": "_analyticsEndpoint",
+          "type": "string"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "startEpoch",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "endEpoch",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "name": "delegateName",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "numOfRecipients",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "totalAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Distribute",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "endEpoch",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "delegateNames",
+          "type": "bytes32[]"
+        }
+      ],
+      "name": "CommitDistributions",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "WhitelistedAddressAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "addr",
+          "type": "address"
+        }
+      ],
+      "name": "WhitelistedAddressRemoved",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "getEndEpochCount",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_multisendAddress",
+          "type": "address"
+        }
+      ],
+      "name": "setMultisendAddress",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_endpoint",
+          "type": "string"
+        }
+      ],
+      "name": "setAnalyticsEndpoint",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "delegateName",
+          "type": "bytes32"
+        },
+        {
+          "name": "endEpoch",
+          "type": "uint256"
+        },
+        {
+          "name": "recipients",
+          "type": "address[]"
+        },
+        {
+          "name": "amounts",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "distributeRewards",
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "endEpoch",
+          "type": "uint256"
+        },
+        {
+          "name": "delegateNames",
+          "type": "bytes32[]"
+        }
+      ],
+      "name": "commitDistributions",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]`
 )
 
 // HermesContractInfo defines a contract info for hermes
@@ -67,7 +563,7 @@ type HermesDistributionInfo struct {
 	ActionHash   string
 	DelegateName string
 	VoterAddress string
-	Amount       uint64
+	Amount       string
 	Timestamp    string
 }
 
@@ -91,13 +587,9 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 	return nil
 }
 
-func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
-	timestamp := blk.Timestamp().String()
+func (p *Protocol) updateHermesContract(tx *sql.Tx, receipts []*action.Receipt, timestamp string) error {
 	contractList := make([]HermesContractInfo, 0)
-	for _, receipt := range blk.Receipts {
-		if strings.Compare(receipt.ContractAddress, p.hermesConfig.HermesContractAddress) != 0 {
-			continue
-		}
+	for _, receipt := range receipts {
 		delegateName, exist := getDelegateNameFromLog(receipt.Logs)
 		if !exist {
 			continue
@@ -116,56 +608,65 @@ func (p *Protocol) updateHermes(tx *sql.Tx, blk *block.Block) error {
 	return p.insertHermesContract(tx, contractList)
 }
 
-func (p *Protocol) joinHermes(tx *sql.Tx, epochNumber uint64) error {
-	/*
-		hermesJoin = "SELECT t1.epoch_number, t1.action_hash, t2.delegate_name, t1.to, " +
-			"t1.amount, t2.timestamp FROM %s AS t1 INNER JOIN %s AS t2 WHERE t1.action_hash = t2.action_hash AND t1.from = %s" +
-			" AND t1.epoch_number >= %d AND t1.epoch_number < %d"
-	*/
-	joinSQL := fmt.Sprintf(hermesJoin, accounts.BalanceHistoryTableName, HermesContractTableName,
-		p.hermesConfig.MultiSendContractAddress, epochNumber-p.hermesConfig.HermesJoinPeriod, epochNumber)
-
-	db := p.Store.GetDB()
-	stmt, err := db.Prepare(joinSQL)
-	if err != nil {
-		return errors.Wrap(err, "failed to prepare get query")
+func (p *Protocol) updateHermesDistribution(tx *sql.Tx, chainClient iotexapi.APIServiceClient, receipts []*action.Receipt) error {
+	var needUpdate bool
+	for _, receipt := range receipts {
+		if len(receipt.Logs) != 1 || len(receipt.Logs[0].Topics) != 1 {
+			continue
+		}
+		if emitterIsHermesByTopic(receipt.Logs[0].Topics[0], CommitMsgEmitter) == true {
+			needUpdate = true
+		}
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(joinSQL)
-	if err != nil {
-		return errors.Wrap(err, "failed to execute get query")
-	}
-
-	var info HermesDistributionInfo
-	parsedRows, err := s.ParseSQLRows(rows, &info)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse results")
-	}
-	if len(parsedRows) == 0 {
-		// no need to join
+	if !needUpdate {
 		return nil
 	}
 
-	infoList := make([]*HermesDistributionInfo, 0)
-	for _, parsedRow := range parsedRows {
-		infoList = append(infoList, parsedRow.(*HermesDistributionInfo))
+	account, _ := account.NewAccount()
+	c := iotex.NewAuthedClient(chainClient, account)
+
+	caddr, err := address.FromString(p.hermesConfig.HermesContractAddress)
+	if err != nil {
+		return errors.Wrap(err, "failed to get hermes contract address from string")
+	}
+	hermesABI, err := abi.JSON(strings.NewReader(HermesABI))
+	if err != nil {
+		return errors.Wrap(err, "failed to get form hermes ABI")
+	}
+	data, err := c.Contract(caddr, hermesABI).Read("getEndEpochCount").Call(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to get end epoch count")
+	}
+	var endEpochCount *big.Int
+	if err := data.Unmarshal(&endEpochCount); err != nil {
+		return errors.Wrap(err, "failed to unmarshal end epoch count")
 	}
 
-	return p.insertHermesDistribution(tx, infoList)
-}
-
-func (p *Protocol) insertHermesDistribution(tx *sql.Tx, infoList []*HermesDistributionInfo) error {
-	valStrs := make([]string, 0, len(infoList))
-	valArgs := make([]interface{}, 0, len(infoList))
-	for _, list := range infoList {
-		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
-		valArgs = append(valArgs, list.EpochNumber, list.ActionHash,
-			list.DelegateName, list.VoterAddress, list.Amount, list.Timestamp)
+	if endEpochCount.Cmp(big.NewInt(2)) == -1 {
+		log.L().Warn("End epoch count is less than two")
+		return nil
 	}
-	insertQuery := fmt.Sprintf(insertHermesDistribution, HermesDistributionTableName, strings.Join(valStrs, ","))
+	data, err = c.Contract(caddr, hermesABI).Read("endEpochs", endEpochCount.Sub(endEpochCount, big.NewInt(1))).Call(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to read last end epoch")
+	}
+	var lastEndEpoch *big.Int
+	if err := data.Unmarshal(&lastEndEpoch); err != nil {
+		return errors.Wrap(err, "failed to unmarshal last end epoch")
+	}
 
-	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
+	data, err = c.Contract(caddr, hermesABI).Read("endEpochs", endEpochCount.Sub(endEpochCount, big.NewInt(1))).Call(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to read last end epoch")
+	}
+	var secondToLastEndEpoch *big.Int
+	if err := data.Unmarshal(&secondToLastEndEpoch); err != nil {
+		return errors.Wrap(err, "failed to unmarshal second to last end epoch")
+	}
+
+	insertQuery := fmt.Sprintf(insertHermesDistribution, HermesDistributionTableName, accounts.BalanceHistoryTableName,
+		HermesContractTableName)
+	if _, err := tx.Exec(insertQuery, secondToLastEndEpoch.Uint64(), lastEndEpoch.Uint64(), p.hermesConfig.MultiSendContractAddress); err != nil {
 		return err
 	}
 	return nil
@@ -186,10 +687,10 @@ func (p *Protocol) insertHermesContract(tx *sql.Tx, contractList []HermesContrac
 	return nil
 }
 
-func emiterIsHermesByTopic(logTopic hash.Hash256) bool {
+func emitterIsHermesByTopic(logTopic hash.Hash256, expected string) bool {
 	now := string(logTopic[:])
-	emiter := string(crypto.Keccak256([]byte(HermesMsgEmiter))[:])
-	if strings.Compare(emiter, now) != 0 {
+	emitter := string(crypto.Keccak256([]byte(expected))[:])
+	if strings.Compare(emitter, now) != 0 {
 		return false
 	}
 	return true
@@ -210,7 +711,7 @@ func getDelegateNameFromLog(logs []*action.Log) (string, bool) {
 			continue
 		}
 		emiterTopic := log.Topics[0]
-		if emiterIsHermesByTopic(emiterTopic) == false {
+		if emitterIsHermesByTopic(emiterTopic, DistributeMsgEmitter) == false {
 			continue
 		}
 		delegateNameTopic := log.Topics[1]

@@ -43,6 +43,8 @@ github.com/bwmarrin/discordgo v0.19.0 h1:kMED/DB0NR1QhRcalb85w0Cu3Ep2OrGAqZH1R5a
 github.com/bwmarrin/discordgo v0.19.0/go.mod h1:O9S4p+ofTFwB02em7jkpkV8M3R0/PUVOwN61zSZ0r4Q=
 github.com/cenkalti/backoff v2.1.1+incompatible h1:tKJnvO2kl0zmb/jA5UKAt4VoEVw1qxKWjE/Bpp46npY=
 github.com/cenkalti/backoff v2.1.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
+github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
+github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cespare/cp v1.1.1 h1:nCb6ZLdB7NRaqsm91JtQTAme2SKJzXVsdPIPkyJr1MU=
 github.com/cespare/cp v1.1.1/go.mod h1:SOGHArjBr4JWaSDEVpWpo/hNg6RoKrls6Oh40hiwW+s=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
@@ -166,6 +168,8 @@ github.com/iotexproject/iotex-address v0.2.1 h1:ZJH2ajx5OBrbaRJ0ZWlWUo685zr5kjWi
 github.com/iotexproject/iotex-address v0.2.1/go.mod h1:ONmTqmg6zO7VWF9TcWN+UrreFr/xpazlv9PWOALbLFA=
 github.com/iotexproject/iotex-antenna-go/v2 v2.3.1 h1:iNtR6FQkdyM4KGH+QX12Hoxn1SNOt/kgbbWXCZcmR2Y=
 github.com/iotexproject/iotex-antenna-go/v2 v2.3.1/go.mod h1:a1RO4J126AOdQyfJMxLXCnQ6CBqzaDP9/8x9oVzA5zM=
+github.com/iotexproject/iotex-antenna-go/v2 v2.3.2 h1:xCJa1QYV/f9cSF9z32fFmfTcGb8sYvn1No+uDlgwABA=
+github.com/iotexproject/iotex-antenna-go/v2 v2.3.2/go.mod h1:R6WIWVfZAnpSo8llzEsSoGJgHSYeYamjBqG35oHpgxU=
 github.com/iotexproject/iotex-core v0.8.1-0.20191007232750-b79fb5c7ebaa h1:lNZOniaQZrtdxYsBfEC8dXaXYbHHXhWEDXD/rzwaYEo=
 github.com/iotexproject/iotex-core v0.8.1-0.20191007232750-b79fb5c7ebaa/go.mod h1:PtMmFGr4TS3kB/mtMinXbJ1dN6JBmQCwhJ8NVsh27d0=
 github.com/iotexproject/iotex-election v0.2.5 h1:boKhHmhBBJJ9fX0NZmQTj/x2ySxHSBZqNBVjNnl8PCc=

@@ -21,6 +21,7 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -92,10 +93,10 @@ type Protocol struct {
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, addr indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
+func NewProtocol(store s.Store, cfg indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
 		Store:        store,
-		hermesConfig: addr,
+		hermesConfig: cfg,
 		epochCtx:     epochCtx,
 	}
 }
@@ -140,8 +141,11 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
 
 	hashToActionInfo := make(map[hash.Hash256]*ActionInfo)
+	hermesHashes := make(map[hash.Hash256]bool)
 
 	// log action index
 	for _, selp := range blk.Actions {
@@ -183,9 +187,13 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			Nonce:      nonce,
 			Amount:     amount,
 		}
+		if strings.Compare(dst, p.hermesConfig.HermesContractAddress) == 0 {
+			hermesHashes[actionHash] = true
+		}
 	}
 
 	hashToReceiptInfo := make(map[hash.Hash256]*ReceiptInfo)
+	hermesReceipts := make([]*action.Receipt, 0)
 	for _, receipt := range blk.Receipts {
 		// map receipt to action
 		actionInfo, ok := hashToActionInfo[receipt.ActionHash]
@@ -205,6 +213,9 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			GasConsumed:   receipt.GasConsumed,
 			ReceiptStatus: receiptStatus,
 		}
+		if receiptStatus == "success" && hermesHashes[receipt.ActionHash] {
+			hermesReceipts = append(hermesReceipts, receipt)
+		}
 	}
 
 	err := p.updateActionHistory(tx, hashToActionInfo, hashToReceiptInfo, blk)
@@ -217,15 +228,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return err
 	}
 
-	height := blk.Height()
-	epochNumber := p.epochCtx.GetEpochNumber(height)
-	if epochNumber%p.hermesConfig.HermesJoinPeriod == 0 {
-		if err = p.joinHermes(tx, epochNumber); err != nil {
-			return err
-		}
+	if err := p.updateHermesContract(tx, hermesReceipts, blk.Timestamp().String()); err != nil {
+		return err
 	}
-
-	return p.updateHermes(tx, blk)
+	return p.updateHermesDistribution(tx, chainClient, hermesReceipts)
 }
 
 // getActionHistory returns action history by action hash

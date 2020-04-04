@@ -61,7 +61,6 @@ type (
 	HermesConfig struct {
 		HermesContractAddress    string `yaml:"hermesContractAddress"`
 		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
-		HermesJoinPeriod         uint64 `yaml:"hermesJoinPeriod"`
 	}
 )
 

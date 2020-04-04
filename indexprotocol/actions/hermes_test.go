@@ -43,11 +43,11 @@ func TestEmiterIsHermesByTopic(t *testing.T) {
 	require := require.New(t)
 	emiterTopic, err := stringToHash256("7de680eab607fdcc6137464e40d375ad63446cf255dcea9bd4a19676f7f24f56")
 	require.NoError(err)
-	require.True(emiterIsHermesByTopic(emiterTopic))
+	require.True(emitterIsHermesByTopic(emiterTopic, DistributeMsgEmitter))
 
 	emiterTopic, err = stringToHash256("6a5c4f52260adc90a8637fe2d8fbbc4141b625fa6840fca5f3e5cef6a4992293")
 	require.NoError(err)
-	require.False(emiterIsHermesByTopic(emiterTopic))
+	require.False(emitterIsHermesByTopic(emiterTopic, DistributeMsgEmitter))
 }
 
 func TestGetDelegateNameFromLog(t *testing.T) {
