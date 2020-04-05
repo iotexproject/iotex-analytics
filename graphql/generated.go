@@ -206,7 +206,7 @@ type ComplexityRoot struct {
 
 	Hermes2 struct {
 		ByDelegate func(childComplexity int, delegateName string) int
-		ByVoter    func(childComplexity int, voterName string) int
+		ByVoter    func(childComplexity int, voterAddress string) int
 	}
 
 	HermesAverage struct {
@@ -1136,7 +1136,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Hermes2.ByVoter(childComplexity, args["voterName"].(string)), true
+		return e.complexity.Hermes2.ByVoter(childComplexity, args["voterAddress"].(string)), true
 
 	case "HermesAverage.DelegateName":
 		if e.complexity.HermesAverage.DelegateName == nil {
@@ -2165,7 +2165,7 @@ input EpochRange{
 
 type Hermes2 {
     byDelegate(delegateName: String!): ByDelegateResponse
-    byVoter(voterName: String!): ByVoterResponse
+    byVoter(voterAddress: String!): ByVoterResponse
 }
 
 type VoterInfo {
@@ -2472,13 +2472,13 @@ func (ec *executionContext) field_Hermes2_byVoter_args(ctx context.Context, rawA
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["voterName"]; ok {
+	if tmp, ok := rawArgs["voterAddress"]; ok {
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["voterName"] = arg0
+	args["voterAddress"] = arg0
 	return args, nil
 }
 

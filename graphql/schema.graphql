@@ -296,7 +296,7 @@ input EpochRange{
 
 type Hermes2 {
     byDelegate(delegateName: String!): ByDelegateResponse
-    byVoter(voterName: String!): ByVoterResponse
+    byVoter(voterAddress: String!): ByVoterResponse
 }
 
 type VoterInfo {

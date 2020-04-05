@@ -13,17 +13,27 @@ import (
 )
 
 const (
-	selectHermesDistributionByDelegateName = "SELECT t1.to, t1.amount, t1.action_hash, t2.timestamp " +
-		"FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
-		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash " +
-		"WHERE t2.delegate_name = ? ORDER BY t2.timestamp desc limit ?,?"
-	selectHermesDistributionByVoterAddress = "SELECT t2.delegate_name, t1.amount, t1.action_hash, t2.timestamp " +
-		"FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
-		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash " +
-		"WHERE t1.to = ? ORDER BY t2.timestamp desc limit ?,?"
+	// SelectCountByDelegateName selects the count of Hermes distribution by delegate name
+	SelectCountByDelegateName = selectCount + fromJoinedTables + delegateFilter
+	// SelectCountByVoterAddress selects the count of Hermes distribution by voter address
+	SelectCountByVoterAddress = selectCount + fromJoinedTables + voterFilter
+
+	fromJoinedTables = "FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
+		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash "
+	timeOrdering = "ORDER BY `timestamp` desc limit ?,?"
+
+	selectVoter                            = "SELECT `to`, amount, t1.action_hash, `timestamp` "
+	delegateFilter                         = "WHERE delegate_name = ? "
+	selectHermesDistributionByDelegateName = selectVoter + fromJoinedTables + delegateFilter + timeOrdering
+
+	selectDelegate                         = "SELECT delegate_name, amount, t1.action_hash, `timestamp` "
+	voterFilter                            = "WHERE `to` = ? "
+	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
+
+	selectCount = "SELECT COUNT(*) "
 )
 
-// HermesArg defines hermes request parameters
+// HermesArg defines Hermes request parameters
 type HermesArg struct {
 	StartEpoch int
 	EpochCount int
@@ -39,26 +49,12 @@ type VoterInfo struct {
 	Timestamp    string
 }
 
-// ByDelegateResponse defines response for hermes2 byDelegate request
-type ByDelegateResponse struct {
-	Exist         bool
-	VoterInfoList []*VoterInfo
-	Count         int
-}
-
 // DelegateInfo defines delegate information
 type DelegateInfo struct {
 	DelegateName string
 	Amount       string
 	ActionHash   string
 	Timestamp    string
-}
-
-// ByVoterResponse defines response for hermes2 byVoter request
-type ByVoterResponse struct {
-	Exist            bool
-	DelegateInfoList []*DelegateInfo
-	Count            int
 }
 
 // Protocol defines the protocol of querying tables
@@ -75,13 +71,13 @@ func NewProtocol(idx *indexservice.Indexer, cfg indexprotocol.HermesConfig) *Pro
 	}
 }
 
-// GetHermes2ByDelegate get hermes's voter list by delegate name
-func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) (ByDelegateResponse, error) {
+// GetHermes2ByDelegate gets Hermes voter list by delegate name
+func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) ([]*VoterInfo, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectHermesDistributionByDelegateName, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return ByDelegateResponse{}, errors.Wrap(err, "failed to prepare get query")
+		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
@@ -89,17 +85,16 @@ func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) (ByD
 	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
 		delegateName, arg.Offset, arg.Size)
 	if err != nil {
-		return ByDelegateResponse{}, errors.Wrap(err, "failed to execute get query")
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var voterInfo VoterInfo
 	parsedRows, err := s.ParseSQLRows(rows, &voterInfo)
 	if err != nil {
-		return ByDelegateResponse{}, errors.Wrap(err, "failed to parse results")
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return ByDelegateResponse{Exist: false}, err
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	voterInfoList := make([]*VoterInfo, 0)
@@ -107,38 +102,33 @@ func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) (ByD
 		voterInfoList = append(voterInfoList, parsedRow.(*VoterInfo))
 	}
 
-	return ByDelegateResponse{
-		Exist:         true,
-		VoterInfoList: voterInfoList,
-		Count:         len(voterInfoList),
-	}, nil
+	return voterInfoList, nil
 }
 
-// GetHermes2ByVoter get hermes's delegate list by voter name
-func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterName string) (ByVoterResponse, error) {
+// GetHermes2ByVoter gets Hermes delegate list by voter name
+func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterAddress string) ([]*DelegateInfo, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectHermesDistributionByVoterAddress, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return ByVoterResponse{}, errors.Wrap(err, "failed to prepare get query")
+		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
 	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
-		voterName, arg.Offset, arg.Size)
+		voterAddress, arg.Offset, arg.Size)
 	if err != nil {
-		return ByVoterResponse{}, errors.Wrap(err, "failed to execute get query")
+		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
 	var delegateInfo DelegateInfo
 	parsedRows, err := s.ParseSQLRows(rows, &delegateInfo)
 	if err != nil {
-		return ByVoterResponse{}, errors.Wrap(err, "failed to parse results")
+		return nil, errors.Wrap(err, "failed to parse results")
 	}
 	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return ByVoterResponse{Exist: false}, err
+		return nil, indexprotocol.ErrNotExist
 	}
 
 	delegateInfoList := make([]*DelegateInfo, 0)
@@ -146,9 +136,24 @@ func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterName string) (ByVoterRe
 		delegateInfoList = append(delegateInfoList, parsedRow.(*DelegateInfo))
 	}
 
-	return ByVoterResponse{
-		Exist:            true,
-		DelegateInfoList: delegateInfoList,
-		Count:            len(delegateInfoList),
-	}, nil
+	return delegateInfoList, nil
+}
+
+// GetHermes2Count gets the count of Hermes distributions
+func (p *Protocol) GetHermes2Count(arg HermesArg, selectQuery string, filter string) (int, error) {
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectQuery, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	endEpoch := arg.StartEpoch + arg.EpochCount - 1
+	var count int
+	if err := stmt.QueryRow(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
+		filter).Scan(&count); err != nil {
+		return 0, errors.Wrap(err, "failed to execute get query")
+	}
+	return count, nil
 }

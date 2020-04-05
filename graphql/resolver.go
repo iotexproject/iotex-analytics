@@ -1509,11 +1509,14 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 	}
 
 	res, err := r.HP.GetHermes2ByDelegate(harg, delegateName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get Hermes2ByDelegate")
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get hermes distribution by delegate name")
 	}
 	voterInfoList := make([]*VoterInfo, 0)
-	for _, voterInfo := range res.VoterInfoList {
+	for _, voterInfo := range res {
 		info := &VoterInfo{
 			VoterAddress: voterInfo.VoterAddress,
 			Amount:       voterInfo.Amount,
@@ -1522,19 +1525,23 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		}
 		voterInfoList = append(voterInfoList, info)
 	}
+	count, err := r.HP.GetHermes2Count(harg, hermes2.SelectCountByDelegateName, delegateName)
+	if err != nil {
+		return errors.Wrap(err, "failed to get count of hermes distribution")
+	}
 	actionResponse.ByDelegate = &ByDelegateResponse{
-		Exist:         res.Exist,
+		Exist:         true,
 		VoterInfoList: voterInfoList,
-		Count:         res.Count,
+		Count:         count,
 	}
 	return nil
 }
 
 func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, epochCount int, actionResponse *Hermes2) error {
 	argsMap := parseFieldArguments(ctx, "byVoter", "delegateInfoList")
-	voterName, err := getStringArg(argsMap, "voterName")
+	voterAddress, err := getStringArg(argsMap, "voterAddress")
 	if err != nil {
-		return errors.Wrap(err, "voterName is required")
+		return errors.Wrap(err, "voterAddress is required")
 	}
 	var offset, size uint64
 	paginationMap, err := getPaginationArgs(argsMap)
@@ -1556,12 +1563,15 @@ func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, e
 		Size:       size,
 	}
 
-	res, err := r.HP.GetHermes2ByVoter(harg, voterName)
-	if err != nil {
-		return errors.Wrap(err, "failed to get Hermes2ByVoter")
+	res, err := r.HP.GetHermes2ByVoter(harg, voterAddress)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get hermes distribution by voter address")
 	}
 	delegateInfoList := make([]*DelegateInfo, 0)
-	for _, delegateInfo := range res.DelegateInfoList {
+	for _, delegateInfo := range res {
 		info := &DelegateInfo{
 			DelegateName: delegateInfo.DelegateName,
 			Amount:       delegateInfo.Amount,
@@ -1570,10 +1580,14 @@ func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, e
 		}
 		delegateInfoList = append(delegateInfoList, info)
 	}
+	count, err := r.HP.GetHermes2Count(harg, hermes2.SelectCountByVoterAddress, voterAddress)
+	if err != nil {
+		return errors.Wrap(err, "failed to get count of hermes distribution")
+	}
 	actionResponse.ByVoter = &ByVoterResponse{
-		Exist:            res.Exist,
+		Exist:            true,
 		DelegateInfoList: delegateInfoList,
-		Count:            res.Count,
+		Count:            count,
 	}
 	return nil
 }
