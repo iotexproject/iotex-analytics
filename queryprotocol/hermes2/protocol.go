@@ -1,19 +1,26 @@
 package hermes2
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
-	selectHermesDistributionByDelegateName = "SELECT voter_address, amount, timestamp WHERE epoch_number > ? AND " +
-		"epoch_number < ? AND delegate_name = ? ORDER BY `timestamp` desc limit ?,?"
-	selectHermesDistributionByVoterAddress = "SELECT delegate_name, amount, action_hash, timestamp WHERE epoch_number > ? AND " +
-		"epoch_number < ? AND voter_address = ? ORDER BY `timestamp` desc limit ?,?"
+	selectHermesDistributionByDelegateName = "SELECT t1.to, t1.amount, t1.action_hash, t2.timestamp " +
+		"FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
+		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash " +
+		"WHERE t2.delegate_name = ? ORDER BY t2.timestamp desc limit ?,?"
+	selectHermesDistributionByVoterAddress = "SELECT t2.delegate_name, t1.amount, t1.action_hash, t2.timestamp " +
+		"FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
+		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash " +
+		"WHERE t1.to = ? ORDER BY t2.timestamp desc limit ?,?"
 )
 
 // HermesArg defines hermes request parameters
@@ -56,24 +63,30 @@ type ByVoterResponse struct {
 
 // Protocol defines the protocol of querying tables
 type Protocol struct {
-	indexer *indexservice.Indexer
+	indexer      *indexservice.Indexer
+	hermesConfig indexprotocol.HermesConfig
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(idx *indexservice.Indexer) *Protocol {
-	return &Protocol{indexer: idx}
+func NewProtocol(idx *indexservice.Indexer, cfg indexprotocol.HermesConfig) *Protocol {
+	return &Protocol{
+		indexer:      idx,
+		hermesConfig: cfg,
+	}
 }
 
 // GetHermes2ByDelegate get hermes's voter list by delegate name
 func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) (ByDelegateResponse, error) {
 	db := p.indexer.Store.GetDB()
-	stmt, err := db.Prepare(selectHermesDistributionByDelegateName)
+	getQuery := fmt.Sprintf(selectHermesDistributionByDelegateName, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return ByDelegateResponse{}, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(actions.HermesDistributionTableName, arg.StartEpoch, arg.EpochCount,
+	endEpoch := arg.StartEpoch + arg.EpochCount - 1
+	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
 		delegateName, arg.Offset, arg.Size)
 	if err != nil {
 		return ByDelegateResponse{}, errors.Wrap(err, "failed to execute get query")
@@ -104,13 +117,16 @@ func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) (ByD
 // GetHermes2ByVoter get hermes's delegate list by voter name
 func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterName string) (ByVoterResponse, error) {
 	db := p.indexer.Store.GetDB()
-	stmt, err := db.Prepare(selectHermesDistributionByVoterAddress)
+	getQuery := fmt.Sprintf(selectHermesDistributionByVoterAddress, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return ByVoterResponse{}, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(arg.StartEpoch, arg.EpochCount, voterName, arg.Offset, arg.Size)
+	endEpoch := arg.StartEpoch + arg.EpochCount - 1
+	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
+		voterName, arg.Offset, arg.Size)
 	if err != nil {
 		return ByVoterResponse{}, errors.Wrap(err, "failed to execute get query")
 	}

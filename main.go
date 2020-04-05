@@ -92,7 +92,7 @@ func main() {
 		VP: votings.NewProtocol(idx),
 		AP: actions.NewProtocol(idx),
 		CP: chainmeta.NewProtocol(idx),
-		HP: hermes2.NewProtocol(idx),
+		HP: hermes2.NewProtocol(idx, cfg.HermesConfig),
 	}}))))
 
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)

@@ -21,7 +21,6 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
-	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -141,9 +140,6 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
-	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	chainClient := indexCtx.ChainClient
-
 	hashToActionInfo := make(map[hash.Hash256]*ActionInfo)
 	hermesHashes := make(map[hash.Hash256]bool)
 
@@ -228,10 +224,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return err
 	}
 
-	if err := p.updateHermesContract(tx, hermesReceipts, blk.Timestamp().String()); err != nil {
-		return err
+	if len(hermesReceipts) > 0 {
+		epochNumber := p.epochCtx.GetEpochNumber(blk.Height())
+		return p.updateHermesContract(tx, hermesReceipts, epochNumber, blk.Timestamp().String())
 	}
-	return p.updateHermesDistribution(tx, chainClient, hermesReceipts)
+	return nil
 }
 
 // getActionHistory returns action history by action hash
