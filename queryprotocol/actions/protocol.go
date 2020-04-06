@@ -562,7 +562,6 @@ func (p *Protocol) getCount(addr, selectSQL, table string, isContract bool) (cou
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
 	}
-
 	db := p.indexer.Store.GetDB()
 	var getQuery string
 	if strings.EqualFold(addr, "") {
@@ -574,29 +573,14 @@ func (p *Protocol) getCount(addr, selectSQL, table string, isContract bool) (cou
 	}
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to prepare get query")
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query()
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to execute get query")
-	}
-	type countStruct struct {
-		Count int
-	}
-	var c countStruct
-	parsedRows, err := s.ParseSQLRows(rows, &c)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to parse results")
-	}
-	if len(parsedRows) == 0 {
-		err = indexprotocol.ErrNotExist
-		return 0, err
-	}
-	for _, parsedRow := range parsedRows {
-		r := parsedRow.(*countStruct)
-		count = r.Count
+	if err = stmt.QueryRow().Scan(&count); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
 	}
 	return
 }
