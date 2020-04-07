@@ -56,6 +56,11 @@ const (
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address UNION " +
 		"SELECT t2.epoch_number, t2.address, CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income " +
 		"FROM %s AS t1 RIGHT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address"
+
+	selectIndexInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
+		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
+	createIndex         = "CREATE INDEX %s ON %s (action_hash)"
+	actionHashIndexName = "action_hash_index"
 )
 
 var specialActionHash = hash.ZeroHash256
@@ -108,6 +113,15 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createAccountIncome, AccountIncomeTableName, EpochAddressIndexName)); err != nil {
 		return err
+	}
+	var exist uint64
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectIndexInfo, BalanceHistoryTableName, actionHashIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createIndex, actionHashIndexName, BalanceHistoryTableName)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

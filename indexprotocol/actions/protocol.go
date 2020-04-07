@@ -35,12 +35,14 @@ const (
 	FromIndexName = "from_index"
 	// ToIndexName is the 'to' index name of ActionHistory table
 	ToIndexName             = "to_index"
+	actionTypeIndexName     = "action_type_index"
 	selectActionHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createActionHistoryFromIndex = "CREATE INDEX %s ON %s (`from`)"
 	createActionHistoryToIndex   = "CREATE INDEX %s ON %s (`to`)"
+	createActionHistoryTypeIndex = "CREATE INDEX %s ON %s (`action_type`)"
 	createActionHistory          = "CREATE TABLE IF NOT EXISTS %s " +
-		"(action_type TEXT NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
+		"(action_type VARCHAR(64) NOT NULL, action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, block_height DECIMAL(65, 0) NOT NULL, " +
 		"`from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, gas_price DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, nonce DECIMAL(65, 0) NOT NULL, " +
 		"amount DECIMAL(65, 0) NOT NULL, receipt_status TEXT NOT NULL, PRIMARY KEY (action_hash), FOREIGN KEY (block_height) REFERENCES %s(block_height))"
 	selectActionHistory = "SELECT * FROM %s WHERE action_hash=?"
@@ -124,7 +126,14 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
-
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectActionHistoryInfo, ActionHistoryTableName, actionTypeIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createActionHistoryTypeIndex, actionTypeIndexName, ActionHistoryTableName)); err != nil {
+			return err
+		}
+	}
 	// Prepare Xrc20 tables
 	if err := p.CreateXrc20Tables(ctx); err != nil {
 		return err
