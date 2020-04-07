@@ -36,7 +36,7 @@ const (
 	// ToIndexName is the 'to' index name of ActionHistory table
 	ToIndexName          = "to_index"
 	actionTypeIndexName  = "action_type_index"
-	blockHeightIndexName = "blockheight_index"
+	blockHeightIndexName = "block_height_index"
 
 	selectActionHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
