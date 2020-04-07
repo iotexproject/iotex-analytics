@@ -75,8 +75,10 @@ const (
 	insertProductivity = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, " +
 		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name"
-	backoffInterval = 1
-	numOfRetry      = 1000
+	blockHeightIndexName   = "blockheight_index"
+	createBlockHeightIndex = "CREATE INDEX %s ON %s (block_height)"
+	backoffInterval        = 1
+	numOfRetry             = 1000
 )
 
 type (
@@ -145,6 +147,14 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	}
 	if exist == 0 {
 		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHistoryIndex, TimestampIndexName, BlockHistoryTableName)); err != nil {
+			return err
+		}
+	}
+	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectBlockHistoryInfo, BlockHistoryTableName, blockHeightIndexName)).Scan(&exist); err != nil {
+		return err
+	}
+	if exist == 0 {
+		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createBlockHeightIndex, blockHeightIndexName, BlockHistoryTableName)); err != nil {
 			return err
 		}
 	}
