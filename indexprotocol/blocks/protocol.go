@@ -20,7 +20,6 @@ import (
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
@@ -336,7 +335,7 @@ func (p *Protocol) updateDelegates(
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(height)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}
 	retryInterval := time.Duration(backoffInterval) * time.Minute
 	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
@@ -345,7 +344,10 @@ func (p *Protocol) updateDelegates(
 		if err != nil {
 			return err
 		}
-		gravityChainStartHeight = byteutil.BytesToUint64(readStateRes.GetData())
+		gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
+		if err != nil {
+			return err
+		}
 		if gravityChainStartHeight == 0 {
 			//retry to get chain start height again
 			return errors.New("waiting for fetching next timestamp in election service")
@@ -373,7 +375,7 @@ func (p *Protocol) updateDelegates(
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(epochNumber)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {

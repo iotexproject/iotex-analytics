@@ -10,11 +10,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/go-pkgs/byteutil"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
@@ -64,7 +64,7 @@ func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint
 	request := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte("poll"),
 		MethodName: []byte("ProbationListByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(epochNum)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNum, 10))},
 	}
 	out, err := cli.ReadState(context.Background(), request)
 	if err != nil {

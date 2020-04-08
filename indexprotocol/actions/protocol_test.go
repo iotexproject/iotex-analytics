@@ -11,13 +11,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -74,7 +74,7 @@ func TestProtocol(t *testing.T) {
 	})
 
 	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
+		Data: []byte(strconv.FormatUint(uint64(1000), 10)),
 	}, nil)
 	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.CandidateResponse{
@@ -93,7 +93,7 @@ func TestProtocol(t *testing.T) {
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(uint64(1), 10))},
 	}
 	candidateList := state.CandidateList{
 		{

@@ -11,13 +11,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -70,10 +70,10 @@ func TestProtocol(t *testing.T) {
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(blk1.Height())},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk1.Height(), 10))},
 	}
 	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
+		Data: []byte(strconv.FormatUint(1000, 10)),
 	}, nil)
 	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
 		&api.CandidateResponse{
@@ -92,7 +92,7 @@ func TestProtocol(t *testing.T) {
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(1))},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}
 	candidateList := state.CandidateList{
 		{
@@ -122,16 +122,16 @@ func TestProtocol(t *testing.T) {
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(blk2.Height())},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk2.Height(), 10))},
 	}
 	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1100)),
+		Data: []byte(strconv.FormatUint(uint64(1100), 10)),
 	}, nil)
 
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(uint64(2))},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(uint64(2), 10))},
 	}
 	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,

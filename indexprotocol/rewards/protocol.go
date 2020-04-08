@@ -26,7 +26,6 @@ import (
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 
@@ -345,13 +344,16 @@ func (p *Protocol) updateCandidateRewardAddress(
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(height)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get gravity chain start height")
 	}
-	gravityChainStartHeight := byteutil.BytesToUint64(readStateRes.GetData())
+	gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
+	if err != nil {
+		return err
+	}
 
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),

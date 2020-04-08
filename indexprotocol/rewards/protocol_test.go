@@ -10,12 +10,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
 	mock_election "github.com/iotexproject/iotex-election/test/mock/mock_apiserviceclient"
@@ -66,7 +66,7 @@ func TestProtocol(t *testing.T) {
 	})
 
 	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
+		Data: []byte(strconv.FormatUint(uint64(1000), 10)),
 	}, nil)
 	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.CandidateResponse{
