@@ -23,12 +23,9 @@ const (
 	// HermesContractTableName is the table name of hermes contract
 	HermesContractTableName = "hermes_contract"
 
-	selectHermesContractInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
-		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
-	actionHashIndexName                 = "action_hash_index"
-	createHermesContractActionHashIndex = "CREATE UNIQUE INDEX %s ON %s (`action_hash`)"
-	createHermesContract                = "CREATE TABLE IF NOT EXISTS %s " +
-		"(epoch_number DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(255) NOT NULL, timestamp VARCHAR(128) NOT NULL)"
+	createHermesContract = "CREATE TABLE IF NOT EXISTS %s " +
+		"(epoch_number DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(255) NOT NULL, " +
+		"timestamp VARCHAR(128) NOT NULL, PRIMARY KEY (action_hash))"
 	insertHermesContract = "INSERT INTO %s (epoch_number, action_hash, delegate_name, timestamp) VALUES %s"
 
 	// DistributeMsgEmitter represents the distribute event in hermes contract
@@ -47,15 +44,6 @@ type HermesContractInfo struct {
 func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 	if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createHermesContract, HermesContractTableName)); err != nil {
 		return err
-	}
-	var exist uint64
-	if err := p.Store.GetDB().QueryRow(fmt.Sprintf(selectHermesContractInfo, HermesContractTableName, actionHashIndexName)).Scan(&exist); err != nil {
-		return err
-	}
-	if exist == 0 {
-		if _, err := p.Store.GetDB().Exec(fmt.Sprintf(createHermesContractActionHashIndex, actionHashIndexName, HermesContractTableName)); err != nil {
-			return err
-		}
 	}
 	return nil
 }
