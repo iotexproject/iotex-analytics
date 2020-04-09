@@ -9,6 +9,7 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-core/action/protocol/poll"
-	"github.com/iotexproject/iotex-core/pkg/util/byteutil"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -79,17 +79,17 @@ func TestProtocol(t *testing.T) {
 	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(1)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}
 	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: byteutil.Uint64ToBytes(uint64(1000)),
+		Data: []byte(strconv.FormatUint(1000, 10)),
 	}, nil)
 
 	// second call ProbationListByEpoch
 	probationListByEpochRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ProbationListByEpoch"),
-		Arguments:  [][]byte{byteutil.Uint64ToBytes(2)},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
 	}
 	pb := &iotextypes.ProbationCandidateList{}
 	data, err := proto.Marshal(pb)
