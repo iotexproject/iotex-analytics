@@ -625,17 +625,13 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 	case err != nil:
 		return errors.Wrap(err, "failed to get pagination arguments for actions")
 	}
-	count, err := r.AP.GetActionCountByDates(uint64(startDate), uint64(endDate))
-	if err != nil {
-		errors.Wrap(err, "get actions' count")
-	}
 	actionInfoList, err := r.AP.GetActionsByDates(uint64(startDate), uint64(endDate), offset, size)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		actionResponse.ByDates = &ActionList{Exist: false}
 		return nil
 	case err != nil:
-		return errors.Wrap(err, "failed to get actions' information")
+		return errors.Wrap(err, "failed to get actions' information by dates")
 	}
 
 	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
@@ -651,7 +647,10 @@ func (r *queryResolver) getActionsByDates(ctx context.Context, actionResponse *A
 			GasFee:    act.GasFee,
 		})
 	}
-
+	count, err := r.AP.GetActionCountByDates(uint64(startDate), uint64(endDate))
+	if err != nil {
+		errors.Wrap(err, "get actions' count by dates")
+	}
 	actionResponse.ByDates = &ActionList{Exist: true, Actions: actInfoList, Count: count}
 
 	return nil
@@ -674,14 +673,14 @@ func (r *queryResolver) getActionsByType(ctx context.Context, actionResponse *Ac
 	}
 	offset := paginationMap["skip"]
 	size := paginationMap["first"]
-	actionResponse.ByType = &ActionList{Exist: false}
-	count, err := r.AP.GetActionCountByType(actionType)
-	if err != nil {
-		return errors.Wrap(err, "failed to get actions' count by type")
-	}
+
 	actionInfoList, err := r.AP.GetActionsByType(actionType, offset, size)
-	if err != nil {
-		return errors.Wrap(err, "failed to get actions' information")
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByType = &ActionList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get actions' information by type")
 	}
 	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
 	for _, act := range actionInfoList {
@@ -695,6 +694,10 @@ func (r *queryResolver) getActionsByType(ctx context.Context, actionResponse *Ac
 			Amount:    act.Amount,
 			GasFee:    act.GasFee,
 		})
+	}
+	count, err := r.AP.GetActionCountByType(actionType)
+	if err != nil {
+		return errors.Wrap(err, "failed to get actions' count by type")
 	}
 	actionResponse.ByType = &ActionList{Exist: true, Actions: actInfoList, Count: count}
 	return nil
