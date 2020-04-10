@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -13,8 +15,11 @@ import (
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -163,6 +168,22 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 	}
 
+	// get evm transfers by block height
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
+	request := &iotexapi.GetEvmTransfersByBlockHeightRequest{BlockHeight: blk.Height()}
+
+	response, err := chainClient.GetEvmTransfersByBlockHeight(ctx, request)
+	if err != nil && status.Code(err) != codes.NotFound {
+		return errors.Wrap(err, "failed to get evm transfers by block height")
+	}
+
+	actToEvmTransfers := make(map[hash.Hash256]*iotextypes.ActionEvmTransfer)
+	for _, actEvmTransfers := range response.BlockEvmTransfers.ActionEvmTransfers {
+		actHash := hash.BytesToHash256(actEvmTransfers.ActionHash)
+		actToEvmTransfers[actHash] = actEvmTransfers
+	}
+
 	for _, selp := range blk.Actions {
 		actionHash := selp.Hash()
 		src, dst, err := getsrcAndDst(selp)
@@ -187,6 +208,18 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			actionType := "claimFromRewardingFund"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, src, "", act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		case *action.Execution:
+			evmTransfers, ok := actToEvmTransfers[actionHash]
+			if ok {
+				actionType := "execution"
+				for _, evmTransfer := range evmTransfers.EvmTransfers {
+					amount := new(big.Int).SetBytes(evmTransfer.Amount)
+					if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType,
+						evmTransfer.To, evmTransfer.From, amount.String()); err != nil {
+						return errors.Wrapf(err, "failed to update balance history on height %d", height)
+					}
+				}
 			}
 		}
 	}

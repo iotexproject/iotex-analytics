@@ -15,14 +15,13 @@ require (
 	github.com/iotexproject/iotex-antenna-go/v2 v2.3.2
 	github.com/iotexproject/iotex-core v0.8.1-0.20191007232750-b79fb5c7ebaa
 	github.com/iotexproject/iotex-election v0.2.7-0.20191008203349-58450eac6656
-	github.com/iotexproject/iotex-proto v0.2.6-0.20200327040553-157f35632918
+	github.com/iotexproject/iotex-proto v0.2.6-0.20200402191724-24f4101d4987
 	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/testify v1.3.0
 	github.com/vektah/gqlparser v1.1.2
 	go.opencensus.io v0.22.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
 	golang.org/x/tools v0.0.0-20200318150045-ba25ddc85566 // indirect
