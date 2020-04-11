@@ -47,6 +47,7 @@ type Account {
     alias(operatorAddress: String!): Alias
     operatorAddress(aliasName: String!): OperatorAddress
     totalNumberOfHolders: Int!
+    totalSupply :String!
 }
 
 type Action {
