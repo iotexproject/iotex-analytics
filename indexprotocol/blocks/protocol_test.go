@@ -17,7 +17,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -68,7 +67,7 @@ func TestProtocol(t *testing.T) {
 	})
 
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte("poll"),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk1.Height(), 10))},
 	}
@@ -90,7 +89,7 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte("poll"),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}
@@ -120,7 +119,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 
 	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte("poll"),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk2.Height(), 10))},
 	}
@@ -129,7 +128,7 @@ func TestProtocol(t *testing.T) {
 	}, nil)
 
 	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte("poll"),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
 	}

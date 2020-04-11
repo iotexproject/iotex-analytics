@@ -7,8 +7,14 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -23,7 +29,11 @@ func TestProtocol(t *testing.T) {
 	defer ctrl.Finish()
 
 	require := require.New(t)
-	ctx := context.Background()
+
+	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
+	ctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient: chainClient,
+	})
 
 	testutil.CleanupDatabase(t, connectStr, dbName)
 
@@ -42,9 +52,17 @@ func TestProtocol(t *testing.T) {
 	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
 
+	request := &iotexapi.GetEvmTransfersByBlockHeightRequest{BlockHeight: 1}
+	chainClient.EXPECT().GetEvmTransfersByBlockHeight(gomock.Any(), request).Times(1).Return(nil,
+		status.Error(codes.NotFound, ""))
+
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
+
+	request.BlockHeight = 2
+	chainClient.EXPECT().GetEvmTransfersByBlockHeight(gomock.Any(), request).Times(1).Return(nil,
+		status.Error(codes.NotFound, ""))
 
 	blk2, err := testutil.BuildEmptyBlock(2)
 	require.NoError(err)
