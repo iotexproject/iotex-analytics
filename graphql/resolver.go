@@ -132,8 +132,8 @@ func (r *queryResolver) Account(ctx context.Context) (*Account, error) {
 	if containField(requestedFields, "totalNumberOfHolders") {
 		g.Go(func() error { return r.getTotalNumberOfHolders(ctx, accountResponse) })
 	}
-	if containField(requestedFields, "totalSupply") {
-		g.Go(func() error { return r.getTotalSupply(ctx, accountResponse) })
+	if containField(requestedFields, "totalAccountSupply") {
+		g.Go(func() error { return r.getTotalAccountSupply(ctx, accountResponse) })
 	}
 	return accountResponse, g.Wait()
 }
@@ -426,12 +426,12 @@ func (r *queryResolver) getTotalNumberOfHolders(ctx context.Context, accountResp
 	return nil
 }
 
-func (r *queryResolver) getTotalSupply(ctx context.Context, accountResponse *Account) error {
-	num, err := r.AP.GetTotalSupply()
+func (r *queryResolver) getTotalAccountSupply(ctx context.Context, accountResponse *Account) error {
+	num, err := r.AP.GetTotalAccountSupply()
 	if err != nil {
 		return errors.Wrap(err, "failed to get total num of Supply")
 	}
-	accountResponse.TotalSupply = num
+	accountResponse.TotalAccountSupply = num
 	return nil
 }
 

@@ -7,7 +7,7 @@ type Account struct {
 	Alias                *Alias           `json:"alias"`
 	OperatorAddress      *OperatorAddress `json:"operatorAddress"`
 	TotalNumberOfHolders int              `json:"totalNumberOfHolders"`
-	TotalSupply          string           `json:"totalSupply"`
+	TotalAccountSupply   string           `json:"totalAccountSupply"`
 }
 
 type Action struct {

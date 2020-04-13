@@ -55,7 +55,7 @@ const (
 	selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
 	selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
 	selectTotalNumberOfHolders = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
-	selectTotalSupply          = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
+	selectTotalAccountSupply   = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
 )
 
 type activeAccount struct {
@@ -822,13 +822,13 @@ func (p *Protocol) GetTotalNumberOfHolders() (count int, err error) {
 	return
 }
 
-// GetTotalSupply gets balance of all accounts
-func (p *Protocol) GetTotalSupply() (count string, err error) {
+// GetTotalAccountSupply gets balance of all accounts
+func (p *Protocol) GetTotalAccountSupply() (count string, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return "0", errors.New("actions protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectTotalSupply, accounts.AccountIncomeTableName)
+	getQuery := fmt.Sprintf(selectTotalAccountSupply, accounts.AccountIncomeTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")

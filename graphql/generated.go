@@ -44,8 +44,8 @@ type ComplexityRoot struct {
 		ActiveAccounts       func(childComplexity int, count int) int
 		Alias                func(childComplexity int, operatorAddress string) int
 		OperatorAddress      func(childComplexity int, aliasName string) int
+		TotalAccountSupply   func(childComplexity int) int
 		TotalNumberOfHolders func(childComplexity int) int
-		TotalSupply          func(childComplexity int) int
 	}
 
 	Action struct {
@@ -422,19 +422,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Account.OperatorAddress(childComplexity, args["aliasName"].(string)), true
 
+	case "Account.TotalAccountSupply":
+		if e.complexity.Account.TotalAccountSupply == nil {
+			break
+		}
+
+		return e.complexity.Account.TotalAccountSupply(childComplexity), true
+
 	case "Account.TotalNumberOfHolders":
 		if e.complexity.Account.TotalNumberOfHolders == nil {
 			break
 		}
 
 		return e.complexity.Account.TotalNumberOfHolders(childComplexity), true
-
-	case "Account.TotalSupply":
-		if e.complexity.Account.TotalSupply == nil {
-			break
-		}
-
-		return e.complexity.Account.TotalSupply(childComplexity), true
 
 	case "Action.ByAddress":
 		if e.complexity.Action.ByAddress == nil {
@@ -1924,7 +1924,7 @@ type Account {
     alias(operatorAddress: String!): Alias
     operatorAddress(aliasName: String!): OperatorAddress
     totalNumberOfHolders: Int!
-    totalSupply :String!
+    totalAccountSupply :String!
 }
 
 type Action {
@@ -3095,7 +3095,7 @@ func (ec *executionContext) _Account_totalNumberOfHolders(ctx context.Context, f
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_totalSupply(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
+func (ec *executionContext) _Account_totalAccountSupply(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -3108,7 +3108,7 @@ func (ec *executionContext) _Account_totalSupply(ctx context.Context, field grap
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.TotalSupply, nil
+		return obj.TotalAccountSupply, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -8824,8 +8824,8 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
-		case "totalSupply":
-			out.Values[i] = ec._Account_totalSupply(ctx, field, obj)
+		case "totalAccountSupply":
+			out.Values[i] = ec._Account_totalAccountSupply(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
