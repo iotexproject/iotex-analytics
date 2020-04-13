@@ -44,6 +44,7 @@ type ComplexityRoot struct {
 		ActiveAccounts       func(childComplexity int, count int) int
 		Alias                func(childComplexity int, operatorAddress string) int
 		OperatorAddress      func(childComplexity int, aliasName string) int
+		TotalAccountSupply   func(childComplexity int) int
 		TotalNumberOfHolders func(childComplexity int) int
 	}
 
@@ -420,6 +421,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Account.OperatorAddress(childComplexity, args["aliasName"].(string)), true
+
+	case "Account.TotalAccountSupply":
+		if e.complexity.Account.TotalAccountSupply == nil {
+			break
+		}
+
+		return e.complexity.Account.TotalAccountSupply(childComplexity), true
 
 	case "Account.TotalNumberOfHolders":
 		if e.complexity.Account.TotalNumberOfHolders == nil {
@@ -1916,6 +1924,7 @@ type Account {
     alias(operatorAddress: String!): Alias
     operatorAddress(aliasName: String!): OperatorAddress
     totalNumberOfHolders: Int!
+    totalAccountSupply :String!
 }
 
 type Action {
@@ -3084,6 +3093,33 @@ func (ec *executionContext) _Account_totalNumberOfHolders(ctx context.Context, f
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Account_totalAccountSupply(ctx context.Context, field graphql.CollectedField, obj *Account) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Account",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalAccountSupply, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Action_byDates(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
@@ -8785,6 +8821,11 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Account_operatorAddress(ctx, field, obj)
 		case "totalNumberOfHolders":
 			out.Values[i] = ec._Account_totalNumberOfHolders(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalAccountSupply":
+			out.Values[i] = ec._Account_totalAccountSupply(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
