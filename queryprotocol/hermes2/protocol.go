@@ -22,11 +22,11 @@ const (
 		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash "
 	timeOrdering = "ORDER BY `timestamp` desc limit ?,?"
 
-	selectVoter                            = "SELECT `to`, amount, t1.action_hash, `timestamp` "
+	selectVoter                            = "SELECT `to`, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	delegateFilter                         = "WHERE delegate_name = ? "
 	selectHermesDistributionByDelegateName = selectVoter + fromJoinedTables + delegateFilter + timeOrdering
 
-	selectDelegate                         = "SELECT delegate_name, amount, t1.action_hash, `timestamp` "
+	selectDelegate                         = "SELECT delegate_name, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 
@@ -44,6 +44,8 @@ type HermesArg struct {
 // VoterInfo defines voter information
 type VoterInfo struct {
 	VoterAddress string
+	FromEpoch    uint64
+	ToEpoch      uint64
 	Amount       string
 	ActionHash   string
 	Timestamp    string
@@ -52,6 +54,8 @@ type VoterInfo struct {
 // DelegateInfo defines delegate information
 type DelegateInfo struct {
 	DelegateName string
+	FromEpoch    uint64
+	ToEpoch      uint64
 	Amount       string
 	ActionHash   string
 	Timestamp    string

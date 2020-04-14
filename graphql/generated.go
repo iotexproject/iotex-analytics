@@ -176,7 +176,9 @@ type ComplexityRoot struct {
 		ActionHash   func(childComplexity int) int
 		Amount       func(childComplexity int) int
 		DelegateName func(childComplexity int) int
+		FromEpoch    func(childComplexity int) int
 		Timestamp    func(childComplexity int) int
+		ToEpoch      func(childComplexity int) int
 	}
 
 	EvmTransfer struct {
@@ -292,7 +294,9 @@ type ComplexityRoot struct {
 	VoterInfo struct {
 		ActionHash   func(childComplexity int) int
 		Amount       func(childComplexity int) int
+		FromEpoch    func(childComplexity int) int
 		Timestamp    func(childComplexity int) int
+		ToEpoch      func(childComplexity int) int
 		VoterAddress func(childComplexity int) int
 	}
 
@@ -1012,12 +1016,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DelegateInfo.DelegateName(childComplexity), true
 
+	case "DelegateInfo.FromEpoch":
+		if e.complexity.DelegateInfo.FromEpoch == nil {
+			break
+		}
+
+		return e.complexity.DelegateInfo.FromEpoch(childComplexity), true
+
 	case "DelegateInfo.Timestamp":
 		if e.complexity.DelegateInfo.Timestamp == nil {
 			break
 		}
 
 		return e.complexity.DelegateInfo.Timestamp(childComplexity), true
+
+	case "DelegateInfo.ToEpoch":
+		if e.complexity.DelegateInfo.ToEpoch == nil {
+			break
+		}
+
+		return e.complexity.DelegateInfo.ToEpoch(childComplexity), true
 
 	case "EvmTransfer.From":
 		if e.complexity.EvmTransfer.From == nil {
@@ -1491,12 +1509,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.VoterInfo.Amount(childComplexity), true
 
+	case "VoterInfo.FromEpoch":
+		if e.complexity.VoterInfo.FromEpoch == nil {
+			break
+		}
+
+		return e.complexity.VoterInfo.FromEpoch(childComplexity), true
+
 	case "VoterInfo.Timestamp":
 		if e.complexity.VoterInfo.Timestamp == nil {
 			break
 		}
 
 		return e.complexity.VoterInfo.Timestamp(childComplexity), true
+
+	case "VoterInfo.ToEpoch":
+		if e.complexity.VoterInfo.ToEpoch == nil {
+			break
+		}
+
+		return e.complexity.VoterInfo.ToEpoch(childComplexity), true
 
 	case "VoterInfo.VoterAddress":
 		if e.complexity.VoterInfo.VoterAddress == nil {
@@ -2179,6 +2211,8 @@ type Hermes2 {
 
 type VoterInfo {
     voterAddress: String!
+    fromEpoch: Int!
+    toEpoch: Int!
     amount: String!
     actionHash: String!
     timestamp: String!
@@ -2192,6 +2226,8 @@ type ByDelegateResponse {
 
 type DelegateInfo {
     delegateName: String!
+    fromEpoch: Int!
+    toEpoch: Int!
     amount: String!
     actionHash: String!
     timestamp: String!
@@ -5091,6 +5127,60 @@ func (ec *executionContext) _DelegateInfo_delegateName(ctx context.Context, fiel
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _DelegateInfo_fromEpoch(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "DelegateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FromEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _DelegateInfo_toEpoch(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "DelegateInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ToEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _DelegateInfo_amount(ctx context.Context, field graphql.CollectedField, obj *DelegateInfo) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6872,6 +6962,60 @@ func (ec *executionContext) _VoterInfo_voterAddress(ctx context.Context, field g
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VoterInfo_fromEpoch(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VoterInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FromEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _VoterInfo_toEpoch(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "VoterInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ToEpoch, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _VoterInfo_amount(ctx context.Context, field graphql.CollectedField, obj *VoterInfo) graphql.Marshaler {
@@ -9563,6 +9707,16 @@ func (ec *executionContext) _DelegateInfo(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "fromEpoch":
+			out.Values[i] = ec._DelegateInfo_fromEpoch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "toEpoch":
+			out.Values[i] = ec._DelegateInfo_toEpoch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "amount":
 			out.Values[i] = ec._DelegateInfo_amount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -10342,6 +10496,16 @@ func (ec *executionContext) _VoterInfo(ctx context.Context, sel ast.SelectionSet
 			out.Values[i] = graphql.MarshalString("VoterInfo")
 		case "voterAddress":
 			out.Values[i] = ec._VoterInfo_voterAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "fromEpoch":
+			out.Values[i] = ec._VoterInfo_fromEpoch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "toEpoch":
+			out.Values[i] = ec._VoterInfo_toEpoch(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

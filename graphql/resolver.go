@@ -1544,6 +1544,8 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 	for _, voterInfo := range res {
 		info := &VoterInfo{
 			VoterAddress: voterInfo.VoterAddress,
+			FromEpoch:    int(voterInfo.FromEpoch),
+			ToEpoch:      int(voterInfo.ToEpoch),
 			Amount:       voterInfo.Amount,
 			ActionHash:   voterInfo.ActionHash,
 			Timestamp:    voterInfo.Timestamp,
@@ -1599,6 +1601,8 @@ func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, e
 	for _, delegateInfo := range res {
 		info := &DelegateInfo{
 			DelegateName: delegateInfo.DelegateName,
+			FromEpoch:    int(delegateInfo.FromEpoch),
+			ToEpoch:      int(delegateInfo.ToEpoch),
 			Amount:       delegateInfo.Amount,
 			ActionHash:   delegateInfo.ActionHash,
 			Timestamp:    delegateInfo.Timestamp,
