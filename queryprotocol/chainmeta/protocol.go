@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	selectBlockHistory    = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
-	selectBlockHistorySum = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?"
+	selectBlockHistory     = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
+	selectBlockHistorySum  = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult) FROM %s WHERE epoch_number>=? and epoch_number<=?"
+	selectTotalTransferred = "select sum(amount) from %s where epoch_number>=? and epoch_number<=?"
 )
 
 // Protocol defines the protocol of querying tables
@@ -147,6 +149,34 @@ func (p *Protocol) GetNumberOfActions(startEpoch uint64, epochCount uint64) (num
 	defer stmt.Close()
 
 	if err = stmt.QueryRow(startEpoch, endEpoch).Scan(&numberOfActions); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
+
+// GetTotalTransferredTokens gets number of actions
+func (p *Protocol) GetTotalTransferredTokens(startEpoch uint64, epochCount uint64) (total string, err error) {
+	db := p.indexer.Store.GetDB()
+	currentEpoch, _, err := chainmetautil.GetCurrentEpochAndHeight(p.indexer.Registry, p.indexer.Store)
+	if err != nil {
+		err = errors.Wrap(err, "failed to get current epoch")
+		return
+	}
+	if startEpoch > currentEpoch {
+		err = indexprotocol.ErrNotExist
+		return
+	}
+	endEpoch := startEpoch + epochCount - 1
+	getQuery := fmt.Sprintf(selectTotalTransferred, accounts.BalanceHistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+	defer stmt.Close()
+
+	if err = stmt.QueryRow(startEpoch, endEpoch).Scan(&total); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}

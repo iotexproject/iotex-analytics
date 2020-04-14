@@ -113,11 +113,12 @@ type CandidateMeta struct {
 }
 
 type Chain struct {
-	MostRecentEpoch       int               `json:"mostRecentEpoch"`
-	MostRecentBlockHeight int               `json:"mostRecentBlockHeight"`
-	VotingResultMeta      *VotingResultMeta `json:"votingResultMeta"`
-	MostRecentTps         float64           `json:"mostRecentTPS"`
-	NumberOfActions       *NumberOfActions  `json:"numberOfActions"`
+	MostRecentEpoch        int               `json:"mostRecentEpoch"`
+	MostRecentBlockHeight  int               `json:"mostRecentBlockHeight"`
+	VotingResultMeta       *VotingResultMeta `json:"votingResultMeta"`
+	MostRecentTps          float64           `json:"mostRecentTPS"`
+	NumberOfActions        *NumberOfActions  `json:"numberOfActions"`
+	TotalTransferredTokens string            `json:"totalTransferredTokens"`
 }
 
 type Delegate struct {

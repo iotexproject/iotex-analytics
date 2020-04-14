@@ -151,11 +151,12 @@ type ComplexityRoot struct {
 	}
 
 	Chain struct {
-		MostRecentBlockHeight func(childComplexity int) int
-		MostRecentEpoch       func(childComplexity int) int
-		MostRecentTps         func(childComplexity int, blockWindow int) int
-		NumberOfActions       func(childComplexity int, pagination *EpochRange) int
-		VotingResultMeta      func(childComplexity int) int
+		MostRecentBlockHeight  func(childComplexity int) int
+		MostRecentEpoch        func(childComplexity int) int
+		MostRecentTps          func(childComplexity int, blockWindow int) int
+		NumberOfActions        func(childComplexity int, pagination *EpochRange) int
+		TotalTransferredTokens func(childComplexity int, pagination *EpochRange) int
+		VotingResultMeta       func(childComplexity int) int
 	}
 
 	Delegate struct {
@@ -922,6 +923,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Chain.NumberOfActions(childComplexity, args["pagination"].(*EpochRange)), true
+
+	case "Chain.TotalTransferredTokens":
+		if e.complexity.Chain.TotalTransferredTokens == nil {
+			break
+		}
+
+		args, err := ec.field_Chain_totalTransferredTokens_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Chain.TotalTransferredTokens(childComplexity, args["pagination"].(*EpochRange)), true
 
 	case "Chain.VotingResultMeta":
 		if e.complexity.Chain.VotingResultMeta == nil {
@@ -2114,6 +2127,7 @@ type Chain {
     votingResultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
+    totalTransferredTokens(pagination: EpochRange): String!
 }
 
 type NumberOfActions{
@@ -2414,6 +2428,20 @@ func (ec *executionContext) field_Chain_mostRecentTPS_args(ctx context.Context, 
 }
 
 func (ec *executionContext) field_Chain_numberOfActions_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *EpochRange
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg0, err = ec.unmarshalOEpochRange2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐEpochRange(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Chain_totalTransferredTokens_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 *EpochRange
@@ -4854,6 +4882,40 @@ func (ec *executionContext) _Chain_numberOfActions(ctx context.Context, field gr
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalONumberOfActions2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfActions(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Chain_totalTransferredTokens(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Chain",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Chain_totalTransferredTokens_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalTransferredTokens, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Delegate_reward(ctx context.Context, field graphql.CollectedField, obj *Delegate) graphql.Marshaler {
@@ -9467,6 +9529,11 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "numberOfActions":
 			out.Values[i] = ec._Chain_numberOfActions(ctx, field, obj)
+		case "totalTransferredTokens":
+			out.Values[i] = ec._Chain_totalTransferredTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
