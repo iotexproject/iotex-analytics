@@ -422,7 +422,7 @@ func (p *Protocol) GetXrc721TransactionCount(address string) (count int, err err
 
 // GetXrc20HistoryCount gets xrc20 transaction count by topics
 func (p *Protocol) GetXrc20HistoryCount(addr string) (count int, err error) {
-	getQuery := fmt.Sprintf(selectXrcHistoryCount, actions.Xrc20HistoryTableName, addr)
+	getQuery := fmt.Sprintf(selectXrcHistoryCount, actions.Xrc20HistoryTableName, addrToLike(addr))
 	return p.getCount(getQuery)
 }
 
