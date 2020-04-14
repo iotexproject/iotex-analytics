@@ -180,7 +180,9 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	if containField(requestedFields, "numberOfActions") {
 		g.Go(func() error { return r.getNumberOfActions(ctx, chainResponse) })
 	}
-
+	if containField(requestedFields, "totalTransferredTokens") {
+		g.Go(func() error { return r.gettotalTransferredTokens(ctx, chainResponse) })
+	}
 	return chainResponse, g.Wait()
 }
 
@@ -1190,6 +1192,35 @@ func (r *queryResolver) getNumberOfActions(ctx context.Context, chainResponse *C
 		}
 	}
 	chainResponse.NumberOfActions = &NumberOfActions{Exist: true, Count: int(numberOfActions)}
+	return nil
+}
+
+func (r *queryResolver) gettotalTransferredTokens(ctx context.Context, chainResponse *Chain) error {
+	argsMap := parseFieldArguments(ctx, "totalTransferredTokens", "")
+	var startEpoch, epochCount uint64
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	case err == ErrPaginationNotFound:
+		startEpoch = 0
+		epochCount = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for total transferred tokens")
+	default:
+		startEpoch = paginationMap["startEpoch"]
+		epochCount = paginationMap["epochCount"]
+	}
+	if startEpoch < 1 || epochCount < 0 {
+		return errors.New("invalid start epoch number or epoch count for getting total transferred tokens")
+	}
+	total, err := r.CP.GetTotalTransferredTokens(uint64(startEpoch), uint64(epochCount))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		chainResponse.TotalTransferredTokens = "0"
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get total transferred tokens")
+	}
+	chainResponse.TotalTransferredTokens = total
 	return nil
 }
 

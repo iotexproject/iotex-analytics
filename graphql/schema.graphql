@@ -237,6 +237,7 @@ type Chain {
     votingResultMeta: VotingResultMeta
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
+    totalTransferredTokens(pagination: EpochRange): String!
 }
 
 type NumberOfActions{
