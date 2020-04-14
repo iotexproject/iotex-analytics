@@ -341,7 +341,7 @@ func (p *Protocol) updateCandidateRewardAddress(
 	height uint64,
 ) error {
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}

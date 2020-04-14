@@ -90,7 +90,7 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}

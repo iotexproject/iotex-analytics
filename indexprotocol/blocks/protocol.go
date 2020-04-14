@@ -332,7 +332,7 @@ func (p *Protocol) updateDelegates(
 ) error {
 	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}
@@ -372,7 +372,7 @@ func (p *Protocol) updateDelegates(
 	}
 
 	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
 	}

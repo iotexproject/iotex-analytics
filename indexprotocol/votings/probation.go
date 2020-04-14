@@ -19,6 +19,8 @@ import (
 
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
+
+	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
 const (
@@ -67,7 +69,7 @@ func (p *Protocol) updateProbationListTable(cli iotexapi.APIServiceClient, epoch
 
 func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint64) (*iotextypes.ProbationCandidateList, error) {
 	request := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ProbationListByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNum, 10))},
 	}

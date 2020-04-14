@@ -526,7 +526,7 @@ func (p *Protocol) getGravityChainStartHeight(
 	height uint64,
 ) (uint64, error) {
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}

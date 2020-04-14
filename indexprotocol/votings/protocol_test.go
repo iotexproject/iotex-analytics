@@ -76,7 +76,7 @@ func TestProtocol(t *testing.T) {
 
 	// first call GetGravityChainStartHeight
 	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}
