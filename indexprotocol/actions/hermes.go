@@ -12,9 +12,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/pkg/errors"
+
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-core/action"
 )
@@ -24,18 +28,24 @@ const (
 	HermesContractTableName = "hermes_contract"
 
 	createHermesContract = "CREATE TABLE IF NOT EXISTS %s " +
-		"(epoch_number DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, delegate_name VARCHAR(255) NOT NULL, " +
-		"timestamp VARCHAR(128) NOT NULL, PRIMARY KEY (action_hash))"
-	insertHermesContract = "INSERT INTO %s (epoch_number, action_hash, delegate_name, timestamp) VALUES %s"
+		"(epoch_number DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, from_epoch DECIMAL(65, 0) NOT NULL, " +
+		"to_epoch DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, timestamp VARCHAR(128) NOT NULL, " +
+		"PRIMARY KEY (action_hash))"
+	insertHermesContract = "INSERT INTO %s (epoch_number, action_hash, from_epoch, to_epoch, delegate_name, timestamp) VALUES %s"
 
 	// DistributeMsgEmitter represents the distribute event in hermes contract
 	DistributeMsgEmitter = "Distribute(uint256,uint256,bytes32,uint256,uint256)"
+
+	// DistributeEventName is the distribute event name
+	DistributeEventName = "Distribute"
 )
 
 // HermesContractInfo defines a contract info for hermes
 type HermesContractInfo struct {
 	EpochNumber  uint64
 	ActionHash   string
+	FromEpoch    uint64
+	ToEpoch      uint64
 	DelegateName string
 	Timestamp    string
 }
@@ -51,31 +61,30 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 func (p *Protocol) updateHermesContract(tx *sql.Tx, receipts []*action.Receipt, epochNumber uint64, timestamp string) error {
 	contractList := make([]HermesContractInfo, 0)
 	for _, receipt := range receipts {
-		delegateName, exist := getDelegateNameFromLog(receipt.Logs)
-		if !exist {
-			continue
+		fromEpoch, toEpoch, delegateName, err := getDistributeEventFromLog(receipt.Logs)
+		if err != nil {
+			return errors.Wrap(err, "failed to get distribute event information from log")
 		}
 		actionHash := receipt.ActionHash
 		contract := HermesContractInfo{
 			EpochNumber:  epochNumber,
 			ActionHash:   hex.EncodeToString(actionHash[:]),
+			FromEpoch:    fromEpoch,
+			ToEpoch:      toEpoch,
 			DelegateName: delegateName,
 			Timestamp:    timestamp,
 		}
 		contractList = append(contractList, contract)
-	}
-	if len(contractList) == 0 {
-		return nil
 	}
 	return p.insertHermesContract(tx, contractList)
 }
 
 func (p *Protocol) insertHermesContract(tx *sql.Tx, contractList []HermesContractInfo) error {
 	valStrs := make([]string, 0, len(contractList))
-	valArgs := make([]interface{}, 0, len(contractList))
+	valArgs := make([]interface{}, 0, len(contractList)*6)
 	for _, list := range contractList {
-		valStrs = append(valStrs, "(?, ?, ?, ?)")
-		valArgs = append(valArgs, list.EpochNumber, list.ActionHash, list.DelegateName, list.Timestamp)
+		valStrs = append(valStrs, "(?, ?, ?, ?, ?, ?)")
+		valArgs = append(valArgs, list.EpochNumber, list.ActionHash, list.FromEpoch, list.ToEpoch, list.DelegateName, list.Timestamp)
 	}
 	insertQuery := fmt.Sprintf(insertHermesContract, HermesContractTableName, strings.Join(valStrs, ","))
 
@@ -99,7 +108,7 @@ func getDelegateNameFromTopic(logTopic hash.Hash256) string {
 	return string(logTopic[:n])
 }
 
-func getDelegateNameFromLog(logs []*action.Log) (string, bool) {
+func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, error) {
 	num := len(logs)
 	// reverse range
 	for num > 0 {
@@ -112,9 +121,25 @@ func getDelegateNameFromLog(logs []*action.Log) (string, bool) {
 		if emitterIsDistributeByTopic(emiterTopic) == false {
 			continue
 		}
+		hermesABI, err := abi.JSON(strings.NewReader(HermesABI))
+		if err != nil {
+			return 0, 0, "", err
+		}
+
+		event := struct {
+			StartEpoch      *big.Int
+			EndEpoch        *big.Int
+			DelegateName    [32]byte
+			NumOfRecipients *big.Int
+			TotalAmount     *big.Int
+		}{}
+		if err := hermesABI.Unpack(&event, DistributeEventName, log.Data); err != nil {
+			return 0, 0, "", err
+		}
+
 		delegateNameTopic := log.Topics[1]
 		delegateName := getDelegateNameFromTopic(delegateNameTopic)
-		return delegateName, true
+		return event.StartEpoch.Uint64(), event.EndEpoch.Uint64(), delegateName, nil
 	}
-	return "", false
+	return 0, 0, "", errors.New("Hermes log not found")
 }

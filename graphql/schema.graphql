@@ -303,6 +303,8 @@ type Hermes2 {
 
 type VoterInfo {
     voterAddress: String!
+    fromEpoch: Int!
+    toEpoch: Int!
     amount: String!
     actionHash: String!
     timestamp: String!
@@ -316,6 +318,8 @@ type ByDelegateResponse {
 
 type DelegateInfo {
     delegateName: String!
+    fromEpoch: Int!
+    toEpoch: Int!
     amount: String!
     actionHash: String!
     timestamp: String!

@@ -7,6 +7,7 @@
 package actions
 
 import (
+	"encoding/hex"
 	"strconv"
 	"testing"
 
@@ -50,18 +51,23 @@ func TestEmiterIsHermesByTopic(t *testing.T) {
 	require.False(emitterIsDistributeByTopic(emiterTopic))
 }
 
-func TestGetDelegateNameFromLog(t *testing.T) {
+func TestGetDistributeEventFromLog(t *testing.T) {
 	require := require.New(t)
 	topic1, err := stringToHash256("7de680eab607fdcc6137464e40d375ad63446cf255dcea9bd4a19676f7f24f56")
 	require.NoError(err)
 	topic2, err := stringToHash256("746865626f74746f6b656e230000000000000000000000000000000000000000")
 	require.NoError(err)
+	data, err := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000002128000000000000000000000000000000000000000000000000000000000000213d000000000000000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000185f30377486ca2e646")
+	require.NoError(err)
 	logs := []*action.Log{
-		&action.Log{
+		{
 			Topics: []hash.Hash256{topic1, topic2},
+			Data:   data,
 		},
 	}
-	delegateName, exist := getDelegateNameFromLog(logs)
-	require.True(exist)
+	fromEpoch, toEpoch, delegateName, err := getDistributeEventFromLog(logs)
+	require.NoError(err)
+	require.Equal(uint64(8488), fromEpoch)
+	require.Equal(uint64(8509), toEpoch)
 	require.Equal("thebottoken#", delegateName)
 }
