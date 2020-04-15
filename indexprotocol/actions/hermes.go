@@ -61,9 +61,12 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 func (p *Protocol) updateHermesContract(tx *sql.Tx, receipts []*action.Receipt, epochNumber uint64, timestamp string) error {
 	contractList := make([]HermesContractInfo, 0)
 	for _, receipt := range receipts {
-		fromEpoch, toEpoch, delegateName, err := getDistributeEventFromLog(receipt.Logs)
+		fromEpoch, toEpoch, delegateName, exist, err := getDistributeEventFromLog(receipt.Logs)
 		if err != nil {
 			return errors.Wrap(err, "failed to get distribute event information from log")
+		}
+		if !exist {
+			continue
 		}
 		actionHash := receipt.ActionHash
 		contract := HermesContractInfo{
@@ -75,6 +78,9 @@ func (p *Protocol) updateHermesContract(tx *sql.Tx, receipts []*action.Receipt, 
 			Timestamp:    timestamp,
 		}
 		contractList = append(contractList, contract)
+	}
+	if len(contractList) == 0 {
+		return nil
 	}
 	return p.insertHermesContract(tx, contractList)
 }
@@ -108,7 +114,7 @@ func getDelegateNameFromTopic(logTopic hash.Hash256) string {
 	return string(logTopic[:n])
 }
 
-func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, error) {
+func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, bool, error) {
 	num := len(logs)
 	// reverse range
 	for num > 0 {
@@ -123,7 +129,7 @@ func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, erro
 		}
 		hermesABI, err := abi.JSON(strings.NewReader(HermesABI))
 		if err != nil {
-			return 0, 0, "", err
+			return 0, 0, "", false, err
 		}
 
 		event := struct {
@@ -134,12 +140,12 @@ func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, erro
 			TotalAmount     *big.Int
 		}{}
 		if err := hermesABI.Unpack(&event, DistributeEventName, log.Data); err != nil {
-			return 0, 0, "", err
+			return 0, 0, "", false, err
 		}
 
 		delegateNameTopic := log.Topics[1]
 		delegateName := getDelegateNameFromTopic(delegateNameTopic)
-		return event.StartEpoch.Uint64(), event.EndEpoch.Uint64(), delegateName, nil
+		return event.StartEpoch.Uint64(), event.EndEpoch.Uint64(), delegateName, true, nil
 	}
-	return 0, 0, "", errors.New("Hermes log not found")
+	return 0, 0, "", false, nil
 }

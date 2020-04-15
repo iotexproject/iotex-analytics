@@ -65,8 +65,9 @@ func TestGetDistributeEventFromLog(t *testing.T) {
 			Data:   data,
 		},
 	}
-	fromEpoch, toEpoch, delegateName, err := getDistributeEventFromLog(logs)
+	fromEpoch, toEpoch, delegateName, exist, err := getDistributeEventFromLog(logs)
 	require.NoError(err)
+	require.True(exist)
 	require.Equal(uint64(8488), fromEpoch)
 	require.Equal(uint64(8509), toEpoch)
 	require.Equal("thebottoken#", delegateName)
