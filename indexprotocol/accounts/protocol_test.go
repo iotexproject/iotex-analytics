@@ -3,6 +3,7 @@ package accounts
 import (
 	"context"
 	"database/sql"
+	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -10,8 +11,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/iotexproject/iotex-core/test/identityset"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexcontext"
@@ -81,4 +84,78 @@ func TestProtocol(t *testing.T) {
 	accountIncome, err := p.getAccountIncome(uint64(1), testutil.Addr1)
 	require.NoError(err)
 	require.Equal("-2", accountIncome.Income)
+}
+
+func TestEvmTransferIndex(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	require := require.New(t)
+
+	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
+	ctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient: chainClient,
+	})
+
+	testutil.CleanupDatabase(t, connectStr, dbName)
+
+	store := s.NewMySQL(connectStr, dbName)
+	require.NoError(store.Start(ctx))
+	defer func() {
+		_, err := store.GetDB().Exec("DROP DATABASE " + dbName)
+		require.NoError(err)
+		require.NoError(store.Stop(ctx))
+	}()
+
+	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1))
+
+	require.NoError(p.CreateTables(ctx))
+
+	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
+	require.NoError(err)
+	executionHash := blk.Actions[2].Hash()
+	addr1 := identityset.Address(5).String()
+	addr2 := identityset.Address(6).String()
+
+	request := &iotexapi.GetEvmTransfersByBlockHeightRequest{BlockHeight: 1}
+	chainClient.EXPECT().GetEvmTransfersByBlockHeight(gomock.Any(), request).Times(1).Return(
+		&iotexapi.GetEvmTransfersByBlockHeightResponse{BlockEvmTransfers: &iotextypes.BlockEvmTransfer{
+			BlockHeight:     1,
+			NumEvmTransfers: 2,
+			ActionEvmTransfers: []*iotextypes.ActionEvmTransfer{&iotextypes.ActionEvmTransfer{
+				ActionHash:      executionHash[:],
+				NumEvmTransfers: 2,
+				EvmTransfers: []*iotextypes.EvmTransfer{
+					&iotextypes.EvmTransfer{
+						Amount: big.NewInt(7).Bytes(),
+						From:   addr1,
+						To:     addr2,
+					},
+					&iotextypes.EvmTransfer{
+						Amount: big.NewInt(11).Bytes(),
+						From:   addr1,
+						To:     addr2,
+					},
+				},
+			}},
+		}}, nil)
+
+	require.NoError(store.Transact(func(tx *sql.Tx) error {
+		return p.HandleBlock(ctx, tx, blk)
+	}))
+
+	request.BlockHeight = 2
+	chainClient.EXPECT().GetEvmTransfersByBlockHeight(gomock.Any(), request).Times(1).Return(nil,
+		status.Error(codes.NotFound, ""))
+
+	// get balance history
+	balanceHistory, err := p.getBalanceHistory(addr2)
+	require.NoError(err)
+	require.Equal(2, len(balanceHistory))
+	require.Equal("11", balanceHistory[1].Amount)
+
+	// get account income
+	accountIncome, err := p.getAccountIncome(uint64(1), addr1)
+	require.NoError(err)
+	require.Equal("-18", accountIncome.Income)
 }

@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"math/big"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
@@ -178,10 +178,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return errors.Wrap(err, "failed to get evm transfers by block height")
 	}
 
-	actToEvmTransfers := make(map[hash.Hash256]*iotextypes.ActionEvmTransfer)
+	hashToEvmTransfers := make(map[hash.Hash256]*iotextypes.ActionEvmTransfer)
 	for _, actEvmTransfers := range response.BlockEvmTransfers.ActionEvmTransfers {
 		actHash := hash.BytesToHash256(actEvmTransfers.ActionHash)
-		actToEvmTransfers[actHash] = actEvmTransfers
+		hashToEvmTransfers[actHash] = actEvmTransfers
 	}
 
 	for _, selp := range blk.Actions {
@@ -210,7 +210,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
 		case *action.Execution:
-			evmTransfers, ok := actToEvmTransfers[actionHash]
+			evmTransfers, ok := hashToEvmTransfers[actionHash]
 			if ok {
 				actionType := "execution"
 				for _, evmTransfer := range evmTransfers.EvmTransfers {
