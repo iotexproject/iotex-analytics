@@ -86,7 +86,7 @@ func TestProtocol(t *testing.T) {
 
 	// second call ProbationListByEpoch
 	probationListByEpochRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte("poll"),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ProbationListByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
 	}
