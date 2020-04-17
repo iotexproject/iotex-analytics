@@ -1,6 +1,11 @@
 # iotex-analytics
 The independent service that analyzes data from IoTeX blockchain
 
+## How it works
+Analytics serves as an indexer for IoTeX blockchain. It gets the raw data including all the actions and receipts from an IoTeX full node and voting information from IoTeX election service and processes the data based on different dimensions. Currently, analytics registers five index protocols: accounts, blocks, actions, rewards, and votings. Each protocol keeps track of its relevant data and writes it into the corresponding database tables. Specifically, accounts protocol monitors the balance change of each account. Blocks protocol maintains block metadata and block producing history. Actions protocol logs action metadata and records more detailed information for special transactions, such as XRC smart contracts and Hermes smart contract. Rewards protocol keeps track of rewarding history and synthesize the reward aggregations for each candidate. Votings protocol is responsible for syncing the most recent candidate registrations and votes. In order to make the abovementioned data publicly accessible, analytics also builds a data serving layer upon the underlying database. Now it supports GraphQL API which contains a built-in interactive user interface. Feel free to play on the [Mainnet Analytics Playground](https://analytics.iotexscan.io/). For each available query, please refer to the [Documentation](https://docs.iotex.io/docs/misc.html#analytics) for usage and examples. 
+
+If you want to build your own analytics and run it as a service, please go to the next section.
+
 ## Get started
 
 ### Minimum requirements
