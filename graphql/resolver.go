@@ -1567,6 +1567,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 	res, err := r.HP.GetHermes2ByDelegate(harg, delegateName)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByDelegate = &ByDelegateResponse{Exist: false}
 		return nil
 	case err != nil:
 		return errors.Wrap(err, "failed to get hermes distribution by delegate name")
@@ -1624,6 +1625,7 @@ func (r *queryResolver) getHermes2ByVoter(ctx context.Context, startEpoch int, e
 	res, err := r.HP.GetHermes2ByVoter(harg, voterAddress)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByVoter = &ByVoterResponse{Exist: false}
 		return nil
 	case err != nil:
 		return errors.Wrap(err, "failed to get hermes distribution by voter address")
