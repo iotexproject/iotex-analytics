@@ -299,6 +299,7 @@ input EpochRange{
 type Hermes2 {
     byDelegate(delegateName: String!): ByDelegateResponse
     byVoter(voterAddress: String!): ByVoterResponse
+    hermesMeta: HermesMeta
 }
 
 type VoterInfo {
@@ -314,6 +315,7 @@ type ByDelegateResponse {
     exist: Boolean!
     voterInfoList(pagination: Pagination): [VoterInfo]!
     count: Int!
+    totalRewardsDistributed: String!
 }
 
 type DelegateInfo {
@@ -329,4 +331,12 @@ type ByVoterResponse {
     exist: Boolean!
     delegateInfoList(pagination: Pagination): [DelegateInfo]!
     count: Int!
+    totalRewardsReceived: String!
+}
+
+type HermesMeta{
+    exist: Boolean!
+    numberOfDelegates: Int!
+    numberOfRecipients: Int!
+    totalRewardsDistributed: String!
 }
