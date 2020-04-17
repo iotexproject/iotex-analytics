@@ -15,6 +15,7 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 )
 
+// PollProtocolID is ID of poll protocol
 const PollProtocolID = "poll"
 
 var (

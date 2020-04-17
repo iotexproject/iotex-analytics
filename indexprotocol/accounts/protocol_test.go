@@ -144,10 +144,6 @@ func TestEvmTransferIndex(t *testing.T) {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
 
-	request.BlockHeight = 2
-	chainClient.EXPECT().GetEvmTransfersByBlockHeight(gomock.Any(), request).Times(1).Return(nil,
-		status.Error(codes.NotFound, ""))
-
 	// get balance history
 	balanceHistory, err := p.getBalanceHistory(addr2)
 	require.NoError(err)
