@@ -30,9 +30,8 @@ const (
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 
-	selectCount                                  = "SELECT COUNT(*),SUM(amount) "
-	selectNumberOfDelegates                      = "SELECT COUNT(DISTINCT delegate_name) FROM %s WHERE epoch_number >= %d AND epoch_number <= %d"
-	selectNumOfRecipientsTotalRewardsDistributed = "SELECT COUNT(DISTINCT `to`),SUM(amount) " + fromJoinedTables
+	selectCount      = "SELECT COUNT(*),SUM(amount) "
+	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), SUM(amount) " + fromJoinedTables
 )
 
 // HermesArg defines Hermes request parameters
@@ -169,49 +168,16 @@ func (p *Protocol) GetHermes2Count(arg HermesArg, selectQuery string, filter str
 func (p *Protocol) GetHermes2Meta(startEpoch int, epochCount int) (numberOfDelegates int,
 	numberOfRecipients int, totalRewardsDistributed string, err error) {
 	endEpoch := startEpoch + epochCount - 1
-	numberOfDelegates, err = p.getNumOfDelegates(startEpoch, endEpoch)
-	if err != nil {
-		err = errors.Wrap(err, "get num of delegates")
-		return
-	}
-	numberOfRecipients, totalRewardsDistributed, err = p.getNumOfRecipientsTotalRewardsDistributed(startEpoch, endEpoch)
-	if err != nil {
-		err = errors.Wrap(err, "get num of total rewards distributed")
-		return
-	}
-	return
-}
-
-func (p *Protocol) getNumOfDelegates(startEpoch int, endEpoch int) (numberOfDelegates int, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectNumberOfDelegates, actions.HermesContractTableName, startEpoch, endEpoch)
+	getQuery := fmt.Sprintf(selectHermesMeta, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
 	defer stmt.Close()
-	if err = stmt.QueryRow().Scan(&numberOfDelegates); err != nil {
-		err = errors.Wrap(err, "failed to execute get query")
-		return
-	}
-	if numberOfDelegates == 0 {
-		err = indexprotocol.ErrNotExist
-		return
-	}
-	return
-}
-
-func (p *Protocol) getNumOfRecipientsTotalRewardsDistributed(startEpoch int, endEpoch int) (count int, totalRewardsDistributed string, err error) {
-	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectNumOfRecipientsTotalRewardsDistributed, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
-	stmt, err := db.Prepare(getQuery)
-	if err != nil {
-		err = errors.Wrap(err, "failed to prepare get query")
-		return
-	}
-	defer stmt.Close()
-	if err = stmt.QueryRow(startEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, startEpoch, endEpoch).Scan(&count, &totalRewardsDistributed); err != nil {
+	if err = stmt.QueryRow(startEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, startEpoch, endEpoch).
+		Scan(&numberOfDelegates, &numberOfRecipients, &totalRewardsDistributed); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
 	}
