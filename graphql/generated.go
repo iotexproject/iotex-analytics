@@ -117,15 +117,17 @@ type ComplexityRoot struct {
 	}
 
 	ByDelegateResponse struct {
-		Count         func(childComplexity int) int
-		Exist         func(childComplexity int) int
-		VoterInfoList func(childComplexity int, pagination *Pagination) int
+		Count                   func(childComplexity int) int
+		Exist                   func(childComplexity int) int
+		TotalRewardsDistributed func(childComplexity int) int
+		VoterInfoList           func(childComplexity int, pagination *Pagination) int
 	}
 
 	ByVoterResponse struct {
-		Count            func(childComplexity int) int
-		DelegateInfoList func(childComplexity int, pagination *Pagination) int
-		Exist            func(childComplexity int) int
+		Count                func(childComplexity int) int
+		DelegateInfoList     func(childComplexity int, pagination *Pagination) int
+		Exist                func(childComplexity int) int
+		TotalRewardsReceived func(childComplexity int) int
 	}
 
 	CandidateInfo struct {
@@ -211,6 +213,7 @@ type ComplexityRoot struct {
 	Hermes2 struct {
 		ByDelegate func(childComplexity int, delegateName string) int
 		ByVoter    func(childComplexity int, voterAddress string) int
+		HermesMeta func(childComplexity int) int
 	}
 
 	HermesAverage struct {
@@ -226,6 +229,13 @@ type ComplexityRoot struct {
 		StakingIotexAddress func(childComplexity int) int
 		VoterCount          func(childComplexity int) int
 		WaiveServiceFee     func(childComplexity int) int
+	}
+
+	HermesMeta struct {
+		Exist                   func(childComplexity int) int
+		NumberOfDelegates       func(childComplexity int) int
+		NumberOfRecipients      func(childComplexity int) int
+		TotalRewardsDistributed func(childComplexity int) int
 	}
 
 	NumberOfActions struct {
@@ -761,6 +771,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.ByDelegateResponse.Exist(childComplexity), true
 
+	case "ByDelegateResponse.TotalRewardsDistributed":
+		if e.complexity.ByDelegateResponse.TotalRewardsDistributed == nil {
+			break
+		}
+
+		return e.complexity.ByDelegateResponse.TotalRewardsDistributed(childComplexity), true
+
 	case "ByDelegateResponse.VoterInfoList":
 		if e.complexity.ByDelegateResponse.VoterInfoList == nil {
 			break
@@ -798,6 +815,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ByVoterResponse.Exist(childComplexity), true
+
+	case "ByVoterResponse.TotalRewardsReceived":
+		if e.complexity.ByVoterResponse.TotalRewardsReceived == nil {
+			break
+		}
+
+		return e.complexity.ByVoterResponse.TotalRewardsReceived(childComplexity), true
 
 	case "CandidateInfo.Address":
 		if e.complexity.CandidateInfo.Address == nil {
@@ -1177,6 +1201,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Hermes2.ByVoter(childComplexity, args["voterAddress"].(string)), true
 
+	case "Hermes2.HermesMeta":
+		if e.complexity.Hermes2.HermesMeta == nil {
+			break
+		}
+
+		return e.complexity.Hermes2.HermesMeta(childComplexity), true
+
 	case "HermesAverage.DelegateName":
 		if e.complexity.HermesAverage.DelegateName == nil {
 			break
@@ -1239,6 +1270,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.HermesDistribution.WaiveServiceFee(childComplexity), true
+
+	case "HermesMeta.Exist":
+		if e.complexity.HermesMeta.Exist == nil {
+			break
+		}
+
+		return e.complexity.HermesMeta.Exist(childComplexity), true
+
+	case "HermesMeta.NumberOfDelegates":
+		if e.complexity.HermesMeta.NumberOfDelegates == nil {
+			break
+		}
+
+		return e.complexity.HermesMeta.NumberOfDelegates(childComplexity), true
+
+	case "HermesMeta.NumberOfRecipients":
+		if e.complexity.HermesMeta.NumberOfRecipients == nil {
+			break
+		}
+
+		return e.complexity.HermesMeta.NumberOfRecipients(childComplexity), true
+
+	case "HermesMeta.TotalRewardsDistributed":
+		if e.complexity.HermesMeta.TotalRewardsDistributed == nil {
+			break
+		}
+
+		return e.complexity.HermesMeta.TotalRewardsDistributed(childComplexity), true
 
 	case "NumberOfActions.Count":
 		if e.complexity.NumberOfActions.Count == nil {
@@ -2221,6 +2280,7 @@ input EpochRange{
 type Hermes2 {
     byDelegate(delegateName: String!): ByDelegateResponse
     byVoter(voterAddress: String!): ByVoterResponse
+    hermesMeta: HermesMeta
 }
 
 type VoterInfo {
@@ -2236,6 +2296,7 @@ type ByDelegateResponse {
     exist: Boolean!
     voterInfoList(pagination: Pagination): [VoterInfo]!
     count: Int!
+    totalRewardsDistributed: String!
 }
 
 type DelegateInfo {
@@ -2251,8 +2312,15 @@ type ByVoterResponse {
     exist: Boolean!
     delegateInfoList(pagination: Pagination): [DelegateInfo]!
     count: Int!
+    totalRewardsReceived: String!
 }
-`},
+
+type HermesMeta{
+    exist: Boolean!
+    numberOfDelegates: Int!
+    numberOfRecipients: Int!
+    totalRewardsDistributed: String!
+}`},
 )
 
 // endregion ************************** generated!.gotpl **************************
@@ -4338,6 +4406,33 @@ func (ec *executionContext) _ByDelegateResponse_count(ctx context.Context, field
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _ByDelegateResponse_totalRewardsDistributed(ctx context.Context, field graphql.CollectedField, obj *ByDelegateResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByDelegateResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalRewardsDistributed, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _ByVoterResponse_exist(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -4424,6 +4519,33 @@ func (ec *executionContext) _ByVoterResponse_count(ctx context.Context, field gr
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByVoterResponse_totalRewardsReceived(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByVoterResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalRewardsReceived, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _CandidateInfo_name(ctx context.Context, field graphql.CollectedField, obj *CandidateInfo) graphql.Marshaler {
@@ -5771,6 +5893,30 @@ func (ec *executionContext) _Hermes2_byVoter(ctx context.Context, field graphql.
 	return ec.marshalOByVoterResponse2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐByVoterResponse(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Hermes2_hermesMeta(ctx context.Context, field graphql.CollectedField, obj *Hermes2) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Hermes2",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HermesMeta, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*HermesMeta)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOHermesMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesMeta(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _HermesAverage_delegateName(ctx context.Context, field graphql.CollectedField, obj *HermesAverage) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -6001,6 +6147,114 @@ func (ec *executionContext) _HermesDistribution_refund(ctx context.Context, fiel
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Refund, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesMeta_exist(ctx context.Context, field graphql.CollectedField, obj *HermesMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Exist, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesMeta_numberOfDelegates(ctx context.Context, field graphql.CollectedField, obj *HermesMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumberOfDelegates, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesMeta_numberOfRecipients(ctx context.Context, field graphql.CollectedField, obj *HermesMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumberOfRecipients, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HermesMeta_totalRewardsDistributed(ctx context.Context, field graphql.CollectedField, obj *HermesMeta) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "HermesMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalRewardsDistributed, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -9464,6 +9718,11 @@ func (ec *executionContext) _ByDelegateResponse(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "totalRewardsDistributed":
+			out.Values[i] = ec._ByDelegateResponse_totalRewardsDistributed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9498,6 +9757,11 @@ func (ec *executionContext) _ByVoterResponse(ctx context.Context, sel ast.Select
 			}
 		case "count":
 			out.Values[i] = ec._ByVoterResponse_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalRewardsReceived":
+			out.Values[i] = ec._ByVoterResponse_totalRewardsReceived(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -9983,6 +10247,8 @@ func (ec *executionContext) _Hermes2(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Hermes2_byDelegate(ctx, field, obj)
 		case "byVoter":
 			out.Values[i] = ec._Hermes2_byVoter(ctx, field, obj)
+		case "hermesMeta":
+			out.Values[i] = ec._Hermes2_hermesMeta(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10069,6 +10335,48 @@ func (ec *executionContext) _HermesDistribution(ctx context.Context, sel ast.Sel
 			}
 		case "refund":
 			out.Values[i] = ec._HermesDistribution_refund(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var hermesMetaImplementors = []string{"HermesMeta"}
+
+func (ec *executionContext) _HermesMeta(ctx context.Context, sel ast.SelectionSet, obj *HermesMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, hermesMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HermesMeta")
+		case "exist":
+			out.Values[i] = ec._HermesMeta_exist(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "numberOfDelegates":
+			out.Values[i] = ec._HermesMeta_numberOfDelegates(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "numberOfRecipients":
+			out.Values[i] = ec._HermesMeta_numberOfRecipients(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalRewardsDistributed":
+			out.Values[i] = ec._HermesMeta_totalRewardsDistributed(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -12412,6 +12720,17 @@ func (ec *executionContext) marshalOHermesDistribution2ᚖgithubᚗcomᚋiotexpr
 		return graphql.Null
 	}
 	return ec._HermesDistribution(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHermesMeta2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesMeta(ctx context.Context, sel ast.SelectionSet, v HermesMeta) graphql.Marshaler {
+	return ec._HermesMeta(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOHermesMeta2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermesMeta(ctx context.Context, sel ast.SelectionSet, v *HermesMeta) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HermesMeta(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalONumberOfActions2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐNumberOfActions(ctx context.Context, sel ast.SelectionSet, v NumberOfActions) graphql.Marshaler {

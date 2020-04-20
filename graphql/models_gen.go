@@ -79,15 +79,17 @@ type BucketInfoOutput struct {
 }
 
 type ByDelegateResponse struct {
-	Exist         bool         `json:"exist"`
-	VoterInfoList []*VoterInfo `json:"voterInfoList"`
-	Count         int          `json:"count"`
+	Exist                   bool         `json:"exist"`
+	VoterInfoList           []*VoterInfo `json:"voterInfoList"`
+	Count                   int          `json:"count"`
+	TotalRewardsDistributed string       `json:"totalRewardsDistributed"`
 }
 
 type ByVoterResponse struct {
-	Exist            bool            `json:"exist"`
-	DelegateInfoList []*DelegateInfo `json:"delegateInfoList"`
-	Count            int             `json:"count"`
+	Exist                bool            `json:"exist"`
+	DelegateInfoList     []*DelegateInfo `json:"delegateInfoList"`
+	Count                int             `json:"count"`
+	TotalRewardsReceived string          `json:"totalRewardsReceived"`
 }
 
 type CandidateInfo struct {
@@ -178,6 +180,7 @@ type Hermes struct {
 type Hermes2 struct {
 	ByDelegate *ByDelegateResponse `json:"byDelegate"`
 	ByVoter    *ByVoterResponse    `json:"byVoter"`
+	HermesMeta *HermesMeta         `json:"hermesMeta"`
 }
 
 type HermesAverage struct {
@@ -193,6 +196,13 @@ type HermesDistribution struct {
 	VoterCount          int                   `json:"voterCount"`
 	WaiveServiceFee     bool                  `json:"waiveServiceFee"`
 	Refund              string                `json:"refund"`
+}
+
+type HermesMeta struct {
+	Exist                   bool   `json:"exist"`
+	NumberOfDelegates       int    `json:"numberOfDelegates"`
+	NumberOfRecipients      int    `json:"numberOfRecipients"`
+	TotalRewardsDistributed string `json:"totalRewardsDistributed"`
 }
 
 type NumberOfActions struct {
