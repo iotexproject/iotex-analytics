@@ -9,6 +9,7 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -101,6 +102,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get current epoch and tip height")
 	}
 	idx.lastHeight = lastHeight
+	fmt.Println("Last height", lastHeight)
 
 	log.L().Info("Catching up via network")
 	getChainMetaRes, err := chainClient.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})
@@ -208,6 +210,7 @@ func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
 	chainClient := indexCtx.ChainClient
 
 	startHeight := idx.lastHeight + 1
+	fmt.Println("Start Height", startHeight)
 	for startHeight <= tipHeight {
 		count := idx.Config.RangeQueryLimit
 		if idx.Config.RangeQueryLimit > tipHeight-startHeight+1 {
