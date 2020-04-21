@@ -15,6 +15,9 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 )
 
+// PollProtocolID is ID of poll protocol
+const PollProtocolID = "poll"
+
 var (
 	// ErrNotExist indicates certain item does not exist in Blockchain database
 	ErrNotExist = errors.New("not exist in DB")
