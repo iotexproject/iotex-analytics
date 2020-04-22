@@ -45,7 +45,7 @@ poll:
 gravityChain:
   gravityChainStartHeight: 7614500
   gravityChainAPIs:
-    - https://mainnet.infura.io/v3/4db6d61cae824e6e9e3bad824860b0cb
+    - https://mainnet.infura.io/v3/e1f5217dc75d4b77bfede00ca895635b
   registerContractAddress: 0x8619a5c5232c32bae63c442b905a27ae46598566
   rewardPercentageStartHeight: 8300000
 rewarding:
