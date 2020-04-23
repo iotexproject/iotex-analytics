@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"strconv"
 
 	"github.com/golang/protobuf/proto"
@@ -17,6 +18,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/iotexproject/iotex-election/types"
+	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
@@ -48,11 +51,7 @@ func (p *Protocol) createProbationListTable(tx *sql.Tx) error {
 	return nil
 }
 
-func (p *Protocol) updateProbationListTable(cli iotexapi.APIServiceClient, epochNum uint64, tx *sql.Tx) error {
-	probationList, err := p.getProbationList(cli, epochNum)
-	if err != nil && status.Code(err) != codes.NotFound {
-		return err
-	}
+func (p *Protocol) updateProbationListTable(tx *sql.Tx, epochNum uint64, probationList *iotextypes.ProbationCandidateList) error {
 	if probationList == nil {
 		return nil
 	}
@@ -73,11 +72,53 @@ func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint
 	}
 	out, err := cli.ReadState(context.Background(), request)
 	if err != nil {
+		sta, ok := status.FromError(err)
+		if ok && sta.Code() == codes.NotFound {
+			return nil, nil
+		}
 		return nil, err
 	}
-	pb := &iotextypes.ProbationCandidateList{}
-	if err := proto.Unmarshal(out.Data, pb); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal candidate")
+	probationList := &iotextypes.ProbationCandidateList{}
+	if out.Data != nil {
+		if err := proto.Unmarshal(out.Data, probationList); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal probationList")
+		}
 	}
-	return pb, nil
+	return probationList, nil
+}
+
+
+// filterCandidates returns filtered candidate list by given raw candidate and probation list
+func filterCandidates(
+	candidates []*types.Candidate,
+	unqualifiedList *iotextypes.ProbationCandidateList,
+	epochStartHeight uint64,
+) ([]*types.Candidate, error) {
+	candidatesMap := make(map[string]*types.Candidate)
+	updatedVotingPower := make(map[string]*big.Int)
+	intensityRate := float64(uint32(100)-unqualifiedList.IntensityRate) / float64(100)
+
+	probationMap := make(map[string]uint32)
+	for _, elem := range unqualifiedList.ProbationList {
+		probationMap[elem.Address] = elem.Count
+	}
+	for _, cand := range candidates {
+		filterCand := cand.Clone()
+		candOpAddr := string(cand.OperatorAddress())
+		if _, ok := probationMap[candOpAddr]; ok {
+			// if it is an unqualified delegate, multiply the voting power with probation intensity rate
+			votingPower := new(big.Float).SetInt(filterCand.Score())
+			newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			filterCand.SetScore(newVotingPower)
+		}
+		updatedVotingPower[candOpAddr] = filterCand.Score()
+		candidatesMap[candOpAddr] = filterCand
+	}
+	// sort again with updated voting power
+	sorted := util.Sort(updatedVotingPower, epochStartHeight)
+	var verifiedCandidates []*types.Candidate
+	for _, name := range sorted {
+		verifiedCandidates = append(verifiedCandidates, candidatesMap[name])
+	}
+	return verifiedCandidates, nil
 }

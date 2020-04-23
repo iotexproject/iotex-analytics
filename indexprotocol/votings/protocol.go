@@ -34,6 +34,7 @@ import (
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/contract"
 	"github.com/iotexproject/iotex-analytics/epochctx"
@@ -245,10 +246,11 @@ func (p *Protocol) Initialize(context.Context, *sql.Tx, *indexprotocol.Genesis) 
 
 // HandleBlock handles blocks
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
-	height := blk.Height()
-	epochNumber := p.epochCtx.GetEpochNumber(height)
+	blkheight := blk.Height()
+	epochNumber := p.epochCtx.GetEpochNumber(blkheight)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	if indexCtx.ConsensusScheme == "ROLLDPOS" && height == p.epochCtx.GetEpochHeight(epochNumber) {
+	if indexCtx.ConsensusScheme == "ROLLDPOS" && blkheight == p.epochCtx.GetEpochHeight(epochNumber) {
+		// update voting tables on every epoch start height 
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
 		var gravityHeight uint64
@@ -262,17 +264,24 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
 		}
-		if err := p.putVotingTables(tx, electionClient, chainClient, epochNumber, height, gravityHeight); err != nil {
-			return errors.Wrapf(err, "failed to put data into voting tables in epoch %d", epochNumber)
+		if err := p.fetchAndStoreRawBucket(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
+			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
 		}
-		if err := p.updateProbationListTable(chainClient, epochNumber, tx); err != nil {
+		probationList, err := p.getProbationList(chainClient, epochNumber) 
+		if err != nil {
+			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
+		}
+		if err := p.updateVotingTables(tx, epochNumber, blkheight, gravityHeight, probationList); err != nil {
+			return errors.Wrapf(err, "failed to update voting tables in epoch %d", epochNumber)
+		}
+		if err := p.updateProbationListTable(tx, epochNumber, probationList); err != nil {
 			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
 		}
 	}
 	return nil
 }
 
-func (p *Protocol) putVotingTables(
+func (p *Protocol) fetchAndStoreRawBucket(
 	tx *sql.Tx,
 	electionClient api.APIServiceClient,
 	chainClient iotexapi.APIServiceClient,
@@ -294,7 +303,7 @@ func (p *Protocol) putVotingTables(
 	if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
 		return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
 	}
-	return p.updateVotingTables(tx, epochNumber, height, gravityHeight)
+	return nil 
 }
 
 func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
@@ -582,7 +591,7 @@ func (p *Protocol) getNativeBucket(
 	return buckets, nil
 }
 
-func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
+func (p *Protocol) updateVotingResultTable(tx *sql.Tx, delegates []*types.Candidate, epochNumber uint64, gravityHeight uint64) (err error) {
 	var voteResultStmt *sql.Stmt
 	insertQuery := fmt.Sprintf(insertVotingResult,
 		VotingResultTableName)
@@ -635,21 +644,27 @@ func (p *Protocol) updateVotingResult(tx *sql.Tx, delegates []*types.Candidate, 
 	return nil
 }
 
-func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, height uint64, gravityHeight uint64) error {
-	votes, voteFlag, delegates, err := p.resultByHeight(height, tx)
+func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStartheight uint64, gravityHeight uint64, probationList *iotextypes.ProbationCandidateList) error {
+	votes, voteFlag, delegates, err := p.resultByHeight(epochStartheight, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get result by height")
 	}
-	if err := p.updateAggregateVoting(tx, votes, voteFlag, delegates, epochNumber); err != nil {
+	if probationList != nil {
+		delegates, err = filterCandidates(delegates, probationList, epochStartheight) 
+		if err != nil {
+			return errors.Wrap(err, "failed to filter candidate with probation list")
+		}
+	}
+	if err := p.updateAggregateVotingandVotingMetaTable(tx, votes, voteFlag, delegates, epochNumber); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
-	if err := p.updateVotingResult(tx, delegates, epochNumber, gravityHeight); err != nil {
+	if err := p.updateVotingResultTable(tx, delegates, epochNumber, gravityHeight); err != nil {
 		return errors.Wrap(err, "failed to update voting result table")
 	}
 	return nil
 }
 
-func (p *Protocol) updateAggregateVoting(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64) (err error) {
+func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64) (err error) {
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
