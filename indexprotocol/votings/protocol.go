@@ -264,7 +264,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
 		}
-		if err := p.fetchAndStoreRawBucket(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
+		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
 		}
 		probationList, err := p.getProbationList(chainClient, epochNumber) 
@@ -281,7 +281,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	return nil
 }
 
-func (p *Protocol) fetchAndStoreRawBucket(
+func (p *Protocol) fetchAndStoreRawBuckets(
 	tx *sql.Tx,
 	electionClient api.APIServiceClient,
 	chainClient iotexapi.APIServiceClient,
