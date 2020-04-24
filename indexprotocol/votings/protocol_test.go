@@ -9,9 +9,12 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
+	//"fmt"
 	"strconv"
 	"testing"
 	"time"
+	"math/big"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -37,17 +40,17 @@ import (
 const (
 	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
 	dbName     = "heroku_7fed0b046078f80"
+	selectAggregateVoting    = "SELECT aggregate_votes FROM %s WHERE epoch_number=? AND candidate_name=? AND voter_address=?"
+	selectVotingMeta 		 = "SELECT total_weighted FROM %s WHERE epoch_number=?"
 )
 
 func TestProtocol(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
 	require := require.New(t)
 	ctx := context.Background()
 
 	testutil.CleanupDatabase(t, connectStr, dbName)
-
 	store := s.NewMySQL(connectStr, dbName)
 	require.NoError(store.Start(ctx))
 	defer func() {
@@ -57,7 +60,7 @@ func TestProtocol(t *testing.T) {
 	}()
 
 	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15), indexprotocol.GravityChain{}, indexprotocol.Poll{
-		VoteThreshold:        "100000000000000000000",
+		VoteThreshold:        "0",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
 	})
@@ -74,7 +77,6 @@ func TestProtocol(t *testing.T) {
 		ElectionClient:  electionClient,
 		ConsensusScheme: "ROLLDPOS",
 	})
-
 	// first call GetGravityChainStartHeight
 	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
@@ -84,14 +86,21 @@ func TestProtocol(t *testing.T) {
 	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: []byte(strconv.FormatUint(1000, 10)),
 	}, nil)
-
 	// second call ProbationListByEpoch
 	probationListByEpochRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(poll.ProtocolID),
 		MethodName: []byte("ProbationListByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
 	}
-	pb := &iotextypes.ProbationCandidateList{}
+	pb := &iotextypes.ProbationCandidateList{
+		IntensityRate: uint32(90),
+		ProbationList: []*iotextypes.ProbationCandidateList_Info {
+			{
+				Address: testutil.Addr1,	
+				Count:	 uint32(1),
+			},	
+		},
+	}
 	data, err := proto.Marshal(pb)
 	second := chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,
@@ -106,30 +115,57 @@ func TestProtocol(t *testing.T) {
 	chainClient.EXPECT().GetElectionBuckets(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.GetElectionBucketsResponse{
 		Buckets: []*iotextypes.ElectionBucket{},
 	}, db.ErrNotExist)
+	name1, err := hex.DecodeString("abcd")
+	require.NoError(err)
+	name2, err := hex.DecodeString("1234")
+	require.NoError(err)
+
+	voter1, err := hex.DecodeString("11")
+	require.NoError(err)
+	voter2, err := hex.DecodeString("22")
+	require.NoError(err)
+	voter3, err := hex.DecodeString("33")
+	require.NoError(err)
 
 	electionClient.EXPECT().GetRawData(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.RawDataResponse{
 			Timestamp: timestamp,
 			Buckets: []*election.Bucket{
 				{
-					Voter:     []byte("1111"),
-					Candidate: []byte("616c6661"),
+					Voter:     voter1,
+					Candidate: name1,
 					StartTime: timestamp,
 					Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
 					Decay:     true,
-					Amount:    []byte("100"),
+					Amount:    new(big.Int).SetInt64(100).Bytes(),
+				},
+				{
+					Voter:     voter2,
+					Candidate: name1,
+					StartTime: timestamp,
+					Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
+					Decay:     true,
+					Amount:    new(big.Int).SetInt64(50).Bytes(),
+				},
+				{
+					Voter:     voter3,
+					Candidate: name2,
+					StartTime: timestamp,
+					Duration:  ptypes.DurationProto(time.Duration(10 * 24)),
+					Decay:     true,
+					Amount:    new(big.Int).SetInt64(100).Bytes(),
 				},
 			},
 			Registrations: []*election.Registration{
 				{
-					Name:              []byte("616c6661"),
+					Name:              name1,
 					Address:           []byte("112233"),
 					OperatorAddress:   []byte(testutil.Addr1),
 					RewardAddress:     []byte(testutil.RewardAddr1),
 					SelfStakingWeight: 100,
 				},
 				{
-					Name:              []byte("627261766f"),
+					Name:              name2,
 					Address:           []byte("445566"),
 					OperatorAddress:   []byte(testutil.Addr2),
 					RewardAddress:     []byte(testutil.RewardAddr2),
@@ -142,4 +178,34 @@ func TestProtocol(t *testing.T) {
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
+	// Probation Test 
+	// VotingResult  
+	res1, err := p.GetVotingResult(2, "abcd")
+	require.NoError(err)
+	res2, err := p.GetVotingResult(2, "1234")	
+	require.NoError(err)
+	require.Equal("abcd", res1.DelegateName)
+	require.Equal("1234", res2.DelegateName)
+	require.Equal("15", res1.TotalWeightedVotes) // (100 + 50) * 0.1
+	require.Equal("100", res2.TotalWeightedVotes)
+
+	/*
+	// takes too long time to pass it, need further investigate
+	// AggregateVoting  
+	getQuery := fmt.Sprintf(selectAggregateVoting, AggregateVotingTableName)
+	stmt, err := store.GetDB().Prepare(getQuery)
+	require.NoError(err)
+	defer stmt.Close()
+	var weightedVotes uint64 
+	require.NoError(stmt.QueryRow(2, "abcd", "11").Scan(&weightedVotes)) 
+	require.Equal(uint64(10), weightedVotes) // 100 * 0.1
+	// VotingMeta 
+	getQuery = fmt.Sprintf(selectVotingMeta, VotingMetaTableName)
+	stmt, err = store.GetDB().Prepare(getQuery)
+	require.NoError(err)
+	defer stmt.Close()
+	var totalWeightedVotes string
+	require.NoError(stmt.QueryRow(2).Scan(&totalWeightedVotes))
+	require.Equal("115", totalWeightedVotes)
+	*/
 }

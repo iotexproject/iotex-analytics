@@ -516,7 +516,7 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 func (p *Protocol) voterVotes(startEpoch uint64, endEpoch uint64, delegateName string) (map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectAggregateVoting,
-		votings.AggregateVotingTable)
+		votings.AggregateVotingTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -646,7 +646,7 @@ func (p *Protocol) distributionPlanByRewardAddress(startEpoch uint64, endEpoch u
 func (p *Protocol) weightedVotesBySearchPairs(searchPairs []string) (map[string]map[uint64]map[string]*big.Int, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectAggregateVotingIn,
-		votings.AggregateVotingTable, strings.Join(searchPairs, ","))
+		votings.AggregateVotingTableName, strings.Join(searchPairs, ","))
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -702,7 +702,7 @@ func (p *Protocol) weightedVotesByVoterAddress(startEpoch uint64, endEpoch uint6
 	db := p.indexer.Store.GetDB()
 
 	getQuery := fmt.Sprintf(selectAggregateVotingAll,
-		votings.AggregateVotingTable)
+		votings.AggregateVotingTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
