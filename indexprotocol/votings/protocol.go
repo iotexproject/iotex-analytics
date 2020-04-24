@@ -52,8 +52,8 @@ const (
 	VotingResultTableName = "voting_result"
 	//VotingMetaTableName is the voting meta table
 	VotingMetaTableName = "voting_meta"
-	// AggregateVotingTable is the table name of voters' aggregate voting
-	AggregateVotingTable = "aggregate_voting"
+	// AggregateVotingTableName is the table name of voters' aggregate voting
+	AggregateVotingTableName = "aggregate_voting"
 	// EpochIndexName is the index name of epoch number on voting meta table
 	EpochIndexName = "epoch_index"
 	// EpochCandidateIndexName is the index name of epoch number and candidate name on voting result table
@@ -225,8 +225,8 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 			return err
 		}
 	}
-	// create AggregateVotingTable
-	if _, err := tx.Exec(fmt.Sprintf(createAggregateVoting, AggregateVotingTable, EpochCandidateVoterIndexName)); err != nil {
+	// create AggregateVotingTableName
+	if _, err := tx.Exec(fmt.Sprintf(createAggregateVoting, AggregateVotingTableName, EpochCandidateVoterIndexName)); err != nil {
 		return err
 	}
 	// create VotingMetaTableName
@@ -463,8 +463,8 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	return votinginfoList, nil
 }
 
-// getVotingResult gets voting result
-func (p *Protocol) getVotingResult(epochNumber uint64, delegateName string) (*VotingResult, error) {
+// GetVotingResult gets voting result
+func (p *Protocol) GetVotingResult(epochNumber uint64, delegateName string) (*VotingResult, error) {
 	db := p.Store.GetDB()
 
 	getQuery := fmt.Sprintf(selectVotingResult,
@@ -696,7 +696,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 		}
 		totalVoted.Add(totalVoted, vote.Amount())
 	}
-	insertQuery := fmt.Sprintf(insertAggregateVoting, AggregateVotingTable)
+	insertQuery := fmt.Sprintf(insertAggregateVoting, AggregateVotingTableName)
 	var aggregateStmt *sql.Stmt
 	if aggregateStmt, err = tx.Prepare(insertQuery); err != nil {
 		return err
