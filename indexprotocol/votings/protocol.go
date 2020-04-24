@@ -655,7 +655,7 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 			return errors.Wrap(err, "failed to filter candidate with probation list")
 		}
 	}
-	if err := p.updateAggregateVotingandVotingMetaTable(tx, votes, voteFlag, delegates, epochNumber); err != nil {
+	if err := p.updateAggregateVotingandVotingMetaTable(tx, votes, voteFlag, delegates, epochNumber, probationList); err != nil {
 		return errors.Wrap(err, "failed to update aggregate_voting/voting meta table")
 	}
 	if err := p.updateVotingResultTable(tx, delegates, epochNumber, gravityHeight); err != nil {
@@ -664,8 +664,21 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 	return nil
 }
 
-func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64) (err error) {
+func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	//update aggregate voting table
+	probationMap := make(map[string]uint32)
+	var intensityRate float64
+	if probationList != nil {
+		intensityRate = float64(uint32(100)-probationList.IntensityRate) / float64(100)
+		for _, delegate := range delegates {
+			delegateOpAddr := string(delegate.OperatorAddress())
+			for _, elem := range probationList.ProbationList {
+				if elem.Address == delegateOpAddr {
+					probationMap[hex.EncodeToString(delegate.Name())] = elem.Count
+				}
+			}
+		}
+	}
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
 	for i, vote := range votes {
@@ -695,6 +708,11 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 		}
 	}()
 	for key, val := range sumOfWeightedVotes {
+		if _, ok := probationMap[key.candidateName]; ok {
+			// filter based on probation 
+			votingPower := new(big.Float).SetInt(val)
+			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+		}
 		if _, err = aggregateStmt.Exec(
 			key.epochNumber,
 			key.candidateName,
@@ -708,7 +726,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	//update voting meta table
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
-		totalWeighted.Add(totalWeighted, cand.Score())
+		totalWeighted.Add(totalWeighted, cand.Score()) // already probation filtered 
 	}
 	insertQuery = fmt.Sprintf(insertVotingMeta, VotingMetaTableName)
 	if _, err = tx.Exec(insertQuery,
