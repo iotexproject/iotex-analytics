@@ -267,7 +267,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
 		}
-		probationList, err := p.getProbationList(chainClient, epochNumber) 
+		probationList, err := p.fetchProbationList(chainClient, epochNumber) 
 		if err != nil {
 			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
 		}
@@ -419,12 +419,11 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := p.epochCtx.GetEpochHeight(epochNum)
-	votes, voteFlag, _, err := p.resultByHeight(height, nil)
+	votes, voteFlag, delegates, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
 	}
 	var votinginfoList []*VotingInfo
-
 	valueOfTime, err := p.timeTableOperator.Get(height, p.Store.GetDB(), nil)
 	if err != nil {
 		return nil, err
@@ -440,6 +439,24 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			return nil, errors.Wrap(err, "failed to get latest native mint time")
 		}
 	}
+	// update weighted votes based on probation 
+	pblist, err := p.getProbationList(epochNum)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get probation list from table")
+	}
+	var intensityRate float64
+	probationMap := make(map[string]uint64)
+	if pblist != nil {
+		for _, delegate := range delegates {
+			delegateOpAddr := string(delegate.OperatorAddress())
+			for _, pb := range pblist {
+				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
+				if pb.Address == delegateOpAddr {
+					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
+				}
+			}
+		}
+	}
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
@@ -447,12 +464,18 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			if !voteFlag[i] || epochNum == 1 {
 				mintTime = ethMintTime
 			}
+			weightedVotes := vote.WeightedAmount()
+			if _, ok := probationMap[candName]; ok {
+				// filter based on probation 
+				votingPower := new(big.Float).SetInt(weightedVotes)
+				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			}
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
 				VoterAddress:      hex.EncodeToString(vote.Voter()),
 				IsNative:          voteFlag[i],
 				Votes:             vote.Amount().Text(10),
-				WeightedVotes:     vote.WeightedAmount().Text(10),
+				WeightedVotes:     weightedVotes.Text(10),
 				RemainingDuration: vote.RemainingTime(mintTime).String(),
 				StartTime:         vote.StartTime().String(),
 				Decay:             vote.Decay(),

@@ -188,6 +188,7 @@ func TestProtocol(t *testing.T) {
 	require.Equal("1234", res2.DelegateName)
 	require.Equal("15", res1.TotalWeightedVotes) // (100 + 50) * 0.1
 	require.Equal("100", res2.TotalWeightedVotes)
+
 	/*
 	// takes too long time to pass it, need further investigate
 	// AggregateVoting  
@@ -195,23 +196,16 @@ func TestProtocol(t *testing.T) {
 	stmt, err := store.GetDB().Prepare(getQuery)
 	require.NoError(err)
 	defer stmt.Close()
-	rows, err := stmt.Query(2, "abcd", "11")
-	require.NoError(err)
-	require.True(rows.Next())
-	var weightedVotes string 
-	require.NoError(rows.Scan(&weightedVotes)) 
-	require.Equal("10", weightedVotes) // 100 * 0.1
-
+	var weightedVotes uint64 
+	require.NoError(stmt.QueryRow(2, "abcd", "11").Scan(&weightedVotes)) 
+	require.Equal(uint64(10), weightedVotes) // 100 * 0.1
 	// VotingMeta 
 	getQuery = fmt.Sprintf(selectVotingMeta, VotingMetaTableName)
 	stmt, err = store.GetDB().Prepare(getQuery)
 	require.NoError(err)
 	defer stmt.Close()
-	rows, err = stmt.Query(2)
-	require.NoError(err)
-	require.True(rows.Next())
 	var totalWeightedVotes string
-	require.NoError(rows.Scan(&totalWeightedVotes))
+	require.NoError(stmt.QueryRow(2).Scan(&totalWeightedVotes))
 	require.Equal("115", totalWeightedVotes)
 	*/
 }

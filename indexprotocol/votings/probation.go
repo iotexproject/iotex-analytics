@@ -22,6 +22,7 @@ import (
 	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
+	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -32,6 +33,7 @@ const (
 	createProbationList   = "CREATE TABLE IF NOT EXISTS %s " +
 		"(epoch_number DECIMAL(65, 0) NOT NULL,intensity_rate DECIMAL(65, 0) NOT NULL,address VARCHAR(41) NOT NULL, count DECIMAL(65, 0) NOT NULL,PRIMARY KEY (`epoch_number`, `address`), UNIQUE KEY %s (epoch_number, address))"
 	insertProbationList = "INSERT IGNORE INTO %s (epoch_number,intensity_rate,address,count) VALUES (?, ?, ?, ?)"
+	selectProbationList = "SELECT * FROM %s WHERE epoch_number=?"
 )
 
 type (
@@ -64,7 +66,7 @@ func (p *Protocol) updateProbationListTable(tx *sql.Tx, epochNum uint64, probati
 	return nil
 }
 
-func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint64) (*iotextypes.ProbationCandidateList, error) {
+func (p *Protocol) fetchProbationList(cli iotexapi.APIServiceClient, epochNum uint64) (*iotextypes.ProbationCandidateList, error) {
 	request := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte("poll"),
 		MethodName: []byte("ProbationListByEpoch"),
@@ -85,6 +87,36 @@ func (p *Protocol) getProbationList(cli iotexapi.APIServiceClient, epochNum uint
 		}
 	}
 	return probationList, nil
+}
+
+// getProbationList gets probation list from table
+func (p *Protocol) getProbationList(epochNumber uint64) ([]*ProbationList, error) {
+	db := p.Store.GetDB()
+	getQuery := fmt.Sprintf(selectProbationList,
+		ProbationListTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(epochNumber)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+	var pb ProbationList
+	parsedRows, err := s.ParseSQLRows(rows, &pb)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		return nil, nil
+	}
+	var pblist []*ProbationList
+	for _, parsedRow := range parsedRows {
+		pb := parsedRow.(*ProbationList)
+		pblist = append(pblist, pb)
+	}
+	return pblist, nil
 }
 
 
