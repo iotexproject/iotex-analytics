@@ -58,12 +58,12 @@ func TestProtocol(t *testing.T) {
 		require.NoError(err)
 		require.NoError(store.Stop(ctx))
 	}()
-
+	cfg := indexprotocol.VoteWeightCalConsts{}
 	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15), indexprotocol.GravityChain{}, indexprotocol.Poll{
 		VoteThreshold:        "0",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
-	})
+	}, cfg)
 	require.NoError(err)
 	require.NoError(p.CreateTables(ctx))
 
