@@ -65,6 +65,12 @@ type (
 		HermesContractAddress    string `yaml:"hermesContractAddress"`
 		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
 	}
+	// VoteWeightCalConsts is for staking v2
+	VoteWeightCalConsts struct {
+		DurationLg float64 `yaml:"durationLg"`
+		AutoStake  float64 `yaml:"autoStake"`
+		SelfStake  float64 `yaml:"selfStake"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer
