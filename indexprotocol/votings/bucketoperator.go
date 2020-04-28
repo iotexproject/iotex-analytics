@@ -44,7 +44,7 @@ type (
 	bucket struct {
 		Id                                           int64
 		Index                                        uint64
-		Owner, Candidate, StakedAmount               []byte
+		Candidate, Owner, StakedAmount               []byte
 		StakedDuration                               string
 		CreateTime, StakeStartTime, UnstakeStartTime time.Time
 		AutoStake                                    int64

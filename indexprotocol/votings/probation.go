@@ -18,11 +18,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
-	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -119,38 +119,72 @@ func (p *Protocol) getProbationList(epochNumber uint64) ([]*ProbationList, error
 	return pblist, nil
 }
 
-
 // filterCandidates returns filtered candidate list by given raw candidate and probation list
 func filterCandidates(
-	candidates []*types.Candidate,
+	candidates interface{},
 	unqualifiedList *iotextypes.ProbationCandidateList,
 	epochStartHeight uint64,
-) ([]*types.Candidate, error) {
-	candidatesMap := make(map[string]*types.Candidate)
+) (interface{}, error) {
+	v2 := false
+	if _, ok := candidates.(*iotextypes.CandidateListV2); ok {
+		v2 = true
+	}
+
 	updatedVotingPower := make(map[string]*big.Int)
 	intensityRate := float64(uint32(100)-unqualifiedList.IntensityRate) / float64(100)
-
 	probationMap := make(map[string]uint32)
 	for _, elem := range unqualifiedList.ProbationList {
 		probationMap[elem.Address] = elem.Count
 	}
-	for _, cand := range candidates {
-		filterCand := cand.Clone()
-		candOpAddr := string(cand.OperatorAddress())
-		if _, ok := probationMap[candOpAddr]; ok {
-			// if it is an unqualified delegate, multiply the voting power with probation intensity rate
-			votingPower := new(big.Float).SetInt(filterCand.Score())
-			newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
-			filterCand.SetScore(newVotingPower)
+
+	var candidatesMap interface{}
+	switch {
+	case v2:
+		candidatesMap = make(map[string]*iotextypes.CandidateV2)
+		for _, cand := range candidates.(*iotextypes.CandidateListV2).Candidates {
+			if _, ok := probationMap[cand.OperatorAddress]; ok {
+				votingPower, ok := new(big.Float).SetString(cand.TotalWeightedVotes)
+				if !ok {
+					return nil, errors.New("total weighted votes convert error")
+				}
+				newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+				clone := *cand
+				clone.TotalWeightedVotes = newVotingPower.String()
+				fmt.Println(clone)
+				updatedVotingPower[cand.OperatorAddress] = newVotingPower
+				candidatesMap.(map[string]*iotextypes.CandidateV2)[cand.OperatorAddress] = &clone
+			}
 		}
-		updatedVotingPower[candOpAddr] = filterCand.Score()
-		candidatesMap[candOpAddr] = filterCand
+	default:
+		candidatesMap = make(map[string]*types.Candidate)
+		for _, cand := range candidates.([]*types.Candidate) {
+			filterCand := cand.Clone()
+			candOpAddr := string(cand.OperatorAddress())
+			if _, ok := probationMap[candOpAddr]; ok {
+				// if it is an unqualified delegate, multiply the voting power with probation intensity rate
+				votingPower := new(big.Float).SetInt(filterCand.Score())
+				newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+				filterCand.SetScore(newVotingPower)
+			}
+			updatedVotingPower[candOpAddr] = filterCand.Score()
+			candidatesMap.(map[string]*types.Candidate)[candOpAddr] = filterCand
+		}
 	}
+
 	// sort again with updated voting power
 	sorted := util.Sort(updatedVotingPower, epochStartHeight)
-	var verifiedCandidates []*types.Candidate
-	for _, name := range sorted {
-		verifiedCandidates = append(verifiedCandidates, candidatesMap[name])
+	var verifiedCandidates interface{}
+	switch {
+	case v2:
+		verifiedCandidates = &iotextypes.CandidateListV2{}
+		for _, name := range sorted {
+			verifiedCandidates.(*iotextypes.CandidateListV2).Candidates = append(verifiedCandidates.(*iotextypes.CandidateListV2).Candidates, candidatesMap.(map[string]*iotextypes.CandidateV2)[name])
+		}
+	default:
+		verifiedCandidates = make([]*types.Candidate, 0)
+		for _, name := range sorted {
+			verifiedCandidates = append(verifiedCandidates.([]*types.Candidate), candidatesMap.(map[string]*types.Candidate)[name])
+		}
 	}
 	return verifiedCandidates, nil
 }
