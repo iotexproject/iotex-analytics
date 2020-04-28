@@ -11,10 +11,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 	//"fmt"
+	"math/big"
 	"strconv"
 	"testing"
 	"time"
-	"math/big"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -59,7 +59,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 	cfg := indexprotocol.VoteWeightCalConsts{}
-	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15), indexprotocol.GravityChain{}, indexprotocol.Poll{
+	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(100000)), indexprotocol.GravityChain{}, indexprotocol.Poll{
 		VoteThreshold:        "0",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
@@ -106,8 +106,8 @@ func TestProtocol(t *testing.T) {
 		Data: data,
 	}, nil)
 	gomock.InOrder(
-		first,
 		second,
+		first,
 	)
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)

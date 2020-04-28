@@ -448,6 +448,9 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := p.epochCtx.GetEpochHeight(epochNum)
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.getBucketInfoByEpochV2(height, epochNum, delegateName)
+	}
 	votes, voteFlag, delegates, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
@@ -702,9 +705,14 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 		return errors.Wrap(err, "failed to get result by height")
 	}
 	if probationList != nil {
-		delegates, err = filterCandidates(delegates, probationList, epochStartheight)
+		ret, err := filterCandidates(delegates, probationList, epochStartheight)
 		if err != nil {
 			return errors.Wrap(err, "failed to filter candidate with probation list")
+		}
+		var ok bool
+		delegates, ok = ret.([]*types.Candidate)
+		if !ok {
+			return errors.Errorf("failed to convert types.Candidate:%s", reflect.TypeOf(ret))
 		}
 	}
 	if err := p.updateAggregateVotingandVotingMetaTable(tx, votes, voteFlag, delegates, epochNumber, probationList); err != nil {
