@@ -121,70 +121,75 @@ func (p *Protocol) getProbationList(epochNumber uint64) ([]*ProbationList, error
 
 // filterCandidates returns filtered candidate list by given raw candidate and probation list
 func filterCandidates(
-	candidates interface{},
+	candidates []*types.Candidate,
 	unqualifiedList *iotextypes.ProbationCandidateList,
 	epochStartHeight uint64,
-) (interface{}, error) {
-	v2 := false
-	if _, ok := candidates.(*iotextypes.CandidateListV2); ok {
-		v2 = true
-	}
-
+) ([]*types.Candidate, error) {
+	candidatesMap := make(map[string]*types.Candidate)
 	updatedVotingPower := make(map[string]*big.Int)
 	intensityRate := float64(uint32(100)-unqualifiedList.IntensityRate) / float64(100)
+
 	probationMap := make(map[string]uint32)
 	for _, elem := range unqualifiedList.ProbationList {
 		probationMap[elem.Address] = elem.Count
 	}
-
-	var candidatesMap interface{}
-	switch {
-	case v2:
-		candidatesMap = make(map[string]*iotextypes.CandidateV2)
-		for _, cand := range candidates.(*iotextypes.CandidateListV2).Candidates {
-			if _, ok := probationMap[cand.OperatorAddress]; ok {
-				votingPower, ok := new(big.Float).SetString(cand.TotalWeightedVotes)
-				if !ok {
-					return nil, errors.New("total weighted votes convert error")
-				}
-				newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
-				clone := *cand
-				clone.TotalWeightedVotes = newVotingPower.String()
-				fmt.Println(clone)
-				updatedVotingPower[cand.OperatorAddress] = newVotingPower
-				candidatesMap.(map[string]*iotextypes.CandidateV2)[cand.OperatorAddress] = &clone
-			}
+	for _, cand := range candidates {
+		filterCand := cand.Clone()
+		candOpAddr := string(cand.OperatorAddress())
+		if _, ok := probationMap[candOpAddr]; ok {
+			// if it is an unqualified delegate, multiply the voting power with probation intensity rate
+			votingPower := new(big.Float).SetInt(filterCand.Score())
+			newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			filterCand.SetScore(newVotingPower)
 		}
-	default:
-		candidatesMap = make(map[string]*types.Candidate)
-		for _, cand := range candidates.([]*types.Candidate) {
-			filterCand := cand.Clone()
-			candOpAddr := string(cand.OperatorAddress())
-			if _, ok := probationMap[candOpAddr]; ok {
-				// if it is an unqualified delegate, multiply the voting power with probation intensity rate
-				votingPower := new(big.Float).SetInt(filterCand.Score())
-				newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
-				filterCand.SetScore(newVotingPower)
-			}
-			updatedVotingPower[candOpAddr] = filterCand.Score()
-			candidatesMap.(map[string]*types.Candidate)[candOpAddr] = filterCand
-		}
+		updatedVotingPower[candOpAddr] = filterCand.Score()
+		candidatesMap[candOpAddr] = filterCand
 	}
-
 	// sort again with updated voting power
 	sorted := util.Sort(updatedVotingPower, epochStartHeight)
-	var verifiedCandidates interface{}
-	switch {
-	case v2:
-		verifiedCandidates = &iotextypes.CandidateListV2{}
-		for _, name := range sorted {
-			verifiedCandidates.(*iotextypes.CandidateListV2).Candidates = append(verifiedCandidates.(*iotextypes.CandidateListV2).Candidates, candidatesMap.(map[string]*iotextypes.CandidateV2)[name])
+	var verifiedCandidates []*types.Candidate
+	for _, name := range sorted {
+		verifiedCandidates = append(verifiedCandidates, candidatesMap[name])
+	}
+	return verifiedCandidates, nil
+}
+
+// filterCandidatesV2 returns filtered candidate list by given raw candidate and probation list
+func filterCandidatesV2(
+	candidates *iotextypes.CandidateListV2,
+	unqualifiedList *iotextypes.ProbationCandidateList,
+	epochStartHeight uint64,
+) (*iotextypes.CandidateListV2, error) {
+	candidatesMap := make(map[string]*iotextypes.CandidateV2)
+	updatedVotingPower := make(map[string]*big.Int)
+	intensityRate := float64(uint32(100)-unqualifiedList.IntensityRate) / float64(100)
+
+	probationMap := make(map[string]uint32)
+	for _, elem := range unqualifiedList.ProbationList {
+		probationMap[elem.Address] = elem.Count
+	}
+	for _, cand := range candidates.Candidates {
+		filterCand := *cand
+		votingPower, ok := new(big.Float).SetString(cand.TotalWeightedVotes)
+		if !ok {
+			return nil, errors.New("total weighted votes convert error")
 		}
-	default:
-		verifiedCandidates = make([]*types.Candidate, 0)
-		for _, name := range sorted {
-			verifiedCandidates = append(verifiedCandidates.([]*types.Candidate), candidatesMap.(map[string]*types.Candidate)[name])
+		if _, ok := probationMap[cand.OperatorAddress]; ok {
+			newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			filterCand.TotalWeightedVotes = newVotingPower.String()
 		}
+		totalWeightedVotes, ok := new(big.Int).SetString(filterCand.TotalWeightedVotes, 10)
+		if !ok {
+			return nil, errors.New("total weighted votes convert error")
+		}
+		updatedVotingPower[cand.OperatorAddress] = totalWeightedVotes
+		candidatesMap[cand.OperatorAddress] = &filterCand
+	}
+	// sort again with updated voting power
+	sorted := util.Sort(updatedVotingPower, epochStartHeight)
+	verifiedCandidates := &iotextypes.CandidateListV2{}
+	for _, name := range sorted {
+		verifiedCandidates.Candidates = append(verifiedCandidates.Candidates, candidatesMap[name])
 	}
 	return verifiedCandidates, nil
 }
