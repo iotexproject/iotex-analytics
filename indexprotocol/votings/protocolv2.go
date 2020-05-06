@@ -44,14 +44,9 @@ func (p *Protocol) stakingV2(chainClient iotexapi.APIServiceClient, epochStarthe
 		return errors.Wrap(err, "failed to get buckets count")
 	}
 	if probationList != nil {
-		ret, err := filterCandidates(candidateList, probationList, epochStartheight)
+		candidateList, err = filterCandidatesV2(candidateList, probationList, epochStartheight)
 		if err != nil {
 			return errors.Wrap(err, "failed to filter candidate with probation list")
-		}
-		var ok bool
-		candidateList, ok = ret.(*iotextypes.CandidateListV2)
-		if !ok {
-			return errors.Errorf("failed to convert iotextypes.CandidateListV2:%s", reflect.TypeOf(ret))
 		}
 	}
 	// after get and clean data,the following code is for writing mysql
@@ -227,7 +222,7 @@ func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.Candi
 
 func (p *Protocol) updateAggregateVotingV2(tx *sql.Tx, votes *iotextypes.VoteBucketList, delegates *iotextypes.CandidateListV2, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	pb := convertProbationListToLocal(probationList)
-	intensityRate, probationMap := getProbationMapFromDB(delegates, pb)
+	intensityRate, probationMap := probationListToMap(delegates, pb)
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
@@ -325,7 +320,7 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	intensityRate, probationMap := getProbationMapFromDB(candidateList, pblist)
+	intensityRate, probationMap := probationListToMap(candidateList, pblist)
 	var votinginfoList []*VotingInfo
 	for _, vote := range bucketList.Buckets {
 		if vote.CandidateAddress == candidateAddress {
@@ -385,7 +380,7 @@ func remainingTime(bucket *iotextypes.VoteBucket) time.Duration {
 	return 0
 }
 
-func getProbationMapFromDB(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+func probationListToMap(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
 	probationMap = make(map[string]uint64)
 	if probationList != nil {
 		for _, can := range candidateList.Candidates {
