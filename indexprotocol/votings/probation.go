@@ -9,6 +9,7 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -192,4 +193,52 @@ func filterCandidatesV2(
 		verifiedCandidates.Candidates = append(verifiedCandidates.Candidates, candidatesMap[name])
 	}
 	return verifiedCandidates, nil
+}
+
+func probationListToMapV2(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+	probationMap = make(map[string]uint64)
+	if probationList != nil {
+		for _, can := range candidateList.Candidates {
+			for _, pb := range probationList {
+				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
+				if pb.Address == can.Name {
+					probationMap[can.Name] = pb.Count
+				}
+			}
+		}
+	}
+	return
+}
+
+func probationListToMap(delegates []*types.Candidate, pblist []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+	probationMap = make(map[string]uint64)
+	if pblist != nil {
+		for _, delegate := range delegates {
+			delegateOpAddr := string(delegate.OperatorAddress())
+			for _, pb := range pblist {
+				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
+				if pb.Address == delegateOpAddr {
+					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
+				}
+			}
+		}
+	}
+	return
+}
+
+func convertProbationListToLocal(probationList *iotextypes.ProbationCandidateList) (ret []*ProbationList) {
+	if probationList == nil {
+		return nil
+	}
+	ret = make([]*ProbationList, 0)
+	for _, pb := range probationList.ProbationList {
+		p := &ProbationList{
+			0,
+			uint64(probationList.IntensityRate),
+			pb.Address,
+			uint64(pb.Count),
+		}
+		ret = append(ret, p)
+	}
+	return
 }

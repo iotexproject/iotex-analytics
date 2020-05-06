@@ -475,19 +475,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	var intensityRate float64
-	probationMap := make(map[string]uint64)
-	if pblist != nil {
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, pb := range pblist {
-				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
-				if pb.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
-				}
-			}
-		}
-	}
+	intensityRate, probationMap := probationListToMap(delegates, pblist)
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
@@ -720,19 +708,8 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 
 func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	//update aggregate voting table
-	probationMap := make(map[string]uint32)
-	var intensityRate float64
-	if probationList != nil {
-		intensityRate = float64(uint32(100)-probationList.IntensityRate) / float64(100)
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, elem := range probationList.ProbationList {
-				if elem.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = elem.Count
-				}
-			}
-		}
-	}
+	localPb := convertProbationListToLocal(probationList)
+	intensityRate, probationMap := probationListToMap(delegates, localPb)
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
 	for i, vote := range votes {

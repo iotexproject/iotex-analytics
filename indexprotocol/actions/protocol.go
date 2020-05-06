@@ -51,6 +51,23 @@ const (
 	selectActionHistory = "SELECT * FROM %s WHERE action_hash=?"
 	insertActionHistory = "INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, " +
 		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s"
+
+	// action type
+	Transfer               = "transfer"
+	Execution              = "execution"
+	DepositToRewardingFund = "depositToRewardingFund"
+	ClaimFromRewardingFund = "claimFromRewardingFund"
+	GrantReward            = "grantReward"
+	StakeCreate            = "stakeCreate"
+	StakeUnstake           = "stakeUnstake"
+	StakeWithdraw          = "stakeWithdraw"
+	StakeAddDeposit        = "stakeAddDeposit"
+	StakeRestake           = "stakeRestake"
+	StakeChangeCandidate   = "stakeChangeCandidate"
+	StakeTransferOwnership = "stakeTransferOwnership"
+	CandidateRegister      = "candidateRegister"
+	CandidateUpdate        = "candidateUpdate"
+	PutPollResult          = "putPollResult"
 )
 
 type (
@@ -177,22 +194,44 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		act := selp.Action()
 		var actionType string
 		amount := "0"
-		if tsf, ok := act.(*action.Transfer); ok {
-			actionType = "transfer"
-			amount = tsf.Amount().String()
-		} else if exec, ok := act.(*action.Execution); ok {
-			actionType = "execution"
-			amount = exec.Amount().String()
-		} else if df, ok := act.(*action.DepositToRewardingFund); ok {
-			actionType = "depositToRewardingFund"
-			amount = df.Amount().String()
-		} else if cf, ok := act.(*action.ClaimFromRewardingFund); ok {
-			actionType = "claimFromRewardingFund"
-			amount = cf.Amount().String()
-		} else if _, ok := act.(*action.GrantReward); ok {
-			actionType = "grantReward"
-		} else if _, ok := act.(*action.PutPollResult); ok {
-			actionType = "putPollResult"
+		switch a := act.(type) {
+		case *action.Transfer:
+			actionType = Transfer
+			amount = a.Amount().String()
+		case *action.Execution:
+			actionType = Execution
+			amount = a.Amount().String()
+		case *action.DepositToRewardingFund:
+			actionType = DepositToRewardingFund
+			amount = a.Amount().String()
+		case *action.ClaimFromRewardingFund:
+			actionType = ClaimFromRewardingFund
+			amount = a.Amount().String()
+		case *action.GrantReward:
+			actionType = GrantReward
+		case *action.CreateStake:
+			actionType = StakeCreate
+			amount = a.Amount().String()
+		case *action.Unstake:
+			actionType = StakeUnstake
+		case *action.WithdrawStake:
+			actionType = StakeWithdraw
+		case *action.DepositToStake:
+			actionType = StakeAddDeposit
+			amount = a.Amount().String()
+		case *action.Restake:
+			actionType = StakeRestake
+		case *action.ChangeCandidate:
+			actionType = StakeChangeCandidate
+		case *action.TransferStake:
+			actionType = StakeTransferOwnership
+		case *action.CandidateRegister:
+			actionType = CandidateRegister
+			amount = a.Amount().String()
+		case *action.CandidateUpdate:
+			actionType = CandidateUpdate
+		case *action.PutPollResult:
+			actionType = PutPollResult
 		}
 		hashToActionInfo[actionHash] = &ActionInfo{
 			ActionType: actionType,

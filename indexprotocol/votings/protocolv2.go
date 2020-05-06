@@ -116,6 +116,7 @@ func (p *Protocol) getBucketsV2(chainClient iotexapi.APIServiceClient, offset, l
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
+			// TODO rm this when commit pr
 			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
 		}
 		return
@@ -172,6 +173,7 @@ func (p *Protocol) getCandidatesV2(chainClient iotexapi.APIServiceClient, offset
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
+			// TODO rm this when commit pr
 			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
 		}
 		return
@@ -209,9 +211,9 @@ func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.Candi
 			candidate.RewardAddress,
 			candidate.TotalWeightedVotes,
 			candidate.SelfStakingTokens,
-			0,             // TODO wait for research
-			0,             // TODO wait for research
-			0,             // TODO wait for research
+			0,             // TODO wait for deploy contract or api
+			0,             // TODO wait for deploy contract or api
+			0,             // TODO wait for deploy contract or api
 			addressString, // type is varchar 40,change to ethereum hex address
 		); err != nil {
 			return err
@@ -222,20 +224,24 @@ func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.Candi
 
 func (p *Protocol) updateAggregateVotingV2(tx *sql.Tx, votes *iotextypes.VoteBucketList, delegates *iotextypes.CandidateListV2, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	pb := convertProbationListToLocal(probationList)
-	intensityRate, probationMap := probationListToMap(delegates, pb)
+	intensityRate, probationMap := probationListToMapV2(delegates, pb)
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
+	selfStakeIndex := selfStakeIndexMap(delegates)
 	for _, vote := range votes.Buckets {
 		//for sumOfWeightedVotes
 		key := aggregateKey{
 			epochNumber:   epochNumber,
 			candidateName: vote.CandidateAddress,
 			voterAddress:  vote.Owner,
-			isNative:      true, //alway true for staking v2,TODO check if it's right
+			isNative:      true,
 		}
-
-		weightedAmount := calculateVoteWeightV2(p.voteCfg, vote, false)
+		selfStake := false
+		if _, ok := selfStakeIndex[vote.Index]; ok {
+			selfStake = true
+		}
+		weightedAmount := calculateVoteWeightV2(p.voteCfg, vote, selfStake)
 		stakeAmount, ok := big.NewInt(0).SetString(vote.StakedAmount, 10)
 		if !ok {
 			err = errors.New("stake amount convert error")
@@ -320,11 +326,16 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	intensityRate, probationMap := probationListToMap(candidateList, pblist)
+	intensityRate, probationMap := probationListToMapV2(candidateList, pblist)
 	var votinginfoList []*VotingInfo
+	selfStakeIndex := selfStakeIndexMap(candidateList)
 	for _, vote := range bucketList.Buckets {
 		if vote.CandidateAddress == candidateAddress {
-			weightedVotes := calculateVoteWeightV2(p.voteCfg, vote, false)
+			selfStake := false
+			if _, ok := selfStakeIndex[vote.Index]; ok {
+				selfStake = true
+			}
+			weightedVotes := calculateVoteWeightV2(p.voteCfg, vote, selfStake)
 			if _, ok := probationMap[vote.CandidateAddress]; ok {
 				// filter based on probation
 				votingPower := new(big.Float).SetInt(weightedVotes)
@@ -333,7 +344,7 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
 				VoterAddress:      vote.Owner,
-				IsNative:          true, //always true for stakingv2,TODO check
+				IsNative:          true,
 				Votes:             vote.StakedAmount,
 				WeightedVotes:     weightedVotes.Text(10),
 				RemainingDuration: fmt.Sprintf("%0.2f", remainingTime(vote).Seconds()),
@@ -380,34 +391,10 @@ func remainingTime(bucket *iotextypes.VoteBucket) time.Duration {
 	return 0
 }
 
-func probationListToMap(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
-	probationMap = make(map[string]uint64)
-	if probationList != nil {
-		for _, can := range candidateList.Candidates {
-			for _, pb := range probationList {
-				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
-				if pb.Address == can.Name {
-					probationMap[can.Name] = pb.Count
-				}
-			}
-		}
+func selfStakeIndexMap(candidates *iotextypes.CandidateListV2) map[uint64]struct{} {
+	ret := make(map[uint64]struct{})
+	for _, can := range candidates.Candidates {
+		ret[can.SelfStakeBucketIdx] = struct{}{}
 	}
-	return
-}
-
-func convertProbationListToLocal(probationList *iotextypes.ProbationCandidateList) (ret []*ProbationList) {
-	if probationList == nil {
-		return nil
-	}
-	ret = make([]*ProbationList, 0)
-	for _, pb := range probationList.ProbationList {
-		p := &ProbationList{
-			0,
-			uint64(probationList.IntensityRate),
-			pb.Address,
-			uint64(pb.Count),
-		}
-		ret = append(ret, p)
-	}
-	return
+	return ret
 }
