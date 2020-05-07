@@ -17,12 +17,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iotexproject/iotex-core/state"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-core/action"
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/action/protocol/rewarding/rewardingpb"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
@@ -341,8 +342,12 @@ func (p *Protocol) updateCandidateRewardAddress(
 	electionClient api.APIServiceClient,
 	height uint64,
 ) error {
+	// stakingV2 TODO
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.updateCandidateRewardAddressV2(chainClient, height)
+	}
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}
@@ -371,6 +376,37 @@ func (p *Protocol) updateCandidateRewardAddress(
 			p.RewardAddrToName[candidate.GetRewardAddress()] = make([]string, 0)
 		}
 		p.RewardAddrToName[candidate.GetRewardAddress()] = append(p.RewardAddrToName[candidate.GetRewardAddress()], candidate.GetName())
+	}
+	return nil
+}
+
+func (p *Protocol) updateCandidateRewardAddressV2(
+	chainClient iotexapi.APIServiceClient,
+	height uint64,
+) error {
+	epochNumber := p.epochCtx.GetEpochNumber(height)
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
+		MethodName: []byte("CandidatesByEpoch"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get active block producers")
+	}
+
+	var candidateList state.CandidateList
+	if err := candidateList.Deserialize(readStateRes.GetData()); err != nil {
+		return errors.Wrap(err, "failed to deserialize active block producers")
+	}
+
+	p.RewardAddrToName = make(map[string][]string)
+	for _, candidate := range candidateList {
+		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
+			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
+		}
+		fmt.Println("updateCandidateRewardAddressV2:", candidate.RewardAddress, string(candidate.CanName), candidate.Address)
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.CanName))
 	}
 	return nil
 }
@@ -443,7 +479,10 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 			valArgs = append(valArgs, epochNumber, candidateName, rewards[0], rewards[1], rewards[2])
 		}
 	}
-
+	if len(valStrs) == 0 || len(valArgs) == 0 {
+		fmt.Println(len(valStrs), len(valArgs))
+		return nil
+	}
 	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err

@@ -18,7 +18,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/action"
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -49,7 +48,7 @@ const (
 	createBlockHistory      = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"block_height DECIMAL(65, 0) NOT NULL, block_hash VARCHAR(64) NOT NULL, transfer DECIMAL(65, 0) NOT NULL, execution DECIMAL(65, 0) NOT NULL, " +
 		"depositToRewardingFund DECIMAL(65, 0) NOT NULL, claimFromRewardingFund DECIMAL(65, 0) NOT NULL, grantReward DECIMAL(65, 0) NOT NULL, " +
-		"putPollResult DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, " +
+		"putPollResult DECIMAL(65, 0) NOT NULL,stakeCreate DECIMAL(65, 0) NOT NULL,stakeUnstake DECIMAL(65, 0) NOT NULL,stakeWithdraw DECIMAL(65, 0) NOT NULL,stakeAddDeposit DECIMAL(65, 0) NOT NULL,stakeRestake DECIMAL(65, 0) NOT NULL,stakeChangeCandidate DECIMAL(65, 0) NOT NULL,stakeTransferOwnership DECIMAL(65, 0) NOT NULL,candidateRegister DECIMAL(65, 0) NOT NULL,candidateUpdate DECIMAL(65, 0) NOT NULL, gas_consumed DECIMAL(65, 0) NOT NULL, producer_address VARCHAR(41) NOT NULL, " +
 		"producer_name VARCHAR(24) NOT NULL, expected_producer_address VARCHAR(41) NOT NULL, " +
 		"expected_producer_name VARCHAR(24) NOT NULL, timestamp DECIMAL(65, 0) NOT NULL, PRIMARY KEY (block_height))"
 	selectBlockHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
@@ -64,9 +63,9 @@ const (
 		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))"
 	selectBlockHistory = "SELECT * FROM %s WHERE block_height=?"
 	selectProductivity = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
-	insertBlockHistory = "INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
-		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult, gas_consumed, producer_address, " +
-		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	insertBlockHistory = "INSERT IGNORE INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
+		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult,stakeCreate,stakeUnstake,stakeWithdraw,stakeAddDeposit,stakeRestake,stakeChangeCandidate,stakeTransferOwnership,candidateRegister,candidateUpdate,gas_consumed, producer_address, " +
+		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertExpectedProducer = "INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, " +
 		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name"
 	insertProducer = "INSERT IGNORE INTO %s SELECT epoch_number, producer_name, " +
@@ -90,6 +89,15 @@ type (
 		ClaimFromRewardingFund  uint64
 		GrantReward             uint64
 		PutPollResult           uint64
+		StakeCreate             uint64
+		StakeUnstake            uint64
+		StakeWithdraw           uint64
+		StakeAddDeposit         uint64
+		StakeRestake            uint64
+		StakeChangeCandidate    uint64
+		StakeTransferOwnership  uint64
+		CandidateRegister       uint64
+		CandidateUpdate         uint64
 		GasConsumed             uint64
 		ProducerAddress         string
 		ProducerName            string
@@ -188,25 +196,55 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	}
 
 	// log action index
-	var transferCount uint64
-	var executionCount uint64
-	var depositToRewardingFundCount uint64
-	var claimFromRewardingFundCount uint64
-	var grantRewardCount uint64
-	var putPollResultCount uint64
+	var (
+		transferCount               uint64
+		executionCount              uint64
+		depositToRewardingFundCount uint64
+		claimFromRewardingFundCount uint64
+		grantRewardCount            uint64
+		putPollResultCount          uint64
+		stakeCreateCount            uint64
+		stakeUnstakeCount           uint64
+		stakeWithdrawCount          uint64
+		stakeAddDepositCount        uint64
+		stakeRestakeCount           uint64
+		stakeChangeCandidateCount   uint64
+		stakeTransferOwnershipCount uint64
+		candidateRegisterCount      uint64
+		candidateUpdateCount        uint64
+	)
 	for _, selp := range blk.Actions {
 		act := selp.Action()
-		if _, ok := act.(*action.Transfer); ok {
+		switch act.(type) {
+		case *action.Transfer:
 			transferCount++
-		} else if _, ok := act.(*action.Execution); ok {
+		case *action.Execution:
 			executionCount++
-		} else if _, ok := act.(*action.DepositToRewardingFund); ok {
+		case *action.DepositToRewardingFund:
 			depositToRewardingFundCount++
-		} else if _, ok := act.(*action.ClaimFromRewardingFund); ok {
+		case *action.ClaimFromRewardingFund:
 			claimFromRewardingFundCount++
-		} else if _, ok := act.(*action.GrantReward); ok {
+		case *action.GrantReward:
 			grantRewardCount++
-		} else if _, ok := act.(*action.PutPollResult); ok {
+		case *action.CreateStake:
+			stakeCreateCount++
+		case *action.Unstake:
+			stakeUnstakeCount++
+		case *action.WithdrawStake:
+			stakeWithdrawCount++
+		case *action.DepositToStake:
+			stakeAddDepositCount++
+		case *action.Restake:
+			stakeRestakeCount++
+		case *action.ChangeCandidate:
+			stakeChangeCandidateCount++
+		case *action.TransferStake:
+			stakeTransferOwnershipCount++
+		case *action.CandidateRegister:
+			candidateRegisterCount++
+		case *action.CandidateUpdate:
+			candidateUpdateCount++
+		case *action.PutPollResult:
 			putPollResultCount++
 		}
 	}
@@ -224,7 +262,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	}
 	expectedProducerName := p.OperatorAddrToName[expectedProducerAddr]
 	return p.updateBlockHistory(tx, epochNumber, height, hex.EncodeToString(hash[:]), transferCount, executionCount,
-		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, gasConsumed,
+		depositToRewardingFundCount, claimFromRewardingFundCount, grantRewardCount, putPollResultCount, stakeCreateCount, stakeUnstakeCount, stakeWithdrawCount, stakeAddDepositCount, stakeRestakeCount, stakeChangeCandidateCount, stakeTransferOwnershipCount, candidateRegisterCount, candidateUpdateCount, gasConsumed,
 		producerAddr, producerName, expectedProducerAddr, expectedProducerName, blk.Timestamp())
 }
 
@@ -308,6 +346,15 @@ func (p *Protocol) updateBlockHistory(
 	claimFromRewardingFunds uint64,
 	grantRewards uint64,
 	putPollResults uint64,
+	stakeCreate uint64,
+	stakeUnstake uint64,
+	stakeWithdraw uint64,
+	stakeAddDeposit uint64,
+	stakeRestake uint64,
+	stakeChangeCandidate uint64,
+	stakeTransferOwnership uint64,
+	candidateRegister uint64,
+	candidateUpdate uint64,
 	gasConsumed uint64,
 	producerAddress string,
 	producerName string,
@@ -317,9 +364,7 @@ func (p *Protocol) updateBlockHistory(
 ) error {
 	insertQuery := fmt.Sprintf(insertBlockHistory,
 		BlockHistoryTableName)
-	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds,
-		claimFromRewardingFunds, grantRewards, putPollResults, gasConsumed, producerAddress, producerName,
-		expectedProducerAddress, expectedProducerName, timestamp.Unix()); err != nil {
+	if _, err := tx.Exec(insertQuery, epochNumber, height, hash, transfers, executions, depositToRewardingFunds, claimFromRewardingFunds, grantRewards, putPollResults, stakeCreate, stakeUnstake, stakeWithdraw, stakeAddDeposit, stakeRestake, stakeChangeCandidate, stakeTransferOwnership, candidateRegister, candidateUpdate, gasConsumed, producerAddress, producerName, expectedProducerAddress, expectedProducerName, timestamp.Unix()); err != nil {
 		return err
 	}
 	return nil
@@ -331,9 +376,13 @@ func (p *Protocol) updateDelegates(
 	height uint64,
 	epochNumber uint64,
 ) error {
+	// stakingV2 TODO
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.updateDelegatesV2(chainClient, height, epochNumber)
+	}
 	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}
@@ -373,7 +422,7 @@ func (p *Protocol) updateDelegates(
 	}
 
 	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
 	}
@@ -388,6 +437,55 @@ func (p *Protocol) updateDelegates(
 	}
 	p.ActiveBlockProducers = []string{}
 	for _, activeBlockProducer := range activeBlockProducers {
+		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
+	}
+
+	return nil
+}
+
+func (p *Protocol) updateDelegatesV2(
+	chainClient iotexapi.APIServiceClient,
+	height uint64,
+	epochNumber uint64,
+) error {
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
+		MethodName: []byte("CandidatesByEpoch"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get active block producers")
+	}
+
+	var candidateList state.CandidateList
+	if err := candidateList.Deserialize(readStateRes.GetData()); err != nil {
+		return errors.Wrap(err, "failed to deserialize active block producers")
+	}
+	p.OperatorAddrToName = make(map[string]string)
+	for _, c := range candidateList {
+		p.OperatorAddrToName[c.Address] = string(c.CanName)
+		fmt.Println("updateDelegatesV2:", c)
+	}
+
+	readStateRequest = &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
+		MethodName: []byte("ActiveBlockProducersByEpoch"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
+	}
+	readStateRes, err = chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return errors.Wrap(err, "failed to get active block producers")
+	}
+
+	var activeBlockProducers state.CandidateList
+	if err := activeBlockProducers.Deserialize(readStateRes.GetData()); err != nil {
+		return errors.Wrap(err, "failed to deserialize active block producers")
+	}
+
+	p.ActiveBlockProducers = []string{}
+	for _, activeBlockProducer := range activeBlockProducers {
+		fmt.Println("activeBlockProducer:", activeBlockProducer)
 		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
 	}
 

@@ -17,7 +17,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/state"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -85,7 +84,7 @@ func TestXrc20(t *testing.T) {
 		}, nil,
 	)
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}

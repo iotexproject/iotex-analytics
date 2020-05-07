@@ -30,8 +30,8 @@ const (
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 
-	selectCount      = "SELECT COUNT(*),SUM(amount) "
-	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), SUM(amount) " + fromJoinedTables
+	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
+	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
 )
 
 // HermesArg defines Hermes request parameters
