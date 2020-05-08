@@ -17,8 +17,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iotexproject/iotex-core/state"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
@@ -342,7 +340,6 @@ func (p *Protocol) updateCandidateRewardAddress(
 	electionClient api.APIServiceClient,
 	height uint64,
 ) error {
-	// stakingV2 TODO
 	if height >= p.epochCtx.FairbankHeight() {
 		return p.updateCandidateRewardAddressV2(chainClient, height)
 	}
@@ -384,29 +381,17 @@ func (p *Protocol) updateCandidateRewardAddressV2(
 	chainClient iotexapi.APIServiceClient,
 	height uint64,
 ) error {
-	epochNumber := p.epochCtx.GetEpochNumber(height)
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("CandidatesByEpoch"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
 	if err != nil {
-		return errors.Wrap(err, "failed to get active block producers")
+		return errors.Wrap(err, "get candidate error")
 	}
-
-	var candidateList state.CandidateList
-	if err := candidateList.Deserialize(readStateRes.GetData()); err != nil {
-		return errors.Wrap(err, "failed to deserialize active block producers")
-	}
-
 	p.RewardAddrToName = make(map[string][]string)
-	for _, candidate := range candidateList {
+	for _, candidate := range candidateList.Candidates {
 		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
 			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
 		}
-		fmt.Println("updateCandidateRewardAddressV2:", candidate.RewardAddress, string(candidate.CanName), candidate.Address)
-		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.CanName))
+		fmt.Println("updateCandidateRewardAddressV2:", candidate.RewardAddress, string(candidate.Name), candidate.RewardAddress)
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.Name))
 	}
 	return nil
 }

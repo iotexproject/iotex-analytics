@@ -24,7 +24,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-core/action/protocol/poll"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-election/carrier"
@@ -579,7 +578,7 @@ func (p *Protocol) getGravityChainStartHeight(
 	height uint64,
 ) (uint64, error) {
 	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(poll.ProtocolID),
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
 	}

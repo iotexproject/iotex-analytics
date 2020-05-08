@@ -7,7 +7,6 @@
 package votings
 
 import (
-	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -16,10 +15,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
@@ -28,18 +24,12 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
-const (
-	protocolID          = "staking"
-	readBucketsLimit    = 30000
-	readCandidatesLimit = 20000
-)
-
 func (p *Protocol) stakingV2(chainClient iotexapi.APIServiceClient, epochStartheight, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
-	voteBucketList, err := p.getBucketsAllV2(chainClient)
+	voteBucketList, err := indexprotocol.GetBucketsAllV2(chainClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
-	candidateList, err := p.getCandidatesAllV2(chainClient)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
@@ -68,120 +58,6 @@ func (p *Protocol) stakingV2(chainClient iotexapi.APIServiceClient, epochStarthe
 		return
 	}
 	tx.Commit()
-	return
-}
-
-func (p *Protocol) getBucketsAllV2(chainClient iotexapi.APIServiceClient) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
-	voteBucketListAll = &iotextypes.VoteBucketList{}
-	for i := uint32(0); ; i++ {
-		offset := i * readBucketsLimit
-		size := uint32(readBucketsLimit)
-		voteBucketList, err := p.getBucketsV2(chainClient, offset, size)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get bucket")
-		}
-		voteBucketListAll.Buckets = append(voteBucketListAll.Buckets, voteBucketList.Buckets...)
-		if len(voteBucketList.Buckets) < readBucketsLimit {
-			break
-		}
-	}
-	return
-}
-
-func (p *Protocol) getBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (voteBucketList *iotextypes.VoteBucketList, err error) {
-	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
-		Method: iotexapi.ReadStakingDataMethod_BUCKETS,
-	})
-	if err != nil {
-		return nil, err
-	}
-	arg, err := proto.Marshal(&iotexapi.ReadStakingDataRequest{
-		Request: &iotexapi.ReadStakingDataRequest_Buckets{
-			Buckets: &iotexapi.ReadStakingDataRequest_VoteBuckets{
-				Pagination: &iotexapi.PaginationParam{
-					Offset: offset,
-					Limit:  limit,
-				},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(protocolID),
-		MethodName: methodName,
-		Arguments:  [][]byte{arg},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			// TODO rm this when commit pr
-			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
-		}
-		return
-	}
-	voteBucketList = &iotextypes.VoteBucketList{}
-	if err := proto.Unmarshal(readStateRes.GetData(), voteBucketList); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal VoteBucketList")
-	}
-	return
-}
-
-func (p *Protocol) getCandidatesAllV2(chainClient iotexapi.APIServiceClient) (candidateListAll *iotextypes.CandidateListV2, err error) {
-	candidateListAll = &iotextypes.CandidateListV2{}
-	for i := uint32(0); ; i++ {
-		offset := i * readCandidatesLimit
-		size := uint32(readCandidatesLimit)
-		candidateList, err := p.getCandidatesV2(chainClient, offset, size)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get candidates")
-		}
-		candidateListAll.Candidates = append(candidateListAll.Candidates, candidateList.Candidates...)
-		if len(candidateList.Candidates) < readCandidatesLimit {
-			break
-		}
-	}
-	return
-}
-
-func (p *Protocol) getCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (candidateList *iotextypes.CandidateListV2, err error) {
-	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
-		Method: iotexapi.ReadStakingDataMethod_CANDIDATES,
-	})
-	if err != nil {
-		return nil, err
-	}
-	arg, err := proto.Marshal(&iotexapi.ReadStakingDataRequest{
-		Request: &iotexapi.ReadStakingDataRequest_Candidates_{
-			Candidates: &iotexapi.ReadStakingDataRequest_Candidates{
-				Pagination: &iotexapi.PaginationParam{
-					Offset: offset,
-					Limit:  limit,
-				},
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(protocolID),
-		MethodName: methodName,
-		Arguments:  [][]byte{arg},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			// TODO rm this when commit pr
-			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
-		}
-		return
-	}
-	candidateList = &iotextypes.CandidateListV2{}
-	if err := proto.Unmarshal(readStateRes.GetData(), candidateList); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal VoteBucketList")
-	}
 	return
 }
 
