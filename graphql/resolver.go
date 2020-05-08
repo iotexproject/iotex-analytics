@@ -1604,7 +1604,22 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 	}
 	distributionRatioList := make([]*DistributionRatioInfo, 0)
 	if haveField(ctx, "byDelegate", "distributionRatio") {
-		// fetch distributionRatioList array similar to VoterInfoList
+		res, err := r.HP.GetHermes2Ratio(harg, delegateName)
+		switch {
+		case errors.Cause(err) == indexprotocol.ErrNotExist:
+			return nil
+		case err != nil:
+			return errors.Wrap(err, "failed to get distribution ratio by delegate name")
+		}
+		for _, ratioInfo := range res {
+			info := &DistributionRatioInfo{
+				blockRewardRatio:     ratioInfo.BlockRewardPercentage,
+				epochRewardRatio:     ratioInfo.EpochRewardPercentage,
+				foundationBonusRatio: ratioInfo.FoundationBonusPercentage,
+				epochNumber:          startEpoch,
+			}
+			distributionRatioList = append(distributionRatioList, info)
+		}
 	}
 	var count int
 	var total string
@@ -1623,7 +1638,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		VoterInfoList:           voterInfoList,
 		Count:                   count,
 		TotalRewardsDistributed: total,
-		distributionRatio:       []
+		distributionRatio:       distributionRatioList,
 	}
 	return nil
 }

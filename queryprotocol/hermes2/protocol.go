@@ -31,7 +31,7 @@ const (
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromTable + voterFilter + timeOrdering
 	selectDistributionRatio                = "SELECT block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage"
-	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromJoinedTables + delegateFilter + timeOrdering
+	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilter + timeOrdering
 	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
 	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
 )
@@ -130,8 +130,7 @@ func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Distr
 
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
 	// update the passed param as per new query
-	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
-		delegateName, arg.Offset, arg.Size)
+	rows, err := stmt.Query(delegateName, arg.Offset, arg.Size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -145,7 +144,7 @@ func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Distr
 		return nil, indexprotocol.ErrNotExist
 	}
 
-	distributionRatioList := make([]*VoterInfo, 0)
+	distributionRatioList := make([]*DistributionRatioInfo, 0)
 	for _, parsedRow := range parsedRows {
 		distributionRatioList = append(distributionRatioList, parsedRow.(*DistributionRatioInfo))
 	}
