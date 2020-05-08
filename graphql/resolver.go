@@ -1602,6 +1602,10 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 			voterInfoList = append(voterInfoList, info)
 		}
 	}
+	distributionRatioList := make([]*DistributionRatioInfo, 0)
+	if haveField(ctx, "byDelegate", "distributionRatio") {
+		// fetch distributionRatioList array similar to VoterInfoList
+	}
 	var count int
 	var total string
 	if haveField(ctx, "byDelegate", "count") || haveField(ctx, "byDelegate", "totalRewardsDistributed") {
@@ -1619,6 +1623,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		VoterInfoList:           voterInfoList,
 		Count:                   count,
 		TotalRewardsDistributed: total,
+		distributionRatio:       []
 	}
 	return nil
 }
