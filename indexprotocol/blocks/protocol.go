@@ -376,9 +376,12 @@ func (p *Protocol) updateDelegates(
 	height uint64,
 	epochNumber uint64,
 ) error {
-	// stakingV2 TODO
+	err := p.updateActiveBlockProducers(chainClient, epochNumber)
+	if err != nil {
+		return errors.Wrap(err, "update active block producers")
+	}
 	if height >= p.epochCtx.FairbankHeight() {
-		return p.updateDelegatesV2(chainClient, height, epochNumber)
+		return p.updateDelegatesV2(chainClient, epochNumber)
 	}
 	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
@@ -420,60 +423,32 @@ func (p *Protocol) updateDelegates(
 	for _, candidate := range getCandidatesResponse.GetCandidates() {
 		p.OperatorAddrToName[candidate.GetOperatorAddress()] = candidate.GetName()
 	}
-
-	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("ActiveBlockProducersByEpoch"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		return errors.Wrap(err, "failed to get active block producers")
-	}
-
-	var activeBlockProducers state.CandidateList
-	if err := activeBlockProducers.Deserialize(readStateRes.GetData()); err != nil {
-		return errors.Wrap(err, "failed to deserialize active block producers")
-	}
-	p.ActiveBlockProducers = []string{}
-	for _, activeBlockProducer := range activeBlockProducers {
-		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
-	}
-
 	return nil
 }
 
 func (p *Protocol) updateDelegatesV2(
 	chainClient iotexapi.APIServiceClient,
-	height uint64,
 	epochNumber uint64,
 ) error {
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("CandidatesByEpoch"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
 	if err != nil {
-		return errors.Wrap(err, "failed to get active block producers")
-	}
-
-	var candidateList state.CandidateList
-	if err := candidateList.Deserialize(readStateRes.GetData()); err != nil {
-		return errors.Wrap(err, "failed to deserialize active block producers")
+		return errors.Wrap(err, "get candidate error")
 	}
 	p.OperatorAddrToName = make(map[string]string)
-	for _, c := range candidateList {
-		p.OperatorAddrToName[c.Address] = string(c.CanName)
+	for _, c := range candidateList.Candidates {
+		p.OperatorAddrToName[c.OperatorAddress] = string(c.Name)
 		fmt.Println("updateDelegatesV2:", c)
 	}
+	return nil
+}
 
-	readStateRequest = &iotexapi.ReadStateRequest{
+func (p *Protocol) updateActiveBlockProducers(chainClient iotexapi.APIServiceClient, epochNumber uint64) error {
+	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(epochNumber, 10))},
 	}
-	readStateRes, err = chainClient.ReadState(context.Background(), readStateRequest)
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
 		return errors.Wrap(err, "failed to get active block producers")
 	}
@@ -482,13 +457,10 @@ func (p *Protocol) updateDelegatesV2(
 	if err := activeBlockProducers.Deserialize(readStateRes.GetData()); err != nil {
 		return errors.Wrap(err, "failed to deserialize active block producers")
 	}
-
 	p.ActiveBlockProducers = []string{}
 	for _, activeBlockProducer := range activeBlockProducers {
-		fmt.Println("activeBlockProducer:", activeBlockProducer)
 		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
 	}
-
 	return nil
 }
 

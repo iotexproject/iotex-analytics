@@ -13,6 +13,9 @@ import (
 	"math/big"
 	"strconv"
 	"testing"
+	"time"
+
+	"google.golang.org/grpc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -154,4 +157,31 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.Equal(uint64(0), productivityHistory.Production)
 	require.Equal(uint64(1), productivityHistory.ExpectedProduction)
+}
+
+func TestUpdateDelegates(t *testing.T) {
+	chainEndpoint := "api.testnet.iotex.one:80"
+	require := require.New(t)
+	ctx := context.Background()
+	store := s.NewMySQL(connectStr, dbName)
+	require.NoError(store.Start(ctx))
+	defer func() {
+		require.NoError(store.Stop(ctx))
+	}()
+	epochctx := epochctx.NewEpochCtx(
+		36,
+		24,
+		15,
+		epochctx.EnableDardanellesSubEpoch(1816201, 30),
+		epochctx.FairbankHeight(3252241),
+	)
+	p := NewProtocol(store, epochctx)
+
+	require.NoError(p.CreateTables(ctx))
+	grpcCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(grpcCtx, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
+	require.NoError(err)
+	chainClient := iotexapi.NewAPIServiceClient(conn)
+	require.NoError(p.updateDelegatesV2(chainClient, 3253241))
 }
