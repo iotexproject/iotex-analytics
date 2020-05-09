@@ -121,6 +121,7 @@ type ComplexityRoot struct {
 		Exist                   func(childComplexity int) int
 		TotalRewardsDistributed func(childComplexity int) int
 		VoterInfoList           func(childComplexity int, pagination *Pagination) int
+		DistributionRatioList   func(childComplexity int) int // there should me something more to add
 	}
 
 	ByVoterResponse struct {

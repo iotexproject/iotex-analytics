@@ -30,7 +30,7 @@ const (
 	selectDelegate                         = "SELECT delegate_name, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
-	selectDistributionRatio                = "SELECT block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage"
+	selectDistributionRatio                = "SELECT block_reward_percentage AS block_reward_ratio, epoch_reward_percentage as epoch_reward_ratio, foundation_bonus_percentage as foundation_bonus_ratio"
 	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilter + timeOrdering
 	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
 	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
@@ -54,10 +54,10 @@ type VoterInfo struct {
 	Timestamp    string
 }
 
-type DistributionRatioInfo {
-	BlockRewardPercentage     int
-	EpochRewardPercentage     int
-	FoundationBonusPercentage int
+type DistributionRatioInfo struct {
+	BlockRewardRatio     int
+	EpochRewardRatio     int
+	FoundationBonusRatio int
 }
 
 // DelegateInfo defines delegate information
@@ -88,7 +88,7 @@ func NewProtocol(idx *indexservice.Indexer, cfg indexprotocol.HermesConfig) *Pro
 func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) ([]*VoterInfo, error) {
 	db := p.indexer.Store.GetDB()
 	getQuery := fmt.Sprintf(selectHermesDistributionByDelegateName, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
-	stmt, err := db.Prepare(getQuery)
+	stmt, err := db.Prepare(getQuery) 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
@@ -135,8 +135,8 @@ func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Distr
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
 
-	var distributionRatioList DistributionRatioInfo
-	parsedRows, err := s.ParseSQLRows(rows, &voterInfo)
+	var distributionRatioInfo DistributionRatioInfo
+	parsedRows, err := s.ParseSQLRows(rows, &distributionRatioInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
 	}

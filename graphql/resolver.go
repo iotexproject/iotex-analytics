@@ -1613,10 +1613,10 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		}
 		for _, ratioInfo := range res {
 			info := &DistributionRatioInfo{
-				blockRewardRatio:     ratioInfo.BlockRewardPercentage,
-				epochRewardRatio:     ratioInfo.EpochRewardPercentage,
-				foundationBonusRatio: ratioInfo.FoundationBonusPercentage,
-				epochNumber:          startEpoch,
+				BlockRewardRatio:     ratioInfo.BlockRewardRatio,
+				EpochRewardRatio:     ratioInfo.EpochRewardRatio,
+				FoundationBonusRatio: ratioInfo.FoundationBonusRatio,
+				EpochNumber:          startEpoch,
 			}
 			distributionRatioList = append(distributionRatioList, info)
 		}
@@ -1638,7 +1638,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		VoterInfoList:           voterInfoList,
 		Count:                   count,
 		TotalRewardsDistributed: total,
-		distributionRatio:       distributionRatioList,
+		DistributionRatioList:   distributionRatioList,
 	}
 	return nil
 }

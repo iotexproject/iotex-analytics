@@ -79,10 +79,11 @@ type BucketInfoOutput struct {
 }
 
 type ByDelegateResponse struct {
-	Exist                   bool         `json:"exist"`
-	VoterInfoList           []*VoterInfo `json:"voterInfoList"`
-	Count                   int          `json:"count"`
-	TotalRewardsDistributed string       `json:"totalRewardsDistributed"`
+	Exist                   bool         				`json:"exist"`
+	VoterInfoList           []*VoterInfo 				`json:"voterInfoList"`
+	DistributionRatioList   []*DistributionRatioInfo 	`json:"distributionRatioList"`
+	Count                   int          				`json:"count"`
+	TotalRewardsDistributed string       				`json:"totalRewardsDistributed"`
 }
 
 type ByVoterResponse struct {
@@ -267,6 +268,13 @@ type VoterInfo struct {
 	Amount       string `json:"amount"`
 	ActionHash   string `json:"actionHash"`
 	Timestamp    string `json:"timestamp"`
+}
+
+type DistributionRatioInfo struct {
+	BlockRewardRatio     int `json:"blockRewardRatio"`
+	EpochRewardRatio     int `json:"epochRewardRatio"`
+	FoundationBonusRatio int `json:"foundationBonusRatio"`
+	EpochNumber               int `json:"epochNumber"` 
 }
 
 type Voting struct {
