@@ -29,7 +29,7 @@ const (
 
 	selectDelegate                         = "SELECT delegate_name, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	voterFilter                            = "WHERE `to` = ? "
-	selectHermesDistributionByVoterAddress = selectDelegate + fromTable + voterFilter + timeOrdering
+	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 	selectDistributionRatio                = "SELECT block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage"
 	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilter + timeOrdering
 	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
