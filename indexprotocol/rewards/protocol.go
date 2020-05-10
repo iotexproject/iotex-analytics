@@ -381,7 +381,7 @@ func (p *Protocol) updateCandidateRewardAddressV2(
 	chainClient iotexapi.APIServiceClient,
 	height uint64,
 ) error {
-	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, height)
 	if err != nil {
 		return errors.Wrap(err, "get candidate error")
 	}

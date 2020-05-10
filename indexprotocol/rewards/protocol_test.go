@@ -113,33 +113,34 @@ func TestProtocol(t *testing.T) {
 }
 
 func TestUpdateCandidateRewardAddress(t *testing.T) {
-	chainEndpoint := "api.testnet.iotex.one:80"
+	//chainEndpoint := "api.testnet.iotex.one:80"
+	chainEndpoint := "127.0.0.1:14014"
 	require := require.New(t)
-	ctx := context.Background()
-	store := s.NewMySQL(connectStr, dbName)
-	require.NoError(store.Start(ctx))
-	defer func() {
-		require.NoError(store.Stop(ctx))
-	}()
-	epochctx := epochctx.NewEpochCtx(
-		36,
-		24,
-		15,
-		epochctx.EnableDardanellesSubEpoch(1816201, 30),
-		epochctx.FairbankHeight(3252241),
-	)
-	p := NewProtocol(store, epochctx, indexprotocol.Rewarding{})
-
-	require.NoError(p.CreateTables(ctx))
+	//ctx := context.Background()
+	//store := s.NewMySQL(connectStr, dbName)
+	//require.NoError(store.Start(ctx))
+	//defer func() {
+	//	require.NoError(store.Stop(ctx))
+	//}()
+	//epochctx := epochctx.NewEpochCtx(
+	//	36,
+	//	24,
+	//	15,
+	//	epochctx.EnableDardanellesSubEpoch(1816201, 30),
+	//	epochctx.FairbankHeight(3252241),
+	//)
+	//p := NewProtocol(store, epochctx, indexprotocol.Rewarding{})
+	//
+	//require.NoError(p.CreateTables(ctx))
 	grpcCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(grpcCtx, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
 	require.NoError(err)
 	chainClient := iotexapi.NewAPIServiceClient(conn)
-	require.NoError(p.updateCandidateRewardAddress(chainClient, nil, 3253241))
+	//require.NoError(p.updateCandidateRewardAddress(chainClient, nil, 3253241))
 
 	fmt.Println("--------------------------")
-	cl, err := indexprotocol.GetCandidatesAllV2(chainClient)
+	cl, err := indexprotocol.GetCandidatesAllV2(chainClient, 1205)
 	require.NoError(err)
 	fmt.Println("len(cl.Candidates):", len(cl.Candidates))
 	for _, c := range cl.Candidates {
@@ -147,7 +148,7 @@ func TestUpdateCandidateRewardAddress(t *testing.T) {
 	}
 
 	fmt.Println("--------------------------")
-	buckets, err := indexprotocol.GetBucketsAllV2(chainClient)
+	buckets, err := indexprotocol.GetBucketsAllV2(chainClient, 1000)
 	require.NoError(err)
 	fmt.Println("len(buckets.Buckets):", len(buckets.Buckets))
 	for _, b := range buckets.Buckets {

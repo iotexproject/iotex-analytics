@@ -381,7 +381,7 @@ func (p *Protocol) updateDelegates(
 		return errors.Wrap(err, "update active block producers")
 	}
 	if height >= p.epochCtx.FairbankHeight() {
-		return p.updateDelegatesV2(chainClient, epochNumber)
+		return p.updateDelegatesV2(chainClient, height)
 	}
 	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
@@ -428,9 +428,9 @@ func (p *Protocol) updateDelegates(
 
 func (p *Protocol) updateDelegatesV2(
 	chainClient iotexapi.APIServiceClient,
-	epochNumber uint64,
+	height uint64,
 ) error {
-	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, height)
 	if err != nil {
 		return errors.Wrap(err, "get candidate error")
 	}
