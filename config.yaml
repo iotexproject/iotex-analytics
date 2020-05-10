@@ -4,7 +4,7 @@ numSubEpochs: 15
 numSubEpochsDardanelles: 30
 dardanellesHeight: 1816201
 dardanellesOn: true
-fairbankHeight: 1000
+fairbankHeight: 10000000
 consensusScheme: "ROLLDPOS"
 rangeQueryLimit: 100
 genesis:

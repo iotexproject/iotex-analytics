@@ -25,11 +25,11 @@ import (
 )
 
 func (p *Protocol) stakingV2(chainClient iotexapi.APIServiceClient, epochStartheight, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
-	voteBucketList, err := indexprotocol.GetBucketsAllV2(chainClient)
+	voteBucketList, err := indexprotocol.GetBucketsAllV2(chainClient, epochStartheight)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
-	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient)
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, epochStartheight)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}

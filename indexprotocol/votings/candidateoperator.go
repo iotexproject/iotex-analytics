@@ -37,10 +37,10 @@ const (
 
 type (
 	candidateStruct struct {
-		Id                                   int64
+		ID                                   int64
 		Owner, Operator, Reward, Name, Votes []byte
-		Self_stake_bucket_idx                uint64
-		Self_stake                           []byte
+		SelfStakeBucketIdx                   uint64
+		SelfStake                            []byte
 	}
 )
 
@@ -107,10 +107,10 @@ func QueryCandidates(tableName string, frequencies map[int64]int, sdb *sql.DB, t
 			RewardAddress:      string(cs.Reward),
 			Name:               string(cs.Name),
 			TotalWeightedVotes: string(cs.Votes),
-			SelfStakeBucketIdx: cs.Self_stake_bucket_idx,
-			SelfStakingTokens:  string(cs.Self_stake),
+			SelfStakeBucketIdx: cs.SelfStakeBucketIdx,
+			SelfStakingTokens:  string(cs.SelfStake),
 		}
-		for i := frequencies[cs.Id]; i > 0; i-- {
+		for i := frequencies[cs.ID]; i > 0; i-- {
 			candidates = append(candidates, candidate)
 		}
 	}

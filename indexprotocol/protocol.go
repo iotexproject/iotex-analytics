@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
@@ -91,17 +92,18 @@ type Protocol interface {
 	Initialize(context.Context, *sql.Tx, *Genesis) error
 }
 
-// BlockHandler ishte interface of handling block
+// BlockHandler is the interface of handling block
 type BlockHandler interface {
 	HandleBlock(context.Context, *sql.Tx, *block.Block) error
 }
 
-func GetBucketsAllV2(chainClient iotexapi.APIServiceClient) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
+// GetBucketsAllV2 get all buckets by height
+func GetBucketsAllV2(chainClient iotexapi.APIServiceClient, height uint64) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
 	voteBucketListAll = &iotextypes.VoteBucketList{}
 	for i := uint32(0); ; i++ {
 		offset := i * readBucketsLimit
 		size := uint32(readBucketsLimit)
-		voteBucketList, err := getBucketsV2(chainClient, offset, size)
+		voteBucketList, err := GetBucketsV2(chainClient, offset, size, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get bucket")
 		}
@@ -113,7 +115,8 @@ func GetBucketsAllV2(chainClient iotexapi.APIServiceClient) (voteBucketListAll *
 	return
 }
 
-func getBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (voteBucketList *iotextypes.VoteBucketList, err error) {
+// GetBucketsV2 get specific buckets by height
+func GetBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (voteBucketList *iotextypes.VoteBucketList, err error) {
 	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
 		Method: iotexapi.ReadStakingDataMethod_BUCKETS,
 	})
@@ -136,14 +139,10 @@ func getBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodName,
-		Arguments:  [][]byte{arg},
+		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			// TODO rm this when commit pr
-			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
-		}
 		return
 	}
 	voteBucketList = &iotextypes.VoteBucketList{}
@@ -153,12 +152,13 @@ func getBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (
 	return
 }
 
-func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient) (candidateListAll *iotextypes.CandidateListV2, err error) {
+// GetCandidatesAllV2 get all candidates by height
+func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient, height uint64) (candidateListAll *iotextypes.CandidateListV2, err error) {
 	candidateListAll = &iotextypes.CandidateListV2{}
 	for i := uint32(0); ; i++ {
 		offset := i * readCandidatesLimit
 		size := uint32(readCandidatesLimit)
-		candidateList, err := getCandidatesV2(chainClient, offset, size)
+		candidateList, err := GetCandidatesV2(chainClient, offset, size, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get candidates")
 		}
@@ -170,7 +170,8 @@ func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient) (candidateListAll
 	return
 }
 
-func getCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32) (candidateList *iotextypes.CandidateListV2, err error) {
+// GetCandidatesV2 get specific candidates by height
+func GetCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (candidateList *iotextypes.CandidateListV2, err error) {
 	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
 		Method: iotexapi.ReadStakingDataMethod_CANDIDATES,
 	})
@@ -193,14 +194,10 @@ func getCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodName,
-		Arguments:  [][]byte{arg},
+		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			// TODO rm this when commit pr
-			fmt.Println("ReadStakingDataMethod_BUCKETS not found")
-		}
 		return
 	}
 	candidateList = &iotextypes.CandidateListV2{}

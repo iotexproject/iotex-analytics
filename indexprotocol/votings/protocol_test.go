@@ -10,7 +10,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
-	//"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -37,10 +36,10 @@ import (
 )
 
 const (
-	connectStr = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
-	dbName     = "heroku_7fed0b046078f80"
-	selectAggregateVoting    = "SELECT aggregate_votes FROM %s WHERE epoch_number=? AND candidate_name=? AND voter_address=?"
-	selectVotingMeta 		 = "SELECT total_weighted FROM %s WHERE epoch_number=?"
+	connectStr            = "ba8df54bd3754e:9cd1f263@tcp(us-cdbr-iron-east-02.cleardb.net:3306)/"
+	dbName                = "heroku_7fed0b046078f80"
+	selectAggregateVoting = "SELECT aggregate_votes FROM %s WHERE epoch_number=? AND candidate_name=? AND voter_address=?"
+	selectVotingMeta      = "SELECT total_weighted FROM %s WHERE epoch_number=?"
 )
 
 func TestProtocol(t *testing.T) {
@@ -93,11 +92,11 @@ func TestProtocol(t *testing.T) {
 	}
 	pb := &iotextypes.ProbationCandidateList{
 		IntensityRate: uint32(90),
-		ProbationList: []*iotextypes.ProbationCandidateList_Info {
+		ProbationList: []*iotextypes.ProbationCandidateList_Info{
 			{
-				Address: testutil.Addr1,	
-				Count:	 uint32(1),
-			},	
+				Address: testutil.Addr1,
+				Count:   uint32(1),
+			},
 		},
 	}
 	data, err := proto.Marshal(pb)
@@ -177,11 +176,11 @@ func TestProtocol(t *testing.T) {
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
-	// Probation Test 
-	// VotingResult  
+	// Probation Test
+	// VotingResult
 	res1, err := p.GetVotingResult(2, "abcd")
 	require.NoError(err)
-	res2, err := p.GetVotingResult(2, "1234")	
+	res2, err := p.GetVotingResult(2, "1234")
 	require.NoError(err)
 	require.Equal("abcd", res1.DelegateName)
 	require.Equal("1234", res2.DelegateName)
@@ -189,22 +188,22 @@ func TestProtocol(t *testing.T) {
 	require.Equal("100", res2.TotalWeightedVotes)
 
 	/*
-	// takes too long time to pass it, need further investigate
-	// AggregateVoting  
-	getQuery := fmt.Sprintf(selectAggregateVoting, AggregateVotingTableName)
-	stmt, err := store.GetDB().Prepare(getQuery)
-	require.NoError(err)
-	defer stmt.Close()
-	var weightedVotes uint64 
-	require.NoError(stmt.QueryRow(2, "abcd", "11").Scan(&weightedVotes)) 
-	require.Equal(uint64(10), weightedVotes) // 100 * 0.1
-	// VotingMeta 
-	getQuery = fmt.Sprintf(selectVotingMeta, VotingMetaTableName)
-	stmt, err = store.GetDB().Prepare(getQuery)
-	require.NoError(err)
-	defer stmt.Close()
-	var totalWeightedVotes string
-	require.NoError(stmt.QueryRow(2).Scan(&totalWeightedVotes))
-	require.Equal("115", totalWeightedVotes)
+		// takes too long time to pass it, need further investigate
+		// AggregateVoting
+		getQuery := fmt.Sprintf(selectAggregateVoting, AggregateVotingTableName)
+		stmt, err := store.GetDB().Prepare(getQuery)
+		require.NoError(err)
+		defer stmt.Close()
+		var weightedVotes uint64
+		require.NoError(stmt.QueryRow(2, "abcd", "11").Scan(&weightedVotes))
+		require.Equal(uint64(10), weightedVotes) // 100 * 0.1
+		// VotingMeta
+		getQuery = fmt.Sprintf(selectVotingMeta, VotingMetaTableName)
+		stmt, err = store.GetDB().Prepare(getQuery)
+		require.NoError(err)
+		defer stmt.Close()
+		var totalWeightedVotes string
+		require.NoError(stmt.QueryRow(2).Scan(&totalWeightedVotes))
+		require.Equal("115", totalWeightedVotes)
 	*/
 }
