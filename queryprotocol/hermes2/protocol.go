@@ -7,6 +7,7 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -21,7 +22,7 @@ const (
 	fromJoinedTables = "FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
 		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash "
 	timeOrdering = "ORDER BY `timestamp` desc limit ?,?"
-
+	fromTable            				   = "FROM %s "
 	selectVoter                            = "SELECT `to`, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	delegateFilter                         = "WHERE delegate_name = ? "
 	selectHermesDistributionByDelegateName = selectVoter + fromJoinedTables + delegateFilter + timeOrdering
@@ -29,7 +30,8 @@ const (
 	selectDelegate                         = "SELECT delegate_name, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
-
+	selectDistributionRatio                = "SELECT block_reward_percentage AS block_reward_ratio, epoch_reward_percentage as epoch_reward_ratio, foundation_bonus_percentage as foundation_bonus_ratio, epoch_number "
+	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilter
 	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
 	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
 )
@@ -52,6 +54,12 @@ type VoterInfo struct {
 	Timestamp    string
 }
 
+type Ratio struct {
+	BlockRewardRatio     int
+	EpochRewardRatio     int
+	FoundationBonusRatio int
+	EpochNumber          int
+}
 // DelegateInfo defines delegate information
 type DelegateInfo struct {
 	DelegateName string
@@ -85,7 +93,6 @@ func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) ([]*
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
-
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
 	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
 		delegateName, arg.Offset, arg.Size)
@@ -142,6 +149,38 @@ func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterAddress string) ([]*Del
 	}
 
 	return delegateInfoList, nil
+}
+// GetHermes2Ratio gets Hermes distribution ratio list by delegate name
+func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Ratio, error) {
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectDistributionRatioByDelegateName, votings.VotingResultTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+
+	// update the passed param as per new query
+	rows, err := stmt.Query(delegateName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var distributionRatioInfo Ratio
+	parsedRows, err := s.ParseSQLRows(rows, &distributionRatioInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		return nil, indexprotocol.ErrNotExist
+	}
+	distributionRatioList := make([]*Ratio, 0)
+	for _, parsedRow := range parsedRows {
+		distributionRatioList = append(distributionRatioList, parsedRow.(*Ratio))
+	}
+	return distributionRatioList, nil
 }
 
 // GetHermes2Count gets the count of Hermes distributions

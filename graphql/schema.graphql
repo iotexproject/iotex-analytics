@@ -316,6 +316,13 @@ type ByDelegateResponse {
     voterInfoList(pagination: Pagination): [VoterInfo]!
     count: Int!
     totalRewardsDistributed: String!
+    distributionRatio: [Ratio]!
+    }
+type Ratio {
+    epochNumber: Int!
+    blockRewardRatio: Int!
+    epochRewardRatio: Int!
+    foundationBonusRatio: Int!
 }
 
 type DelegateInfo {

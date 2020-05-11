@@ -83,6 +83,8 @@ type ByDelegateResponse struct {
 	VoterInfoList           []*VoterInfo `json:"voterInfoList"`
 	Count                   int          `json:"count"`
 	TotalRewardsDistributed string       `json:"totalRewardsDistributed"`
+	DistributionRatio       []*Ratio     `json:"distributionRatio"`
+
 }
 
 type ByVoterResponse struct {
@@ -224,6 +226,13 @@ type Productivity struct {
 	Exist              bool   `json:"exist"`
 	Production         string `json:"production"`
 	ExpectedProduction string `json:"expectedProduction"`
+}
+
+type Ratio struct {
+	EpochNumber          int `json:"epochNumber"`
+	BlockRewardRatio     int `json:"blockRewardRatio"`
+	EpochRewardRatio     int `json:"epochRewardRatio"`
+	FoundationBonusRatio int `json:"foundationBonusRatio"`
 }
 
 type Reward struct {
