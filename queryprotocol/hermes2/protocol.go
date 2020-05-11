@@ -26,12 +26,12 @@ const (
 	selectVoter                            = "SELECT `to`, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	delegateFilter                         = "WHERE delegate_name = ? "
 	selectHermesDistributionByDelegateName = selectVoter + fromJoinedTables + delegateFilter + timeOrdering
-
+	delegateFilterWithEpochRange           = "WHERE delegate_name = ? AND epoch_number >= ? AND epoch_number <= ? "
 	selectDelegate                         = "SELECT delegate_name, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	voterFilter                            = "WHERE `to` = ? "
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 	selectDistributionRatio                = "SELECT block_reward_percentage AS block_reward_ratio, epoch_reward_percentage as epoch_reward_ratio, foundation_bonus_percentage as foundation_bonus_ratio, epoch_number "
-	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilter
+	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilterWithEpochRange
 	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
 	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
 )
@@ -161,9 +161,8 @@ func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Ratio
 	}
 	defer stmt.Close()
 
-
-	// update the passed param as per new query
-	rows, err := stmt.Query(delegateName)
+	endEpoch := arg.StartEpoch + arg.EpochCount - 1
+	rows, err := stmt.Query(delegateName, arg.StartEpoch, endEpoch)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
