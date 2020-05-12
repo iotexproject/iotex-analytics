@@ -9,14 +9,23 @@ package indexprotocol
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
 
-// PollProtocolID is ID of poll protocol
-const PollProtocolID = "poll"
+const (
+	// PollProtocolID is ID of poll protocol
+	PollProtocolID      = "poll"
+	protocolID          = "staking"
+	readBucketsLimit    = 30000
+	readCandidatesLimit = 20000
+)
 
 var (
 	// ErrNotExist indicates certain item does not exist in Blockchain database
@@ -65,6 +74,12 @@ type (
 		HermesContractAddress    string `yaml:"hermesContractAddress"`
 		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
 	}
+	// VoteWeightCalConsts is for staking v2
+	VoteWeightCalConsts struct {
+		DurationLg float64 `yaml:"durationLg"`
+		AutoStake  float64 `yaml:"autoStake"`
+		SelfStake  float64 `yaml:"selfStake"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer
@@ -74,7 +89,117 @@ type Protocol interface {
 	Initialize(context.Context, *sql.Tx, *Genesis) error
 }
 
-// BlockHandler ishte interface of handling block
+// BlockHandler is the interface of handling block
 type BlockHandler interface {
 	HandleBlock(context.Context, *sql.Tx, *block.Block) error
+}
+
+// GetBucketsAllV2 get all buckets by height
+func GetBucketsAllV2(chainClient iotexapi.APIServiceClient, height uint64) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
+	voteBucketListAll = &iotextypes.VoteBucketList{}
+	for i := uint32(0); ; i++ {
+		offset := i * readBucketsLimit
+		size := uint32(readBucketsLimit)
+		voteBucketList, err := GetBucketsV2(chainClient, offset, size, height)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get bucket")
+		}
+		voteBucketListAll.Buckets = append(voteBucketListAll.Buckets, voteBucketList.Buckets...)
+		if len(voteBucketList.Buckets) < readBucketsLimit {
+			break
+		}
+	}
+	return
+}
+
+// GetBucketsV2 get specific buckets by height
+func GetBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (voteBucketList *iotextypes.VoteBucketList, err error) {
+	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
+		Method: iotexapi.ReadStakingDataMethod_BUCKETS,
+	})
+	if err != nil {
+		return nil, err
+	}
+	arg, err := proto.Marshal(&iotexapi.ReadStakingDataRequest{
+		Request: &iotexapi.ReadStakingDataRequest_Buckets{
+			Buckets: &iotexapi.ReadStakingDataRequest_VoteBuckets{
+				Pagination: &iotexapi.PaginationParam{
+					Offset: offset,
+					Limit:  limit,
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(protocolID),
+		MethodName: methodName,
+		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return
+	}
+	voteBucketList = &iotextypes.VoteBucketList{}
+	if err := proto.Unmarshal(readStateRes.GetData(), voteBucketList); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal VoteBucketList")
+	}
+	return
+}
+
+// GetCandidatesAllV2 get all candidates by height
+func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient, height uint64) (candidateListAll *iotextypes.CandidateListV2, err error) {
+	candidateListAll = &iotextypes.CandidateListV2{}
+	for i := uint32(0); ; i++ {
+		offset := i * readCandidatesLimit
+		size := uint32(readCandidatesLimit)
+		candidateList, err := GetCandidatesV2(chainClient, offset, size, height)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get candidates")
+		}
+		candidateListAll.Candidates = append(candidateListAll.Candidates, candidateList.Candidates...)
+		if len(candidateList.Candidates) < readCandidatesLimit {
+			break
+		}
+	}
+	return
+}
+
+// GetCandidatesV2 get specific candidates by height
+func GetCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (candidateList *iotextypes.CandidateListV2, err error) {
+	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
+		Method: iotexapi.ReadStakingDataMethod_CANDIDATES,
+	})
+	if err != nil {
+		return nil, err
+	}
+	arg, err := proto.Marshal(&iotexapi.ReadStakingDataRequest{
+		Request: &iotexapi.ReadStakingDataRequest_Candidates_{
+			Candidates: &iotexapi.ReadStakingDataRequest_Candidates{
+				Pagination: &iotexapi.PaginationParam{
+					Offset: offset,
+					Limit:  limit,
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(protocolID),
+		MethodName: methodName,
+		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return
+	}
+	candidateList = &iotextypes.CandidateListV2{}
+	if err := proto.Unmarshal(readStateRes.GetData(), candidateList); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal VoteBucketList")
+	}
+	return
 }

@@ -10,6 +10,7 @@ type EpochCtx struct {
 	numSubEpochsDardanelles uint64
 	dardanellesHeight       uint64
 	dardanellesOn           bool
+	fairbankHeight          uint64
 }
 
 // Option is optional setting for epoch context
@@ -21,6 +22,14 @@ func EnableDardanellesSubEpoch(height, numSubEpochs uint64) Option {
 		e.dardanellesOn = true
 		e.numSubEpochsDardanelles = numSubEpochs
 		e.dardanellesHeight = height
+		return nil
+	}
+}
+
+// FairbankHeight will set fairbank height.
+func FairbankHeight(height uint64) Option {
+	return func(e *EpochCtx) error {
+		e.fairbankHeight = height
 		return nil
 	}
 }
@@ -73,4 +82,9 @@ func (e *EpochCtx) GetEpochHeight(epochNum uint64) uint64 {
 // NumCandidateDelegates returns the number of candidate delegates
 func (e *EpochCtx) NumCandidateDelegates() uint64 {
 	return e.numCandidateDelegates
+}
+
+// FairbankHeight returns the height of fairbank
+func (e *EpochCtx) FairbankHeight() uint64 {
+	return e.fairbankHeight
 }

@@ -340,6 +340,9 @@ func (p *Protocol) updateCandidateRewardAddress(
 	electionClient api.APIServiceClient,
 	height uint64,
 ) error {
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.updateCandidateRewardAddressV2(chainClient, height)
+	}
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
@@ -374,6 +377,24 @@ func (p *Protocol) updateCandidateRewardAddress(
 	return nil
 }
 
+func (p *Protocol) updateCandidateRewardAddressV2(
+	chainClient iotexapi.APIServiceClient,
+	height uint64,
+) error {
+	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, height)
+	if err != nil {
+		return errors.Wrap(err, "get candidate error")
+	}
+	p.RewardAddrToName = make(map[string][]string)
+	for _, candidate := range candidateList.Candidates {
+		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
+			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
+		}
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.Name))
+	}
+	return nil
+}
+
 func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error {
 	if lastEpoch == 0 {
 		return nil
@@ -381,6 +402,11 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 	// Get voting result from last epoch
 	rewardAddrToNameMapping, weightedVotesMapping, err := p.getVotingInfo(tx, lastEpoch)
 	if err != nil {
+		// for testnet ignore indexprotocol.ErrNotExist
+		if errors.Cause(err) == indexprotocol.ErrNotExist {
+			log.S().Errorf("getVotingInfo not exist for epoch %d", lastEpoch)
+			return nil
+		}
 		return errors.Wrap(err, "failed to get voting info")
 	}
 	// Get aggregate reward	records from last epoch
@@ -442,8 +468,8 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 			valArgs = append(valArgs, epochNumber, candidateName, rewards[0], rewards[1], rewards[2])
 		}
 	}
-
-	if len(valStrs) == 0 {
+	if len(valStrs) == 0 || len(valArgs) == 0 {
+		log.S().Warnf("This shouldn't happen, len(valStrs):%d,len(valArgs):%d", len(valStrs), len(valArgs))
 		return nil
 	}
 	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))

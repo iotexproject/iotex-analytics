@@ -136,21 +136,24 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                     s.Store
-	bucketTableOperator       committee.Operator
-	registrationTableOperator committee.Operator
-	nativeBucketTableOperator committee.Operator
-	timeTableOperator         *committee.TimeTableOperator
-	epochCtx                  *epochctx.EpochCtx
-	GravityChainCfg           indexprotocol.GravityChain
-	SkipManifiedCandidate     bool
-	VoteThreshold             *big.Int
-	ScoreThreshold            *big.Int
-	SelfStakingThreshold      *big.Int
+	Store                          s.Store
+	bucketTableOperator            committee.Operator
+	registrationTableOperator      committee.Operator
+	nativeV2BucketTableOperator    committee.Operator
+	nativeV2CandidateTableOperator committee.Operator
+	nativeBucketTableOperator      committee.Operator
+	timeTableOperator              *committee.TimeTableOperator
+	epochCtx                       *epochctx.EpochCtx
+	GravityChainCfg                indexprotocol.GravityChain
+	voteCfg                        indexprotocol.VoteWeightCalConsts
+	SkipManifiedCandidate          bool
+	VoteThreshold                  *big.Int
+	ScoreThreshold                 *big.Int
+	SelfStakingThreshold           *big.Int
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) (*Protocol, error) {
+func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		return nil, err
@@ -160,6 +163,14 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		return nil, err
 	}
 	nativeBucketTableOperator, err := committee.NewBucketTableOperator("native_buckets", committee.MYSQL)
+	if err != nil {
+		return nil, err
+	}
+	nativeV2BucketTableOperator, err := NewBucketTableOperator("stakingV2_bucket", committee.MYSQL)
+	if err != nil {
+		return nil, err
+	}
+	nativeV2CandidateTableOperator, err := NewCandidateTableOperator("stakingV2_candidate", committee.MYSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -176,17 +187,20 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		return nil, errors.New("Invalid self staking threshold")
 	}
 	return &Protocol{
-		Store:                     store,
-		bucketTableOperator:       bucketTableOperator,
-		registrationTableOperator: registrationTableOperator,
-		nativeBucketTableOperator: nativeBucketTableOperator,
-		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
-		epochCtx:                  epochCtx,
-		GravityChainCfg:           gravityChainCfg,
-		VoteThreshold:             voteThreshold,
-		ScoreThreshold:            scoreThreshold,
-		SelfStakingThreshold:      selfStakingThreshold,
-		SkipManifiedCandidate:     pollCfg.SkipManifiedCandidate,
+		Store:                          store,
+		bucketTableOperator:            bucketTableOperator,
+		registrationTableOperator:      registrationTableOperator,
+		nativeBucketTableOperator:      nativeBucketTableOperator,
+		nativeV2BucketTableOperator:    nativeV2BucketTableOperator,
+		nativeV2CandidateTableOperator: nativeV2CandidateTableOperator,
+		timeTableOperator:              committee.NewTimeTableOperator("mint_time", committee.MYSQL),
+		epochCtx:                       epochCtx,
+		GravityChainCfg:                gravityChainCfg,
+		voteCfg:                        voteCfg,
+		VoteThreshold:                  voteThreshold,
+		ScoreThreshold:                 scoreThreshold,
+		SelfStakingThreshold:           selfStakingThreshold,
+		SkipManifiedCandidate:          pollCfg.SkipManifiedCandidate,
 	}, nil
 }
 
@@ -208,6 +222,13 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	//staking v2
+	if err = p.nativeV2BucketTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	if err = p.nativeV2CandidateTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
 	// create voting result table
@@ -249,29 +270,36 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	epochNumber := p.epochCtx.GetEpochNumber(blkheight)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	if indexCtx.ConsensusScheme == "ROLLDPOS" && blkheight == p.epochCtx.GetEpochHeight(epochNumber) {
-		// update voting tables on every epoch start height 
+		// update voting tables on every epoch start height
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
-		var gravityHeight uint64
-		var err error
-		if epochNumber == 1 {
-			gravityHeight = p.GravityChainCfg.GravityChainStartHeight
-		} else {
-			prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
-			gravityHeight, err = p.getGravityChainStartHeight(chainClient, prevEpochHeight)
-			if err != nil {
-				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
-			}
-		}
-		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
-			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
-		}
-		probationList, err := p.fetchProbationList(chainClient, epochNumber) 
+		probationList, err := p.fetchProbationList(chainClient, epochNumber)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
 		}
-		if err := p.updateVotingTables(tx, epochNumber, blkheight, gravityHeight, probationList); err != nil {
-			return errors.Wrapf(err, "failed to update voting tables in epoch %d", epochNumber)
+		// process staking v2
+		if blkheight >= p.epochCtx.FairbankHeight() {
+			if err := p.stakingV2(chainClient, blkheight, epochNumber, probationList); err != nil {
+				return errors.Wrapf(err, "failed to write staking v2 in epoch %d", epochNumber)
+			}
+		} else {
+			var gravityHeight uint64
+			var err error
+			if epochNumber == 1 {
+				gravityHeight = p.GravityChainCfg.GravityChainStartHeight
+			} else {
+				prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+				gravityHeight, err = p.getGravityChainStartHeight(chainClient, prevEpochHeight)
+				if err != nil {
+					return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
+				}
+			}
+			if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
+				return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
+			}
+			if err := p.updateVotingTables(tx, epochNumber, blkheight, gravityHeight, probationList); err != nil {
+				return errors.Wrapf(err, "failed to update voting tables in epoch %d", epochNumber)
+			}
 		}
 		if err := p.updateProbationListTable(tx, epochNumber, probationList); err != nil {
 			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
@@ -302,17 +330,14 @@ func (p *Protocol) fetchAndStoreRawBuckets(
 	if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
 		return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
 	}
-	return nil 
+	return nil
 }
 
 func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
 	if nativeBuckets == nil {
 		return nil
 	}
-	if err = p.nativeBucketTableOperator.Put(height, nativeBuckets, tx); err != nil {
-		return err
-	}
-	return nil
+	return p.nativeBucketTableOperator.Put(height, nativeBuckets, tx)
 }
 
 func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
@@ -418,6 +443,9 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := p.epochCtx.GetEpochHeight(epochNum)
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.getBucketInfoByEpochV2(height, epochNum, delegateName)
+	}
 	votes, voteFlag, delegates, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
@@ -438,24 +466,12 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			return nil, errors.Wrap(err, "failed to get latest native mint time")
 		}
 	}
-	// update weighted votes based on probation 
+	// update weighted votes based on probation
 	pblist, err := p.getProbationList(epochNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	var intensityRate float64
-	probationMap := make(map[string]uint64)
-	if pblist != nil {
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, pb := range pblist {
-				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
-				if pb.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
-				}
-			}
-		}
-	}
+	intensityRate, probationMap := probationListToMap(delegates, pblist)
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
@@ -465,7 +481,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			}
 			weightedVotes := vote.WeightedAmount()
 			if _, ok := probationMap[candName]; ok {
-				// filter based on probation 
+				// filter based on probation
 				votingPower := new(big.Float).SetInt(weightedVotes)
 				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 			}
@@ -672,7 +688,7 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 		return errors.Wrap(err, "failed to get result by height")
 	}
 	if probationList != nil {
-		delegates, err = filterCandidates(delegates, probationList, epochStartheight) 
+		delegates, err = filterCandidates(delegates, probationList, epochStartheight)
 		if err != nil {
 			return errors.Wrap(err, "failed to filter candidate with probation list")
 		}
@@ -688,19 +704,8 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 
 func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	//update aggregate voting table
-	probationMap := make(map[string]uint32)
-	var intensityRate float64
-	if probationList != nil {
-		intensityRate = float64(uint32(100)-probationList.IntensityRate) / float64(100)
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, elem := range probationList.ProbationList {
-				if elem.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = elem.Count
-				}
-			}
-		}
-	}
+	localPb := convertProbationListToLocal(probationList)
+	intensityRate, probationMap := probationListToMap(delegates, localPb)
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
 	for i, vote := range votes {
@@ -731,7 +736,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	}()
 	for key, val := range sumOfWeightedVotes {
 		if _, ok := probationMap[key.candidateName]; ok {
-			// filter based on probation 
+			// filter based on probation
 			votingPower := new(big.Float).SetInt(val)
 			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 		}
@@ -748,7 +753,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	//update voting meta table
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
-		totalWeighted.Add(totalWeighted, cand.Score()) // already probation filtered 
+		totalWeighted.Add(totalWeighted, cand.Score()) // already probation filtered
 	}
 	insertQuery = fmt.Sprintf(insertVotingMeta, VotingMetaTableName)
 	if _, err = tx.Exec(insertQuery,

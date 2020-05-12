@@ -9,6 +9,7 @@ package votings
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -18,11 +19,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
-	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -119,7 +120,6 @@ func (p *Protocol) getProbationList(epochNumber uint64) ([]*ProbationList, error
 	return pblist, nil
 }
 
-
 // filterCandidates returns filtered candidate list by given raw candidate and probation list
 func filterCandidates(
 	candidates []*types.Candidate,
@@ -153,4 +153,92 @@ func filterCandidates(
 		verifiedCandidates = append(verifiedCandidates, candidatesMap[name])
 	}
 	return verifiedCandidates, nil
+}
+
+// filterCandidatesV2 returns filtered candidate list by given raw candidate and probation list
+func filterCandidatesV2(
+	candidates *iotextypes.CandidateListV2,
+	unqualifiedList *iotextypes.ProbationCandidateList,
+	epochStartHeight uint64,
+) (*iotextypes.CandidateListV2, error) {
+	candidatesMap := make(map[string]*iotextypes.CandidateV2)
+	updatedVotingPower := make(map[string]*big.Int)
+	intensityRate := float64(uint32(100)-unqualifiedList.IntensityRate) / float64(100)
+
+	probationMap := make(map[string]uint32)
+	for _, elem := range unqualifiedList.ProbationList {
+		probationMap[elem.Address] = elem.Count
+	}
+	for _, cand := range candidates.Candidates {
+		filterCand := *cand
+		votingPower, ok := new(big.Float).SetString(cand.TotalWeightedVotes)
+		if !ok {
+			return nil, errors.New("total weighted votes convert error")
+		}
+		if _, ok := probationMap[cand.OperatorAddress]; ok {
+			newVotingPower, _ := votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			filterCand.TotalWeightedVotes = newVotingPower.String()
+		}
+		totalWeightedVotes, ok := new(big.Int).SetString(filterCand.TotalWeightedVotes, 10)
+		if !ok {
+			return nil, errors.New("total weighted votes convert error")
+		}
+		updatedVotingPower[cand.OperatorAddress] = totalWeightedVotes
+		candidatesMap[cand.OperatorAddress] = &filterCand
+	}
+	// sort again with updated voting power
+	sorted := util.Sort(updatedVotingPower, epochStartHeight)
+	verifiedCandidates := &iotextypes.CandidateListV2{}
+	for _, name := range sorted {
+		verifiedCandidates.Candidates = append(verifiedCandidates.Candidates, candidatesMap[name])
+	}
+	return verifiedCandidates, nil
+}
+
+func probationListToMapV2(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+	probationMap = make(map[string]uint64)
+	if probationList != nil {
+		for _, can := range candidateList.Candidates {
+			for _, pb := range probationList {
+				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
+				if pb.Address == can.Name {
+					probationMap[can.Name] = pb.Count
+				}
+			}
+		}
+	}
+	return
+}
+
+func probationListToMap(delegates []*types.Candidate, pblist []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+	probationMap = make(map[string]uint64)
+	if pblist != nil {
+		for _, delegate := range delegates {
+			delegateOpAddr := string(delegate.OperatorAddress())
+			for _, pb := range pblist {
+				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
+				if pb.Address == delegateOpAddr {
+					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
+				}
+			}
+		}
+	}
+	return
+}
+
+func convertProbationListToLocal(probationList *iotextypes.ProbationCandidateList) (ret []*ProbationList) {
+	if probationList == nil {
+		return nil
+	}
+	ret = make([]*ProbationList, 0)
+	for _, pb := range probationList.ProbationList {
+		p := &ProbationList{
+			0,
+			uint64(probationList.IntensityRate),
+			pb.Address,
+			uint64(pb.Count),
+		}
+		ret = append(ret, p)
+	}
+	return
 }

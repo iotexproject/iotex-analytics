@@ -45,19 +45,21 @@ type Indexer struct {
 
 // Config contains indexer configs
 type Config struct {
-	NumDelegates            uint64                     `yaml:"numDelegates"`
-	NumCandidateDelegates   uint64                     `yaml:"numCandidateDelegates"`
-	NumSubEpochs            uint64                     `yaml:"numSubEpochs"`
-	NumSubEpochsDardanelles uint64                     `yaml:"numSubEpochsDardanelles"`
-	DardanellesHeight       uint64                     `yaml:"dardanellesHeight"`
-	DardanellesOn           bool                       `yaml:"dardanellesOn"`
-	ConsensusScheme         string                     `yaml:"consensusScheme"`
-	RangeQueryLimit         uint64                     `yaml:"rangeQueryLimit"`
-	Genesis                 indexprotocol.Genesis      `yaml:"genesis"`
-	GravityChain            indexprotocol.GravityChain `yaml:"gravityChain"`
-	Rewarding               indexprotocol.Rewarding    `yaml:"rewarding"`
-	Poll                    indexprotocol.Poll         `yaml:"poll"`
-	HermesConfig            indexprotocol.HermesConfig `yaml:"hermesConfig"`
+	NumDelegates            uint64                            `yaml:"numDelegates"`
+	NumCandidateDelegates   uint64                            `yaml:"numCandidateDelegates"`
+	NumSubEpochs            uint64                            `yaml:"numSubEpochs"`
+	NumSubEpochsDardanelles uint64                            `yaml:"numSubEpochsDardanelles"`
+	DardanellesHeight       uint64                            `yaml:"dardanellesHeight"`
+	DardanellesOn           bool                              `yaml:"dardanellesOn"`
+	FairbankHeight          uint64                            `yaml:"fairbankHeight"`
+	ConsensusScheme         string                            `yaml:"consensusScheme"`
+	RangeQueryLimit         uint64                            `yaml:"rangeQueryLimit"`
+	Genesis                 indexprotocol.Genesis             `yaml:"genesis"`
+	GravityChain            indexprotocol.GravityChain        `yaml:"gravityChain"`
+	Rewarding               indexprotocol.Rewarding           `yaml:"rewarding"`
+	Poll                    indexprotocol.Poll                `yaml:"poll"`
+	HermesConfig            indexprotocol.HermesConfig        `yaml:"hermesConfig"`
+	VoteWeightCalConsts     indexprotocol.VoteWeightCalConsts `yaml:"voteWeightCalConsts"`
 }
 
 // NewIndexer creates a new indexer
@@ -72,6 +74,7 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 			cfg.NumDelegates,
 			cfg.NumSubEpochs,
 			epochctx.EnableDardanellesSubEpoch(cfg.DardanellesHeight, cfg.NumSubEpochsDardanelles),
+			epochctx.FairbankHeight(cfg.FairbankHeight),
 		),
 		hermesConfig: indexprotocol.HermesConfig{
 			HermesContractAddress:    cfg.HermesConfig.HermesContractAddress,
@@ -183,7 +186,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
-	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll)
+	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll, idx.Config.VoteWeightCalConsts)
 	if err != nil {
 		log.L().Error("failed to make new voting protocol", zap.Error(err))
 	}
