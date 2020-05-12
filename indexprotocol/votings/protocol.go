@@ -249,7 +249,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	epochNumber := p.epochCtx.GetEpochNumber(blkheight)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	if indexCtx.ConsensusScheme == "ROLLDPOS" && blkheight == p.epochCtx.GetEpochHeight(epochNumber) {
-		// update voting tables on every epoch start height 
+		// update voting tables on every epoch start height
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
 		var gravityHeight uint64
@@ -266,7 +266,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
 		}
-		probationList, err := p.fetchProbationList(chainClient, epochNumber) 
+		probationList, err := p.fetchProbationList(chainClient, epochNumber)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
 		}
@@ -302,7 +302,7 @@ func (p *Protocol) fetchAndStoreRawBuckets(
 	if err := p.putNativePoll(tx, height, nativeBuckets); err != nil {
 		return errors.Wrapf(err, "failed to put native poll in epoch %d", epochNumber)
 	}
-	return nil 
+	return nil
 }
 
 func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*types.Bucket) (err error) {
@@ -438,7 +438,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			return nil, errors.Wrap(err, "failed to get latest native mint time")
 		}
 	}
-	// update weighted votes based on probation 
+	// update weighted votes based on probation
 	pblist, err := p.getProbationList(epochNum)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
@@ -465,7 +465,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			}
 			weightedVotes := vote.WeightedAmount()
 			if _, ok := probationMap[candName]; ok {
-				// filter based on probation 
+				// filter based on probation
 				votingPower := new(big.Float).SetInt(weightedVotes)
 				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 			}
@@ -672,7 +672,7 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 		return errors.Wrap(err, "failed to get result by height")
 	}
 	if probationList != nil {
-		delegates, err = filterCandidates(delegates, probationList, epochStartheight) 
+		delegates, err = filterCandidates(delegates, probationList, epochStartheight)
 		if err != nil {
 			return errors.Wrap(err, "failed to filter candidate with probation list")
 		}
@@ -731,7 +731,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	}()
 	for key, val := range sumOfWeightedVotes {
 		if _, ok := probationMap[key.candidateName]; ok {
-			// filter based on probation 
+			// filter based on probation
 			votingPower := new(big.Float).SetInt(val)
 			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 		}
@@ -748,7 +748,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	//update voting meta table
 	totalWeighted := big.NewInt(0)
 	for _, cand := range delegates {
-		totalWeighted.Add(totalWeighted, cand.Score()) // already probation filtered 
+		totalWeighted.Add(totalWeighted, cand.Score()) // already probation filtered
 	}
 	insertQuery = fmt.Sprintf(insertVotingMeta, VotingMetaTableName)
 	if _, err = tx.Exec(insertQuery,

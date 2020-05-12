@@ -84,7 +84,6 @@ type ByDelegateResponse struct {
 	Count                   int          `json:"count"`
 	TotalRewardsDistributed string       `json:"totalRewardsDistributed"`
 	DistributionRatio       []*Ratio     `json:"distributionRatio"`
-
 }
 
 type ByVoterResponse struct {

@@ -1623,7 +1623,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 				FoundationBonusRatio: ratioInfo.FoundationBonusRatio,
 				EpochNumber:          startEpoch,
 			}
-				distributionRatioList = append(distributionRatioList, info)
+			distributionRatioList = append(distributionRatioList, info)
 		}
 	}
 	var count int
@@ -1643,7 +1643,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		VoterInfoList:           voterInfoList,
 		Count:                   count,
 		TotalRewardsDistributed: total,
-		DistributionRatio:   distributionRatioList,
+		DistributionRatio:       distributionRatioList,
 	}
 	return nil
 }
