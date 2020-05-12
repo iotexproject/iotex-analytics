@@ -7,8 +7,8 @@ import (
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -21,8 +21,8 @@ const (
 
 	fromJoinedTables = "FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
 		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash "
-	timeOrdering = "ORDER BY `timestamp` desc limit ?,?"
-	fromTable            				   = "FROM %s "
+	timeOrdering                           = "ORDER BY `timestamp` desc limit ?,?"
+	fromTable                              = "FROM %s "
 	selectVoter                            = "SELECT `to`, from_epoch, to_epoch, amount, t1.action_hash, `timestamp` "
 	delegateFilter                         = "WHERE delegate_name = ? "
 	selectHermesDistributionByDelegateName = selectVoter + fromJoinedTables + delegateFilter + timeOrdering
@@ -32,8 +32,8 @@ const (
 	selectHermesDistributionByVoterAddress = selectDelegate + fromJoinedTables + voterFilter + timeOrdering
 	selectDistributionRatio                = "SELECT block_reward_percentage AS block_reward_ratio, epoch_reward_percentage as epoch_reward_ratio, foundation_bonus_percentage as foundation_bonus_ratio, epoch_number "
 	selectDistributionRatioByDelegateName  = selectDistributionRatio + fromTable + delegateFilterWithEpochRange
-	selectCount      = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
-	selectHermesMeta = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
+	selectCount                            = "SELECT COUNT(*),IFNULL(SUM(amount),0) "
+	selectHermesMeta                       = "SELECT COUNT(DISTINCT delegate_name), COUNT(DISTINCT `to`), IFNULL(SUM(amount),0) " + fromJoinedTables
 )
 
 // HermesArg defines Hermes request parameters
@@ -60,6 +60,7 @@ type Ratio struct {
 	FoundationBonusRatio int
 	EpochNumber          int
 }
+
 // DelegateInfo defines delegate information
 type DelegateInfo struct {
 	DelegateName string
@@ -150,6 +151,7 @@ func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterAddress string) ([]*Del
 
 	return delegateInfoList, nil
 }
+
 // GetHermes2Ratio gets Hermes distribution ratio list by delegate name
 func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Ratio, error) {
 
