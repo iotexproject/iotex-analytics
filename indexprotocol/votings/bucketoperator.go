@@ -34,15 +34,15 @@ const (
 
 	// InsertVoteBucketsQuery is query to insert vote buckets for sqlite
 	InsertVoteBucketsQuery = "INSERT OR IGNORE INTO %s (hash, index, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-	// InsertVoteBucketsQueryMySql is query to insert vote buckets for mysql
-	InsertVoteBucketsQueryMySql = "INSERT IGNORE INTO %s (hash, `index`, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	// InsertVoteBucketsQueryMySQL is query to insert vote buckets for mysql
+	InsertVoteBucketsQueryMySQL = "INSERT IGNORE INTO %s (hash, `index`, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	// VoteBucketRecordQuery is query to return vote buckets by ids
 	VoteBucketRecordQuery = "SELECT id, `index`, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake FROM %s WHERE id IN (%s)"
 )
 
 type (
 	bucket struct {
-		Id                                           int64
+		ID                                           int64
 		Index                                        uint64
 		Candidate, Owner, StakedAmount               []byte
 		StakedDuration                               string
@@ -51,7 +51,7 @@ type (
 	}
 )
 
-// NewVoteBucketTableOperator creates an operator for vote bucket table
+// NewBucketTableOperator creates an operator for vote bucket table
 func NewBucketTableOperator(tableName string, driverName committee.DRIVERTYPE) (committee.Operator, error) {
 	var creation string
 	switch driverName {
@@ -135,7 +135,7 @@ func QueryVoteBuckets(tableName string, frequencies map[int64]int, sdb *sql.DB, 
 			UnstakeStartTime: unstakeTime,
 			AutoStake:        b.AutoStake == 1,
 		}
-		for i := frequencies[b.Id]; i > 0; i-- {
+		for i := frequencies[b.ID]; i > 0; i-- {
 			buckets = append(buckets, bucket)
 		}
 	}
@@ -157,8 +157,7 @@ func InsertVoteBuckets(tableName string, driverName committee.DRIVERTYPE, record
 	case committee.SQLITE:
 		stmt, err = tx.Prepare(fmt.Sprintf(InsertVoteBucketsQuery, tableName))
 	case committee.MYSQL:
-		fmt.Println(fmt.Sprintf(InsertVoteBucketsQueryMySql, tableName))
-		stmt, err = tx.Prepare(fmt.Sprintf(InsertVoteBucketsQueryMySql, tableName))
+		stmt, err = tx.Prepare(fmt.Sprintf(InsertVoteBucketsQueryMySQL, tableName))
 	default:
 		return nil, errors.New("wrong driver type")
 	}

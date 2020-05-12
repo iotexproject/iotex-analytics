@@ -8,7 +8,6 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/gogo/protobuf v1.2.1
 	github.com/golang/mock v1.4.0
 	github.com/golang/protobuf v1.3.2
 	github.com/iotexproject/go-pkgs v0.1.2-0.20200212033110-8fa5cf96fc1b

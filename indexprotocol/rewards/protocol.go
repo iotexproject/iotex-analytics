@@ -390,7 +390,6 @@ func (p *Protocol) updateCandidateRewardAddressV2(
 		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
 			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
 		}
-		fmt.Println("updateCandidateRewardAddressV2:", candidate.RewardAddress, string(candidate.Name), candidate.RewardAddress)
 		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.Name))
 	}
 	return nil
@@ -465,8 +464,7 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		}
 	}
 	if len(valStrs) == 0 || len(valArgs) == 0 {
-		fmt.Println(len(valStrs), len(valArgs))
-		return nil
+		log.S().Warnf("This shouldn't happen, len(valStrs):%d,len(valArgs):%d", len(valStrs), len(valArgs))
 	}
 	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {

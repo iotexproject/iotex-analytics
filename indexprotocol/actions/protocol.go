@@ -52,22 +52,36 @@ const (
 	insertActionHistory = "INSERT INTO %s (action_type, action_hash, receipt_hash, block_height, `from`, `to`, " +
 		"gas_price, gas_consumed, nonce, amount, receipt_status) VALUES %s"
 
-	// action type
-	Transfer               = "transfer"
-	Execution              = "execution"
+	// Transfer action type
+	Transfer = "transfer"
+	// Execution action type
+	Execution = "execution"
+	// DepositToRewardingFund action type
 	DepositToRewardingFund = "depositToRewardingFund"
+	// ClaimFromRewardingFund action type
 	ClaimFromRewardingFund = "claimFromRewardingFund"
-	GrantReward            = "grantReward"
-	StakeCreate            = "stakeCreate"
-	StakeUnstake           = "stakeUnstake"
-	StakeWithdraw          = "stakeWithdraw"
-	StakeAddDeposit        = "stakeAddDeposit"
-	StakeRestake           = "stakeRestake"
-	StakeChangeCandidate   = "stakeChangeCandidate"
+	// GrantReward action type
+	GrantReward = "grantReward"
+	// StakeCreate action type
+	StakeCreate = "stakeCreate"
+	// StakeUnstake action type
+	StakeUnstake = "stakeUnstake"
+	// StakeWithdraw action type
+	StakeWithdraw = "stakeWithdraw"
+	// StakeAddDeposit action type
+	StakeAddDeposit = "stakeAddDeposit"
+	// StakeRestake action type
+	StakeRestake = "stakeRestake"
+	// StakeChangeCandidate action type
+	StakeChangeCandidate = "stakeChangeCandidate"
+	// StakeTransferOwnership action type
 	StakeTransferOwnership = "stakeTransferOwnership"
-	CandidateRegister      = "candidateRegister"
-	CandidateUpdate        = "candidateUpdate"
-	PutPollResult          = "putPollResult"
+	// CandidateRegister action type
+	CandidateRegister = "candidateRegister"
+	// CandidateUpdate action type
+	CandidateUpdate = "candidateUpdate"
+	// PutPollResult action type
+	PutPollResult = "putPollResult"
 )
 
 type (

@@ -63,7 +63,7 @@ const (
 		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))"
 	selectBlockHistory = "SELECT * FROM %s WHERE block_height=?"
 	selectProductivity = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
-	insertBlockHistory = "INSERT IGNORE INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
+	insertBlockHistory = "INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
 		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult,stakeCreate,stakeUnstake,stakeWithdraw,stakeAddDeposit,stakeRestake,stakeChangeCandidate,stakeTransferOwnership,candidateRegister,candidateUpdate,gas_consumed, producer_address, " +
 		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertExpectedProducer = "INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, " +
@@ -376,8 +376,7 @@ func (p *Protocol) updateDelegates(
 	height uint64,
 	epochNumber uint64,
 ) error {
-	err := p.updateActiveBlockProducers(chainClient, epochNumber)
-	if err != nil {
+	if err := p.updateActiveBlockProducers(chainClient, epochNumber); err != nil {
 		return errors.Wrap(err, "update active block producers")
 	}
 	if height >= p.epochCtx.FairbankHeight() {
@@ -437,7 +436,6 @@ func (p *Protocol) updateDelegatesV2(
 	p.OperatorAddrToName = make(map[string]string)
 	for _, c := range candidateList.Candidates {
 		p.OperatorAddrToName[c.OperatorAddress] = string(c.Name)
-		fmt.Println("updateDelegatesV2:", c)
 	}
 	return nil
 }
@@ -461,6 +459,7 @@ func (p *Protocol) updateActiveBlockProducers(chainClient iotexapi.APIServiceCli
 	for _, activeBlockProducer := range activeBlockProducers {
 		p.ActiveBlockProducers = append(p.ActiveBlockProducers, activeBlockProducer.Address)
 	}
+
 	return nil
 }
 

@@ -77,10 +77,10 @@ const (
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, " +
 		"UNIQUE KEY %s (epoch_number))"
 	selectVotingResult = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
-	insertVotingResult = "INSERT IGNORE INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
+	insertVotingResult = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
-	insertVotingMeta      = "INSERT IGNORE INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
+	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
 	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
 	rowExists             = "SELECT * FROM %s WHERE epoch_number = ?"
 )
@@ -279,8 +279,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 		// process staking v2
 		if blkheight >= p.epochCtx.FairbankHeight() {
-			err := p.stakingV2(chainClient, blkheight, epochNumber, probationList)
-			if err != nil {
+			if err := p.stakingV2(chainClient, blkheight, epochNumber, probationList); err != nil {
 				return errors.Wrapf(err, "failed to write staking v2 in epoch %d", epochNumber)
 			}
 		} else {
@@ -338,10 +337,7 @@ func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*typ
 	if nativeBuckets == nil {
 		return nil
 	}
-	if err = p.nativeBucketTableOperator.Put(height, nativeBuckets, tx); err != nil {
-		return err
-	}
-	return nil
+	return p.nativeBucketTableOperator.Put(height, nativeBuckets, tx)
 }
 
 func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
