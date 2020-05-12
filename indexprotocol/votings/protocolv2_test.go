@@ -18,7 +18,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
@@ -28,14 +27,6 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
-)
-
-const (
-	localconnectStr = "root:123456@tcp(192.168.146.140:3306)/"
-	//localconnectStr = connectStr
-	localdbName = "analytics"
-	//localdbName = dbName
-	chainEndpoint = "api.iotex.one:80"
 )
 
 var (
@@ -100,7 +91,7 @@ func TestStakingV2(t *testing.T) {
 	ctx := context.Background()
 	//use for remote database
 	testutil.CleanupDatabase(t, connectStr, dbName)
-	store := s.NewMySQL(localconnectStr, localdbName)
+	store := s.NewMySQL(connectStr, dbName)
 	require.NoError(store.Start(ctx))
 	defer func() {
 		//use for remote database
