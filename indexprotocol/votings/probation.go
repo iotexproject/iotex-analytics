@@ -18,11 +18,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-election/types"
 	"github.com/iotexproject/iotex-election/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
-	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
 const (
@@ -118,7 +118,6 @@ func (p *Protocol) getProbationList(epochNumber uint64) ([]*ProbationList, error
 	}
 	return pblist, nil
 }
-
 
 // filterCandidates returns filtered candidate list by given raw candidate and probation list
 func filterCandidates(

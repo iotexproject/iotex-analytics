@@ -1602,6 +1602,30 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 			voterInfoList = append(voterInfoList, info)
 		}
 	}
+	distributionRatioList := make([]*Ratio, 0)
+	if haveField(ctx, "byDelegate", "distributionRatio") {
+		encodedDelegateName, err := EncodeDelegateName(delegateName)
+		if err != nil {
+			return errors.Wrap(err, "failed to format delegate name")
+		}
+		//delegateName,err = EncodeDelegateName(delegateName)
+		res, err := r.HP.GetHermes2Ratio(harg, encodedDelegateName)
+		switch {
+		case errors.Cause(err) == indexprotocol.ErrNotExist:
+			return nil
+		case err != nil:
+			return errors.Wrap(err, "failed to get hermes distribution by delegate name")
+		}
+		for _, ratioInfo := range res {
+			info := &Ratio{
+				BlockRewardRatio:     ratioInfo.BlockRewardRatio,
+				EpochRewardRatio:     ratioInfo.EpochRewardRatio,
+				FoundationBonusRatio: ratioInfo.FoundationBonusRatio,
+				EpochNumber:          startEpoch,
+			}
+			distributionRatioList = append(distributionRatioList, info)
+		}
+	}
 	var count int
 	var total string
 	if haveField(ctx, "byDelegate", "count") || haveField(ctx, "byDelegate", "totalRewardsDistributed") {
@@ -1619,6 +1643,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		VoterInfoList:           voterInfoList,
 		Count:                   count,
 		TotalRewardsDistributed: total,
+		DistributionRatio:       distributionRatioList,
 	}
 	return nil
 }

@@ -118,6 +118,7 @@ type ComplexityRoot struct {
 
 	ByDelegateResponse struct {
 		Count                   func(childComplexity int) int
+		DistributionRatio       func(childComplexity int) int
 		Exist                   func(childComplexity int) int
 		TotalRewardsDistributed func(childComplexity int) int
 		VoterInfoList           func(childComplexity int, pagination *Pagination) int
@@ -266,6 +267,13 @@ type ComplexityRoot struct {
 		Voting             func(childComplexity int, startEpoch int, epochCount int) int
 		Xrc20              func(childComplexity int) int
 		Xrc721             func(childComplexity int) int
+	}
+
+	Ratio struct {
+		BlockRewardRatio     func(childComplexity int) int
+		EpochNumber          func(childComplexity int) int
+		EpochRewardRatio     func(childComplexity int) int
+		FoundationBonusRatio func(childComplexity int) int
 	}
 
 	Reward struct {
@@ -763,6 +771,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ByDelegateResponse.Count(childComplexity), true
+
+	case "ByDelegateResponse.DistributionRatio":
+		if e.complexity.ByDelegateResponse.DistributionRatio == nil {
+			break
+		}
+
+		return e.complexity.ByDelegateResponse.DistributionRatio(childComplexity), true
 
 	case "ByDelegateResponse.Exist":
 		if e.complexity.ByDelegateResponse.Exist == nil {
@@ -1454,6 +1469,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Xrc721(childComplexity), true
+
+	case "Ratio.BlockRewardRatio":
+		if e.complexity.Ratio.BlockRewardRatio == nil {
+			break
+		}
+
+		return e.complexity.Ratio.BlockRewardRatio(childComplexity), true
+
+	case "Ratio.EpochNumber":
+		if e.complexity.Ratio.EpochNumber == nil {
+			break
+		}
+
+		return e.complexity.Ratio.EpochNumber(childComplexity), true
+
+	case "Ratio.EpochRewardRatio":
+		if e.complexity.Ratio.EpochRewardRatio == nil {
+			break
+		}
+
+		return e.complexity.Ratio.EpochRewardRatio(childComplexity), true
+
+	case "Ratio.FoundationBonusRatio":
+		if e.complexity.Ratio.FoundationBonusRatio == nil {
+			break
+		}
+
+		return e.complexity.Ratio.FoundationBonusRatio(childComplexity), true
 
 	case "Reward.BlockReward":
 		if e.complexity.Reward.BlockReward == nil {
@@ -2297,6 +2340,13 @@ type ByDelegateResponse {
     voterInfoList(pagination: Pagination): [VoterInfo]!
     count: Int!
     totalRewardsDistributed: String!
+    distributionRatio: [Ratio]!
+    }
+type Ratio {
+    epochNumber: Int!
+    blockRewardRatio: Int!
+    epochRewardRatio: Int!
+    foundationBonusRatio: Int!
 }
 
 type DelegateInfo {
@@ -4431,6 +4481,33 @@ func (ec *executionContext) _ByDelegateResponse_totalRewardsDistributed(ctx cont
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ByDelegateResponse_distributionRatio(ctx context.Context, field graphql.CollectedField, obj *ByDelegateResponse) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "ByDelegateResponse",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DistributionRatio, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*Ratio)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNRatio2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRatio(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ByVoterResponse_exist(ctx context.Context, field graphql.CollectedField, obj *ByVoterResponse) graphql.Marshaler {
@@ -6819,6 +6896,114 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Ratio_epochNumber(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Ratio",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EpochNumber, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Ratio_blockRewardRatio(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Ratio",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BlockRewardRatio, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Ratio_epochRewardRatio(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Ratio",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EpochRewardRatio, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Ratio_foundationBonusRatio(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Ratio",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FoundationBonusRatio, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Reward_exist(ctx context.Context, field graphql.CollectedField, obj *Reward) graphql.Marshaler {
@@ -9723,6 +9908,11 @@ func (ec *executionContext) _ByDelegateResponse(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "distributionRatio":
+			out.Values[i] = ec._ByDelegateResponse_distributionRatio(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -10635,6 +10825,48 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
 			out.Values[i] = ec._Query___schema(ctx, field)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var ratioImplementors = []string{"Ratio"}
+
+func (ec *executionContext) _Ratio(ctx context.Context, sel ast.SelectionSet, obj *Ratio) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, ratioImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Ratio")
+		case "epochNumber":
+			out.Values[i] = ec._Ratio_epochNumber(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "blockRewardRatio":
+			out.Values[i] = ec._Ratio_blockRewardRatio(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "epochRewardRatio":
+			out.Values[i] = ec._Ratio_epochRewardRatio(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "foundationBonusRatio":
+			out.Values[i] = ec._Ratio_foundationBonusRatio(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11954,6 +12186,43 @@ func (ec *executionContext) unmarshalNPagination2githubᚗcomᚋiotexprojectᚋi
 	return ec.unmarshalInputPagination(ctx, v)
 }
 
+func (ec *executionContext) marshalNRatio2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRatio(ctx context.Context, sel ast.SelectionSet, v []*Ratio) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalORatio2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRatio(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNRewardDistribution2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRewardDistribution(ctx context.Context, sel ast.SelectionSet, v []*RewardDistribution) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -12776,6 +13045,17 @@ func (ec *executionContext) marshalOProductivity2ᚖgithubᚗcomᚋiotexproject�
 		return graphql.Null
 	}
 	return ec._Productivity(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalORatio2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRatio(ctx context.Context, sel ast.SelectionSet, v Ratio) graphql.Marshaler {
+	return ec._Ratio(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalORatio2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐRatio(ctx context.Context, sel ast.SelectionSet, v *Ratio) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Ratio(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOReward2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐReward(ctx context.Context, sel ast.SelectionSet, v Reward) graphql.Marshaler {
