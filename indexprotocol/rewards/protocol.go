@@ -341,7 +341,7 @@ func (p *Protocol) updateCandidateRewardAddress(
 	height uint64,
 ) error {
 	if height >= p.epochCtx.FairbankHeight() {
-		return p.updateCandidateRewardAddressV2(chainClient, height)
+		return p.updateStakingCandidateRewardAddress(chainClient, height)
 	}
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
@@ -377,11 +377,11 @@ func (p *Protocol) updateCandidateRewardAddress(
 	return nil
 }
 
-func (p *Protocol) updateCandidateRewardAddressV2(
+func (p *Protocol) updateStakingCandidateRewardAddress(
 	chainClient iotexapi.APIServiceClient,
 	height uint64,
 ) error {
-	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, height)
+	candidateList, err := indexprotocol.GetAllStakingCandidates(chainClient, height)
 	if err != nil {
 		return errors.Wrap(err, "get candidate error")
 	}
@@ -390,7 +390,7 @@ func (p *Protocol) updateCandidateRewardAddressV2(
 		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
 			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
 		}
-		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], string(candidate.Name))
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], hex.EncodeToString([]byte(candidate.Name)))
 	}
 	return nil
 }
@@ -463,9 +463,7 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 			valArgs = append(valArgs, epochNumber, candidateName, rewards[0], rewards[1], rewards[2])
 		}
 	}
-	if len(valStrs) == 0 || len(valArgs) == 0 {
-		log.S().Warnf("This shouldn't happen, len(valStrs):%d,len(valArgs):%d", len(valStrs), len(valArgs))
-	}
+
 	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err

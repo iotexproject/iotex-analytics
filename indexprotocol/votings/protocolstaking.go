@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
@@ -24,44 +25,44 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 )
 
-func (p *Protocol) stakingV2(chainClient iotexapi.APIServiceClient, epochStartheight, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
-	voteBucketList, err := indexprotocol.GetBucketsAllV2(chainClient, epochStartheight)
+func (p *Protocol) processStaking(chainClient iotexapi.APIServiceClient, epochStartheight, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
+	voteBucketList, err := indexprotocol.GetAllStakingBuckets(chainClient, epochStartheight)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
-	candidateList, err := indexprotocol.GetCandidatesAllV2(chainClient, epochStartheight)
+	candidateList, err := indexprotocol.GetAllStakingCandidates(chainClient, epochStartheight)
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
 	if probationList != nil {
-		candidateList, err = filterCandidatesV2(candidateList, probationList, epochStartheight)
+		candidateList, err = filterStakingCandidates(candidateList, probationList, epochStartheight)
 		if err != nil {
 			return errors.Wrap(err, "failed to filter candidate with probation list")
 		}
 	}
 	// after get and clean data,the following code is for writing mysql
 	tx, err := p.Store.GetDB().Begin()
-	// update stakingV2_bucket and height_to_stakingV2_bucket table
-	if err = p.nativeV2BucketTableOperator.Put(epochStartheight, voteBucketList, tx); err != nil {
+	// update staking_bucket and height_to_staking_bucket table
+	if err = p.stakingBucketTableOperator.Put(epochStartheight, voteBucketList, tx); err != nil {
 		return
 	}
-	// update stakingV2_candidate and height_to_stakingV2_candidate table
-	if err = p.nativeV2CandidateTableOperator.Put(epochStartheight, candidateList, tx); err != nil {
+	// update staking_candidate and height_to_staking_candidate table
+	if err = p.stakingCandidateTableOperator.Put(epochStartheight, candidateList, tx); err != nil {
 		return
 	}
 	// update voting_result table
-	if err = p.updateVotingResultV2(tx, candidateList, epochNumber); err != nil {
+	if err = p.updateStakingResult(tx, candidateList, epochStartheight, epochNumber, chainClient); err != nil {
 		return
 	}
 	// update aggregate_voting and voting_meta table
-	if err = p.updateAggregateVotingV2(tx, voteBucketList, candidateList, epochNumber, probationList); err != nil {
+	if err = p.updateAggregateStakingVoting(tx, voteBucketList, candidateList, epochNumber, probationList); err != nil {
 		return
 	}
 	tx.Commit()
 	return
 }
 
-func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.CandidateListV2, epochNumber uint64) (err error) {
+func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.CandidateListV2, epochStartheight, epochNumber uint64, chainClient iotexapi.APIServiceClient) (err error) {
 	var voteResultStmt *sql.Stmt
 	insertQuery := fmt.Sprintf(insertVotingResult,
 		VotingResultTableName)
@@ -74,23 +75,33 @@ func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.Candi
 			err = closeErr
 		}
 	}()
+	gravityHeight, err := p.getGravityChainStartHeight(chainClient, epochStartheight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get gravity height from chain service in epoch start %d", epochStartheight)
+	}
 	for _, candidate := range candidates.Candidates {
 		addr, err := address.FromString(candidate.OwnerAddress)
 		if err != nil {
 			return err
 		}
 		addressString := hex.EncodeToString(addr.Bytes())
+		stakingAddress := common.HexToAddress(addressString)
+
+		blockRewardPortion, epochRewardPortion, foundationBonusPortion, err := p.getDelegateRewardPortions(stakingAddress, gravityHeight)
+		if err != nil {
+			return errors.Errorf("get delegate reward portions:%s,%d,%s", stakingAddress.String(), gravityHeight, err.Error())
+		}
 		if _, err = voteResultStmt.Exec(
 			epochNumber,
-			candidate.Name,
+			hex.EncodeToString([]byte(candidate.Name)),
 			candidate.OperatorAddress,
 			candidate.RewardAddress,
 			candidate.TotalWeightedVotes,
 			candidate.SelfStakingTokens,
-			0,             // TODO wait for deploy contract or api
-			0,             // TODO wait for deploy contract or api
-			0,             // TODO wait for deploy contract or api
-			addressString, // type is varchar 40,change to ethereum hex address
+			blockRewardPortion,     // TODO wait for deploy contract or api
+			epochRewardPortion,     // TODO wait for deploy contract or api
+			foundationBonusPortion, // TODO wait for deploy contract or api
+			addressString,          // type is varchar 40,change to ethereum hex address
 		); err != nil {
 			return err
 		}
@@ -98,9 +109,9 @@ func (p *Protocol) updateVotingResultV2(tx *sql.Tx, candidates *iotextypes.Candi
 	return nil
 }
 
-func (p *Protocol) updateAggregateVotingV2(tx *sql.Tx, votes *iotextypes.VoteBucketList, delegates *iotextypes.CandidateListV2, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
+func (p *Protocol) updateAggregateStakingVoting(tx *sql.Tx, votes *iotextypes.VoteBucketList, delegates *iotextypes.CandidateListV2, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	pb := convertProbationListToLocal(probationList)
-	intensityRate, probationMap := probationListToMapV2(delegates, pb)
+	intensityRate, probationMap := stakingProbationListToMap(delegates, pb)
 	//update aggregate voting table
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
@@ -117,7 +128,7 @@ func (p *Protocol) updateAggregateVotingV2(tx *sql.Tx, votes *iotextypes.VoteBuc
 		if _, ok := selfStakeIndex[vote.Index]; ok {
 			selfStake = true
 		}
-		weightedAmount := calculateVoteWeightV2(p.voteCfg, vote, selfStake)
+		weightedAmount := calculateVoteWeight(p.voteCfg, vote, selfStake)
 		stakeAmount, ok := big.NewInt(0).SetString(vote.StakedAmount, 10)
 		if !ok {
 			err = errors.New("stake amount convert error")
@@ -179,13 +190,13 @@ func (p *Protocol) updateAggregateVotingV2(tx *sql.Tx, votes *iotextypes.VoteBuc
 	return
 }
 
-func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName string) ([]*VotingInfo, error) {
-	ret, err := p.nativeV2BucketTableOperator.Get(height, p.Store.GetDB(), nil)
+func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegateName string) ([]*VotingInfo, error) {
+	ret, err := p.stakingBucketTableOperator.Get(height, p.Store.GetDB(), nil)
 	bucketList, ok := ret.(*iotextypes.VoteBucketList)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(ret))
 	}
-	can, err := p.nativeV2CandidateTableOperator.Get(height, p.Store.GetDB(), nil)
+	can, err := p.stakingCandidateTableOperator.Get(height, p.Store.GetDB(), nil)
 	candidateList, ok := can.(*iotextypes.CandidateListV2)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(can))
@@ -202,7 +213,7 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	intensityRate, probationMap := probationListToMapV2(candidateList, pblist)
+	intensityRate, probationMap := stakingProbationListToMap(candidateList, pblist)
 	var votinginfoList []*VotingInfo
 	selfStakeIndex := selfStakeIndexMap(candidateList)
 	for _, vote := range bucketList.Buckets {
@@ -211,7 +222,7 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 			if _, ok := selfStakeIndex[vote.Index]; ok {
 				selfStake = true
 			}
-			weightedVotes := calculateVoteWeightV2(p.voteCfg, vote, selfStake)
+			weightedVotes := calculateVoteWeight(p.voteCfg, vote, selfStake)
 			if _, ok := probationMap[vote.CandidateAddress]; ok {
 				// filter based on probation
 				votingPower := new(big.Float).SetInt(weightedVotes)
@@ -223,8 +234,8 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 				IsNative:          true,
 				Votes:             vote.StakedAmount,
 				WeightedVotes:     weightedVotes.Text(10),
-				RemainingDuration: fmt.Sprintf("%0.2f", remainingTime(vote).Seconds()),
-				StartTime:         fmt.Sprintf("%d", vote.StakeStartTime.Seconds),
+				RemainingDuration: remainingTime(vote).String(),
+				StartTime:         time.Unix(vote.StakeStartTime.Seconds, int64(vote.StakeStartTime.Nanos)).String(),
 				Decay:             !vote.AutoStake,
 			}
 			votinginfoList = append(votinginfoList, votinginfo)
@@ -233,7 +244,7 @@ func (p *Protocol) getBucketInfoByEpochV2(height, epochNum uint64, delegateName 
 	return votinginfoList, nil
 }
 
-func calculateVoteWeightV2(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) *big.Int {
+func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) *big.Int {
 	remainingTime := float64(v.StakedDuration)
 	weight := float64(1)
 	var m float64

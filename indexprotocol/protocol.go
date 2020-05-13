@@ -74,7 +74,7 @@ type (
 		HermesContractAddress    string `yaml:"hermesContractAddress"`
 		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
 	}
-	// VoteWeightCalConsts is for staking v2
+	// VoteWeightCalConsts is for staking
 	VoteWeightCalConsts struct {
 		DurationLg float64 `yaml:"durationLg"`
 		AutoStake  float64 `yaml:"autoStake"`
@@ -94,13 +94,13 @@ type BlockHandler interface {
 	HandleBlock(context.Context, *sql.Tx, *block.Block) error
 }
 
-// GetBucketsAllV2 get all buckets by height
-func GetBucketsAllV2(chainClient iotexapi.APIServiceClient, height uint64) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
+// GetAllStakingBuckets get all buckets by height
+func GetAllStakingBuckets(chainClient iotexapi.APIServiceClient, height uint64) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
 	voteBucketListAll = &iotextypes.VoteBucketList{}
 	for i := uint32(0); ; i++ {
 		offset := i * readBucketsLimit
 		size := uint32(readBucketsLimit)
-		voteBucketList, err := GetBucketsV2(chainClient, offset, size, height)
+		voteBucketList, err := getStakingBuckets(chainClient, offset, size, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get bucket")
 		}
@@ -112,8 +112,8 @@ func GetBucketsAllV2(chainClient iotexapi.APIServiceClient, height uint64) (vote
 	return
 }
 
-// GetBucketsV2 get specific buckets by height
-func GetBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (voteBucketList *iotextypes.VoteBucketList, err error) {
+// getStakingBuckets get specific buckets by height
+func getStakingBuckets(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (voteBucketList *iotextypes.VoteBucketList, err error) {
 	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
 		Method: iotexapi.ReadStakingDataMethod_BUCKETS,
 	})
@@ -149,13 +149,13 @@ func GetBucketsV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, h
 	return
 }
 
-// GetCandidatesAllV2 get all candidates by height
-func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient, height uint64) (candidateListAll *iotextypes.CandidateListV2, err error) {
+// GetAllStakingCandidates get all candidates by height
+func GetAllStakingCandidates(chainClient iotexapi.APIServiceClient, height uint64) (candidateListAll *iotextypes.CandidateListV2, err error) {
 	candidateListAll = &iotextypes.CandidateListV2{}
 	for i := uint32(0); ; i++ {
 		offset := i * readCandidatesLimit
 		size := uint32(readCandidatesLimit)
-		candidateList, err := GetCandidatesV2(chainClient, offset, size, height)
+		candidateList, err := getStakingCandidates(chainClient, offset, size, height)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get candidates")
 		}
@@ -167,8 +167,8 @@ func GetCandidatesAllV2(chainClient iotexapi.APIServiceClient, height uint64) (c
 	return
 }
 
-// GetCandidatesV2 get specific candidates by height
-func GetCandidatesV2(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (candidateList *iotextypes.CandidateListV2, err error) {
+// getStakingCandidates get specific candidates by height
+func getStakingCandidates(chainClient iotexapi.APIServiceClient, offset, limit uint32, height uint64) (candidateList *iotextypes.CandidateListV2, err error) {
 	methodName, err := proto.Marshal(&iotexapi.ReadStakingDataMethod{
 		Method: iotexapi.ReadStakingDataMethod_CANDIDATES,
 	})

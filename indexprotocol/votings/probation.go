@@ -155,8 +155,8 @@ func filterCandidates(
 	return verifiedCandidates, nil
 }
 
-// filterCandidatesV2 returns filtered candidate list by given raw candidate and probation list
-func filterCandidatesV2(
+// filterStakingCandidates returns filtered candidate list by given raw candidate and probation list
+func filterStakingCandidates(
 	candidates *iotextypes.CandidateListV2,
 	unqualifiedList *iotextypes.ProbationCandidateList,
 	epochStartHeight uint64,
@@ -195,14 +195,14 @@ func filterCandidatesV2(
 	return verifiedCandidates, nil
 }
 
-func probationListToMapV2(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
+func stakingProbationListToMap(candidateList *iotextypes.CandidateListV2, probationList []*ProbationList) (intensityRate float64, probationMap map[string]uint64) {
 	probationMap = make(map[string]uint64)
 	if probationList != nil {
 		for _, can := range candidateList.Candidates {
 			for _, pb := range probationList {
 				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
-				if pb.Address == can.Name {
-					probationMap[can.Name] = pb.Count
+				if pb.Address == can.OperatorAddress {
+					probationMap[can.OwnerAddress] = pb.Count
 				}
 			}
 		}
