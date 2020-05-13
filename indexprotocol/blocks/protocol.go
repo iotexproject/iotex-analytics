@@ -435,7 +435,11 @@ func (p *Protocol) updateStakingDelegates(
 	}
 	p.OperatorAddrToName = make(map[string]string)
 	for _, c := range candidateList.Candidates {
-		p.OperatorAddrToName[c.OperatorAddress] = hex.EncodeToString([]byte(c.Name))
+		encodedDelegateName, err := indexprotocol.EncodeDelegateName(c.Name)
+		if err != nil {
+			return errors.Wrap(err, "encode delegate name error")
+		}
+		p.OperatorAddrToName[c.OperatorAddress] = encodedDelegateName
 	}
 	return nil
 }

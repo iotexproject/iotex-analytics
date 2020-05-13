@@ -390,7 +390,11 @@ func (p *Protocol) updateStakingCandidateRewardAddress(
 		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
 			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
 		}
-		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], hex.EncodeToString([]byte(candidate.Name)))
+		encodedDelegateName, err := indexprotocol.EncodeDelegateName(candidate.Name)
+		if err != nil {
+			return errors.Wrap(err, "encode delegate name error")
+		}
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], encodedDelegateName)
 	}
 	return nil
 }

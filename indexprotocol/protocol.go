@@ -9,7 +9,9 @@ package indexprotocol
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"strconv"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
@@ -202,4 +204,40 @@ func getStakingCandidates(chainClient iotexapi.APIServiceClient, offset, limit u
 		return nil, errors.Wrap(err, "failed to unmarshal VoteBucketList")
 	}
 	return
+}
+
+// EncodeDelegateName converts a delegate name input to an internal format
+func EncodeDelegateName(name string) (string, error) {
+	l := len(name)
+	switch {
+	case l == 24:
+		return name, nil
+	case l <= 12:
+		prefixZeros := []byte{}
+		for i := 0; i < 12-len(name); i++ {
+			prefixZeros = append(prefixZeros, byte(0))
+		}
+		suffixZeros := []byte{}
+		for strings.HasSuffix(name, "#") {
+			name = strings.TrimSuffix(name, "#")
+			suffixZeros = append(suffixZeros, byte(0))
+		}
+		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
+	}
+	return "", errors.Errorf("invalid length %d", l)
+}
+
+// DecodeDelegateName converts format to readable delegate name
+func DecodeDelegateName(name string) (string, error) {
+	suffix := ""
+	for strings.HasSuffix(name, "00") {
+		name = strings.TrimSuffix(name, "00")
+		suffix += "#"
+	}
+	aliasBytes, err := hex.DecodeString(strings.TrimLeft(name, "0"))
+	if err != nil {
+		return "", err
+	}
+	aliasString := string(aliasBytes) + suffix
+	return aliasString, nil
 }
