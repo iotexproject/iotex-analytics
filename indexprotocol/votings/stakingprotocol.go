@@ -159,14 +159,14 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if _, ok := nameMap[key.candidateName]; !ok {
 			return errors.New("candidate cannot find name through owner address")
 		}
-		stakingAddress, err := util.IoAddrToEvmAddr(key.voterAddress)
+		voterAddress, err := util.IoAddrToEvmAddr(key.voterAddress)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 		}
 		if _, err = aggregateStmt.Exec(
 			key.epochNumber,
 			nameMap[key.candidateName],
-			hex.EncodeToString(stakingAddress.Bytes()),
+			hex.EncodeToString(voterAddress.Bytes()),
 			key.isNative,
 			val.Text(10),
 		); err != nil {

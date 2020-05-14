@@ -162,14 +162,14 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrap(err, "failed to rebuild account income table")
 		}
 	}
-	actionHashToStatus := make(map[hash.Hash256]bool)
+	actionSuccess := make(map[hash.Hash256]bool)
 	for _, receipt := range blk.Receipts {
 		if receipt.Status == uint64(1) {
-			actionHashToStatus[receipt.ActionHash] = true
+			actionSuccess[receipt.ActionHash] = true
 		}
 	}
 	for _, selp := range blk.Actions {
-		if !receiptSuccess(actionHashToStatus, selp) {
+		if !actionSuccess[selp.Hash()] {
 			continue
 		}
 		actionHash := selp.Hash()
@@ -201,8 +201,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
+		// TODO: Handle this when core adds amount in receipt log
 		case *action.WithdrawStake:
-		// TODO todo this when core add amount in receipt log
 		case *action.DepositToRewardingFund:
 			actionType := "depositToRewardingFund"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, "", src, act.Amount().String()); err != nil {
@@ -347,11 +347,4 @@ func getsrcAndDst(selp action.SealedEnvelope) (string, string, error) {
 	}
 	dst, _ := selp.Destination()
 	return callerAddr.String(), dst, nil
-}
-
-func receiptSuccess(actionHashToStatus map[hash.Hash256]bool, action action.SealedEnvelope) bool {
-	if status, ok := actionHashToStatus[action.Hash()]; ok && status {
-		return true
-	}
-	return false
 }
