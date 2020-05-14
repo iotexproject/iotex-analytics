@@ -52,7 +52,6 @@ gravityChain:
 rewarding:
   numDelegatesForEpochReward: 100
   numDelegatesForFoundationBonus: 36
-  foundationBonusLastEpoch: 8760
   productivityThreshold: 85
   exemptCandidatesFromEpochReward:
     - "696f726f626f746270303031"
