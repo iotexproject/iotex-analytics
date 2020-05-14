@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/ioctl/util"
+	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
@@ -197,18 +198,34 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 
 func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	ret, err := p.stakingBucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	if errors.Cause(err) == db.ErrNotExist {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "staking bucket table operator")
+	}
 	bucketList, ok := ret.(*iotextypes.VoteBucketList)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(ret))
 	}
 	can, err := p.stakingCandidateTableOperator.Get(height, p.Store.GetDB(), nil)
+	if errors.Cause(err) == db.ErrNotExist {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "staking candidate table operator")
+	}
 	candidateList, ok := can.(*iotextypes.CandidateListV2)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(can))
 	}
 	var candidateAddress string
 	for _, cand := range candidateList.Candidates {
-		if cand.Name == delegateName {
+		encode, err := indexprotocol.EncodeDelegateName(cand.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "error when encode delegate name")
+		}
+		if encode == delegateName {
 			candidateAddress = cand.OwnerAddress
 			break
 		}

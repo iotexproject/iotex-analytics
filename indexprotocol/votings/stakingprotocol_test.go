@@ -111,7 +111,9 @@ func TestStaking(t *testing.T) {
 	}, cfg)
 	require.NoError(err)
 	require.NoError(p.CreateTables(context.Background()))
-	require.NoError(p.processStaking(chainClient, height, epochNumber, nil))
+	tx, err := p.Store.GetDB().Begin()
+	require.NoError(err)
+	require.NoError(p.processStaking(tx, chainClient, height, epochNumber, nil, 0))
 
 	// case I: checkout bucket if it's written right
 	require.NoError(err)
