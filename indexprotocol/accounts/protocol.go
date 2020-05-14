@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/hex"
@@ -163,8 +162,16 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrap(err, "failed to rebuild account income table")
 		}
 	}
-
+	actionHashToStatus := make(map[hash.Hash256]bool)
+	for _, receipt := range blk.Receipts {
+		if receipt.Status == uint64(1) {
+			actionHashToStatus[receipt.ActionHash] = true
+		}
+	}
 	for _, selp := range blk.Actions {
+		if !receiptSuccess(actionHashToStatus, selp) {
+			continue
+		}
 		actionHash := selp.Hash()
 		src, dst, err := getsrcAndDst(selp)
 		if err != nil {
@@ -180,33 +187,21 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
 		case *action.CreateStake:
-			if !ReceiptSuccess(blk, selp) {
-				return nil
-			}
 			actionType := "stakeCreate"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
 		case *action.DepositToStake:
-			if !ReceiptSuccess(blk, selp) {
-				return nil
-			}
 			actionType := "stakeAddDeposit"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
 		case *action.CandidateRegister:
-			if !ReceiptSuccess(blk, selp) {
-				return nil
-			}
 			actionType := "candidateRegister"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
 		case *action.WithdrawStake:
-			if !ReceiptSuccess(blk, selp) {
-				return nil
-			}
 		// TODO todo this when core add amount in receipt log
 		case *action.DepositToRewardingFund:
 			actionType := "depositToRewardingFund"
@@ -354,15 +349,9 @@ func getsrcAndDst(selp action.SealedEnvelope) (string, string, error) {
 	return callerAddr.String(), dst, nil
 }
 
-func ReceiptSuccess(blk *block.Block, action action.SealedEnvelope) bool {
-	for _, receipt := range blk.Receipts {
-		receipHash := receipt.Hash()
-		actionHash := action.Hash()
-		if bytes.Equal(receipHash[:], actionHash[:]) {
-			if receipt.Status == uint64(1) {
-				return true
-			}
-		}
+func receiptSuccess(actionHashToStatus map[hash.Hash256]bool, action action.SealedEnvelope) bool {
+	if status, ok := actionHashToStatus[action.Hash()]; ok && status {
+		return true
 	}
 	return false
 }

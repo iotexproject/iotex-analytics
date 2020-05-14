@@ -17,7 +17,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/ioctl/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -74,10 +73,6 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 		}
 	}()
 	for _, candidate := range candidates.Candidates {
-		addr, err := address.FromString(candidate.OwnerAddress)
-		if err != nil {
-			return err
-		}
 		stakingAddress, err := util.IoAddrToEvmAddr(candidate.OwnerAddress)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
@@ -100,7 +95,7 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 			blockRewardPortion,
 			epochRewardPortion,
 			foundationBonusPortion,
-			hex.EncodeToString(addr.Bytes()),
+			hex.EncodeToString(stakingAddress.Bytes()),
 		); err != nil {
 			return err
 		}
@@ -164,14 +159,14 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if _, ok := nameMap[key.candidateName]; !ok {
 			return errors.New("candidate cannot find name through owner address")
 		}
-		addr, err := address.FromString(key.voterAddress)
+		stakingAddress, err := util.IoAddrToEvmAddr(key.voterAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 		}
 		if _, err = aggregateStmt.Exec(
 			key.epochNumber,
 			nameMap[key.candidateName],
-			hex.EncodeToString(addr.Bytes()),
+			hex.EncodeToString(stakingAddress.Bytes()),
 			key.isNative,
 			val.Text(10),
 		); err != nil {
