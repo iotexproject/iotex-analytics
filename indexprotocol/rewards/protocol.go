@@ -570,7 +570,7 @@ func (p *Protocol) breakdownRewards(
 			earnEpochReward[candidateName] = true
 		}
 		// qualify for foundation bonus
-		if epochNumber <= p.RewardConfig.FoundationBonusLastEpoch && candidateRank[candidateName] <= p.RewardConfig.NumDelegatesForFoundationBonus && !exemptionMap[candidateName] {
+		if candidateRank[candidateName] <= p.RewardConfig.NumDelegatesForFoundationBonus && !exemptionMap[candidateName] {
 			foundationBonusCount.Add(foundationBonusCount, big.NewInt(1))
 			earnFoundationBonus[candidateName] = true
 		}
