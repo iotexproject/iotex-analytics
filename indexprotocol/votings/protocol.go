@@ -224,7 +224,7 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
-	//staking tables
+	// staking tables
 	if err = p.stakingBucketTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		if err := p.updateProbationListTable(tx, epochNumber, probationList); err != nil {
 			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
 		}
-		// process staking
+
 		var gravityHeight uint64
 		if epochNumber == 1 {
 			gravityHeight = p.GravityChainCfg.GravityChainStartHeight

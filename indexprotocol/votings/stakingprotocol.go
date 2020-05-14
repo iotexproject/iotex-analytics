@@ -15,10 +15,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-core/ioctl/util"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
@@ -78,9 +78,10 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 		if err != nil {
 			return err
 		}
-		addressString := hex.EncodeToString(addr.Bytes())
-		stakingAddress := common.HexToAddress(addressString)
-
+		stakingAddress, err := util.IoAddrToEvmAddr(candidate.OwnerAddress)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
+		}
 		blockRewardPortion, epochRewardPortion, foundationBonusPortion, err := p.getDelegateRewardPortions(stakingAddress, gravityHeight)
 		if err != nil {
 			return errors.Errorf("get delegate reward portions:%s,%d,%s", stakingAddress.String(), gravityHeight, err.Error())
@@ -99,7 +100,7 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 			blockRewardPortion,
 			epochRewardPortion,
 			foundationBonusPortion,
-			addressString, // type is varchar 40,change to ethereum hex address
+			hex.EncodeToString(addr.Bytes()),
 		); err != nil {
 			return err
 		}
@@ -167,13 +168,10 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if err != nil {
 			return err
 		}
-		addressString := hex.EncodeToString(addr.Bytes())
-		voterAddress := common.HexToAddress(addressString)
 		if _, err = aggregateStmt.Exec(
 			key.epochNumber,
 			nameMap[key.candidateName],
-			// encode as ethereum address as old db
-			hex.EncodeToString(voterAddress.Bytes()),
+			hex.EncodeToString(addr.Bytes()),
 			key.isNative,
 			val.Text(10),
 		); err != nil {
