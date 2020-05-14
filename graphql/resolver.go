@@ -8,12 +8,10 @@ package graphql
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/ethereum/go-ethereum/common"
@@ -60,42 +58,6 @@ type (
 	getXrc       func(string, uint64, uint64) ([]*actions.Xrc20Info, error)
 	xrcCount     func(string) (int, error)
 )
-
-// EncodeDelegateName converts a delegate name input to an internal format
-func EncodeDelegateName(name string) (string, error) {
-	l := len(name)
-	switch {
-	case l == 24:
-		return name, nil
-	case l <= 12:
-		prefixZeros := []byte{}
-		for i := 0; i < 12-len(name); i++ {
-			prefixZeros = append(prefixZeros, byte(0))
-		}
-		suffixZeros := []byte{}
-		for strings.HasSuffix(name, "#") {
-			name = strings.TrimSuffix(name, "#")
-			suffixZeros = append(suffixZeros, byte(0))
-		}
-		return hex.EncodeToString(append(append(prefixZeros, []byte(name)...), suffixZeros...)), nil
-	}
-	return "", errors.Errorf("invalid length %d", l)
-}
-
-// DecodeDelegateName converts format to readable delegate name
-func DecodeDelegateName(name string) (string, error) {
-	suffix := ""
-	for strings.HasSuffix(name, "00") {
-		name = strings.TrimSuffix(name, "00")
-		suffix += "#"
-	}
-	aliasBytes, err := hex.DecodeString(strings.TrimLeft(name, "0"))
-	if err != nil {
-		return "", err
-	}
-	aliasString := string(aliasBytes) + suffix
-	return aliasString, nil
-}
 
 // Resolver is hte resolver that handles GraphQL request
 type Resolver struct {
@@ -191,7 +153,7 @@ func (r *queryResolver) Delegate(ctx context.Context, startEpoch int, epochCount
 	requestedFields := graphql.CollectAllFields(ctx)
 	delegateResponse := &Delegate{}
 
-	delegateName, err := EncodeDelegateName(delegateName)
+	delegateName, err := indexprotocol.EncodeDelegateName(delegateName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to format delegate name")
 	}
@@ -265,7 +227,7 @@ func (r *queryResolver) Hermes(ctx context.Context, startEpoch int, epochCount i
 		}
 		sort.Slice(rds, func(i, j int) bool { return rds[i].VoterEthAddress < rds[j].VoterEthAddress })
 
-		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		aliasString, err := indexprotocol.DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode delegate name")
 		}
@@ -293,7 +255,7 @@ func (r *queryResolver) HermesAverageStats(ctx context.Context, startEpoch int, 
 
 	hermesAverages := make([]*HermesAverage, 0, len(hermesAverageStats))
 	for _, ret := range hermesAverageStats {
-		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		aliasString, err := indexprotocol.DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode delegate name")
 		}
@@ -400,7 +362,7 @@ func (r *queryResolver) getOperatorAddress(ctx context.Context, accountResponse 
 	if err != nil {
 		return errors.Wrap(err, "aliasName is required")
 	}
-	aName, err := EncodeDelegateName(val)
+	aName, err := indexprotocol.EncodeDelegateName(val)
 	if err != nil {
 		return err
 	}
@@ -451,7 +413,7 @@ func (r *queryResolver) getAlias(ctx context.Context, accountResponse *Account) 
 	case err != nil:
 		return errors.Wrap(err, "failed to get alias name")
 	}
-	aliasString, err := DecodeDelegateName(aliasName)
+	aliasString, err := indexprotocol.DecodeDelegateName(aliasName)
 	if err != nil {
 		return err
 	}
@@ -551,7 +513,7 @@ func (r *queryResolver) getRewardSources(ctx context.Context, votingResponse *Vo
 
 	delegateAmount := make([]*DelegateAmount, 0)
 	for _, ret := range delegateDistributions {
-		aliasString, err := DecodeDelegateName(ret.DelegateName)
+		aliasString, err := indexprotocol.DecodeDelegateName(ret.DelegateName)
 		if err != nil {
 			return errors.Wrap(err, "failed to decode delegate name")
 		}
@@ -1604,7 +1566,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 	}
 	distributionRatioList := make([]*Ratio, 0)
 	if haveField(ctx, "byDelegate", "distributionRatio") {
-		encodedDelegateName, err := EncodeDelegateName(delegateName)
+		encodedDelegateName, err := indexprotocol.EncodeDelegateName(delegateName)
 		if err != nil {
 			return errors.Wrap(err, "failed to format delegate name")
 		}

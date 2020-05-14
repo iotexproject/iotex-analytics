@@ -340,6 +340,9 @@ func (p *Protocol) updateCandidateRewardAddress(
 	electionClient api.APIServiceClient,
 	height uint64,
 ) error {
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.updateStakingCandidateRewardAddress(chainClient, height)
+	}
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
@@ -370,6 +373,28 @@ func (p *Protocol) updateCandidateRewardAddress(
 			p.RewardAddrToName[candidate.GetRewardAddress()] = make([]string, 0)
 		}
 		p.RewardAddrToName[candidate.GetRewardAddress()] = append(p.RewardAddrToName[candidate.GetRewardAddress()], candidate.GetName())
+	}
+	return nil
+}
+
+func (p *Protocol) updateStakingCandidateRewardAddress(
+	chainClient iotexapi.APIServiceClient,
+	height uint64,
+) error {
+	candidateList, err := indexprotocol.GetAllStakingCandidates(chainClient, height)
+	if err != nil {
+		return errors.Wrap(err, "get candidate error")
+	}
+	p.RewardAddrToName = make(map[string][]string)
+	for _, candidate := range candidateList.Candidates {
+		if _, ok := p.RewardAddrToName[candidate.RewardAddress]; !ok {
+			p.RewardAddrToName[candidate.RewardAddress] = make([]string, 0)
+		}
+		encodedDelegateName, err := indexprotocol.EncodeDelegateName(candidate.Name)
+		if err != nil {
+			return errors.Wrap(err, "encode delegate name error")
+		}
+		p.RewardAddrToName[candidate.RewardAddress] = append(p.RewardAddrToName[candidate.RewardAddress], encodedDelegateName)
 	}
 	return nil
 }

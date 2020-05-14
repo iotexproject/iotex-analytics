@@ -136,21 +136,24 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                     s.Store
-	bucketTableOperator       committee.Operator
-	registrationTableOperator committee.Operator
-	nativeBucketTableOperator committee.Operator
-	timeTableOperator         *committee.TimeTableOperator
-	epochCtx                  *epochctx.EpochCtx
-	GravityChainCfg           indexprotocol.GravityChain
-	SkipManifiedCandidate     bool
-	VoteThreshold             *big.Int
-	ScoreThreshold            *big.Int
-	SelfStakingThreshold      *big.Int
+	Store                         s.Store
+	bucketTableOperator           committee.Operator
+	registrationTableOperator     committee.Operator
+	stakingBucketTableOperator    committee.Operator
+	stakingCandidateTableOperator committee.Operator
+	nativeBucketTableOperator     committee.Operator
+	timeTableOperator             *committee.TimeTableOperator
+	epochCtx                      *epochctx.EpochCtx
+	GravityChainCfg               indexprotocol.GravityChain
+	voteCfg                       indexprotocol.VoteWeightCalConsts
+	SkipManifiedCandidate         bool
+	VoteThreshold                 *big.Int
+	ScoreThreshold                *big.Int
+	SelfStakingThreshold          *big.Int
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll) (*Protocol, error) {
+func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		return nil, err
@@ -160,6 +163,14 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		return nil, err
 	}
 	nativeBucketTableOperator, err := committee.NewBucketTableOperator("native_buckets", committee.MYSQL)
+	if err != nil {
+		return nil, err
+	}
+	stakingBucketTableOperator, err := NewBucketTableOperator("staking_buckets", committee.MYSQL)
+	if err != nil {
+		return nil, err
+	}
+	stakingCandidateTableOperator, err := NewCandidateTableOperator("staking_candidates", committee.MYSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -176,17 +187,20 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		return nil, errors.New("Invalid self staking threshold")
 	}
 	return &Protocol{
-		Store:                     store,
-		bucketTableOperator:       bucketTableOperator,
-		registrationTableOperator: registrationTableOperator,
-		nativeBucketTableOperator: nativeBucketTableOperator,
-		timeTableOperator:         committee.NewTimeTableOperator("mint_time", committee.MYSQL),
-		epochCtx:                  epochCtx,
-		GravityChainCfg:           gravityChainCfg,
-		VoteThreshold:             voteThreshold,
-		ScoreThreshold:            scoreThreshold,
-		SelfStakingThreshold:      selfStakingThreshold,
-		SkipManifiedCandidate:     pollCfg.SkipManifiedCandidate,
+		Store:                         store,
+		bucketTableOperator:           bucketTableOperator,
+		registrationTableOperator:     registrationTableOperator,
+		nativeBucketTableOperator:     nativeBucketTableOperator,
+		stakingBucketTableOperator:    stakingBucketTableOperator,
+		stakingCandidateTableOperator: stakingCandidateTableOperator,
+		timeTableOperator:             committee.NewTimeTableOperator("mint_time", committee.MYSQL),
+		epochCtx:                      epochCtx,
+		GravityChainCfg:               gravityChainCfg,
+		voteCfg:                       voteCfg,
+		VoteThreshold:                 voteThreshold,
+		ScoreThreshold:                scoreThreshold,
+		SelfStakingThreshold:          selfStakingThreshold,
+		SkipManifiedCandidate:         pollCfg.SkipManifiedCandidate,
 	}, nil
 }
 
@@ -208,6 +222,13 @@ func (p *Protocol) CreateTables(ctx context.Context) error {
 		return err
 	}
 	if err = p.timeTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	// staking tables
+	if err = p.stakingBucketTableOperator.CreateTables(tx); err != nil {
+		return err
+	}
+	if err = p.stakingCandidateTableOperator.CreateTables(tx); err != nil {
 		return err
 	}
 	// create voting result table
@@ -252,8 +273,15 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		// update voting tables on every epoch start height
 		chainClient := indexCtx.ChainClient
 		electionClient := indexCtx.ElectionClient
+		probationList, err := p.fetchProbationList(chainClient, epochNumber)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
+		}
+		if err := p.updateProbationListTable(tx, epochNumber, probationList); err != nil {
+			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
+		}
+
 		var gravityHeight uint64
-		var err error
 		if epochNumber == 1 {
 			gravityHeight = p.GravityChainCfg.GravityChainStartHeight
 		} else {
@@ -263,18 +291,17 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
 		}
+
+		// process staking
+		if blkheight >= p.epochCtx.FairbankHeight() {
+			return p.processStaking(tx, chainClient, blkheight, epochNumber, probationList, gravityHeight)
+		}
+
 		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
 			return errors.Wrapf(err, "failed to fetch and store raw bucket in epoch %d", epochNumber)
 		}
-		probationList, err := p.fetchProbationList(chainClient, epochNumber)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get probation list from chain service in epoch %d", epochNumber)
-		}
 		if err := p.updateVotingTables(tx, epochNumber, blkheight, gravityHeight, probationList); err != nil {
 			return errors.Wrapf(err, "failed to update voting tables in epoch %d", epochNumber)
-		}
-		if err := p.updateProbationListTable(tx, epochNumber, probationList); err != nil {
-			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
 		}
 	}
 	return nil
@@ -309,10 +336,7 @@ func (p *Protocol) putNativePoll(tx *sql.Tx, height uint64, nativeBuckets []*typ
 	if nativeBuckets == nil {
 		return nil
 	}
-	if err = p.nativeBucketTableOperator.Put(height, nativeBuckets, tx); err != nil {
-		return err
-	}
-	return nil
+	return p.nativeBucketTableOperator.Put(height, nativeBuckets, tx)
 }
 
 func (p *Protocol) putPoll(tx *sql.Tx, height uint64, mintTime time.Time, regs []*types.Registration, buckets []*types.Bucket) (err error) {
@@ -418,6 +442,9 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := p.epochCtx.GetEpochHeight(epochNum)
+	if height >= p.epochCtx.FairbankHeight() {
+		return p.getStakingBucketInfoByEpoch(height, epochNum, delegateName)
+	}
 	votes, voteFlag, delegates, err := p.resultByHeight(height, nil)
 	if err != nil {
 		return nil, err
@@ -443,19 +470,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get probation list from table")
 	}
-	var intensityRate float64
-	probationMap := make(map[string]uint64)
-	if pblist != nil {
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, pb := range pblist {
-				intensityRate = float64(uint64(100)-pb.IntensityRate) / float64(100)
-				if pb.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = pb.Count
-				}
-			}
-		}
-	}
+	intensityRate, probationMap := probationListToMap(delegates, pblist)
 	for i, vote := range votes {
 		candName := hex.EncodeToString(vote.Candidate())
 		if candName == delegateName {
@@ -688,19 +703,8 @@ func (p *Protocol) updateVotingTables(tx *sql.Tx, epochNumber uint64, epochStart
 
 func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*types.Vote, voteFlag []bool, delegates []*types.Candidate, epochNumber uint64, probationList *iotextypes.ProbationCandidateList) (err error) {
 	//update aggregate voting table
-	probationMap := make(map[string]uint32)
-	var intensityRate float64
-	if probationList != nil {
-		intensityRate = float64(uint32(100)-probationList.IntensityRate) / float64(100)
-		for _, delegate := range delegates {
-			delegateOpAddr := string(delegate.OperatorAddress())
-			for _, elem := range probationList.ProbationList {
-				if elem.Address == delegateOpAddr {
-					probationMap[hex.EncodeToString(delegate.Name())] = elem.Count
-				}
-			}
-		}
-	}
+	localPb := convertProbationListToLocal(probationList)
+	intensityRate, probationMap := probationListToMap(delegates, localPb)
 	sumOfWeightedVotes := make(map[aggregateKey]*big.Int)
 	totalVoted := big.NewInt(0)
 	for i, vote := range votes {

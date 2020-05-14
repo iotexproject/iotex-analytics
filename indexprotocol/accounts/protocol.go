@@ -162,8 +162,16 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrap(err, "failed to rebuild account income table")
 		}
 	}
-
+	actionSuccess := make(map[hash.Hash256]bool)
+	for _, receipt := range blk.Receipts {
+		if receipt.Status == uint64(1) {
+			actionSuccess[receipt.ActionHash] = true
+		}
+	}
 	for _, selp := range blk.Actions {
+		if !actionSuccess[selp.Hash()] {
+			continue
+		}
 		actionHash := selp.Hash()
 		src, dst, err := getsrcAndDst(selp)
 		if err != nil {
@@ -178,6 +186,23 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
+		case *action.CreateStake:
+			actionType := "stakeCreate"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		case *action.DepositToStake:
+			actionType := "stakeAddDeposit"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		case *action.CandidateRegister:
+			actionType := "candidateRegister"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		// TODO: Handle this when core adds amount in receipt log
+		case *action.WithdrawStake:
 		case *action.DepositToRewardingFund:
 			actionType := "depositToRewardingFund"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, "", src, act.Amount().String()); err != nil {
