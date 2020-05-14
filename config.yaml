@@ -4,7 +4,7 @@ numSubEpochs: 15
 numSubEpochsDardanelles: 30
 dardanellesHeight: 100081
 dardanellesOn: true
-fairbankHeight: 5165641
+fairbankHeight: 3252241
 consensusScheme: "ROLLDPOS"
 rangeQueryLimit: 100
 rewardPortionCfg:
