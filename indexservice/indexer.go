@@ -9,6 +9,8 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
@@ -87,7 +89,10 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 func (idx *Indexer) Start(ctx context.Context) error {
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
-
+	if reflect.ValueOf(chainClient).IsNil() {
+		err := fmt.Errorf("chain endpoint is invalid")
+		return errors.Wrap(err, "Please provide the correct chain api")
+	}
 	if err := idx.Store.Start(ctx); err != nil {
 		return errors.Wrap(err, "failed to start db")
 	}
