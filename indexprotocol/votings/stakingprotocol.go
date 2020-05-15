@@ -257,7 +257,7 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 			}
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
-				VoterAddress:      strings.TrimPrefix(voteOwnerAddress.Hex(), "0x"),
+				VoterAddress:      hex.EncodeToString(voteOwnerAddress.Bytes()),
 				IsNative:          true,
 				Votes:             vote.StakedAmount,
 				WeightedVotes:     weightedVotes.Text(10),
