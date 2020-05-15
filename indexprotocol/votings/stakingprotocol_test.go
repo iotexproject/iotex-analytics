@@ -8,6 +8,7 @@ package votings
 
 import (
 	"context"
+	"encoding/hex"
 	"strconv"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-core/ioctl/util"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -104,7 +106,7 @@ func TestStaking(t *testing.T) {
 		AutoStake:  1,
 		SelfStake:  1.05,
 	}
-	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15), indexprotocol.GravityChain{}, indexprotocol.Poll{
+	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(100)), indexprotocol.GravityChain{}, indexprotocol.Poll{
 		VoteThreshold:        "100000000000000000000",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
@@ -114,7 +116,7 @@ func TestStaking(t *testing.T) {
 	tx, err := p.Store.GetDB().Begin()
 	require.NoError(err)
 	require.NoError(p.processStaking(tx, chainClient, height, epochNumber, nil, 0))
-
+	require.NoError(tx.Commit())
 	// case I: checkout bucket if it's written right
 	require.NoError(err)
 	ret, err := p.stakingBucketTableOperator.Get(height, p.Store.GetDB(), nil)
@@ -136,11 +138,22 @@ func TestStaking(t *testing.T) {
 	require.EqualValues(candidatesBytes, candidateListBytes)
 
 	// case III: check getStakingBucketInfoByEpoch
-	bucketInfo, err := p.getStakingBucketInfoByEpoch(height, epochNumber, delegateName)
+	encodedName, err := indexprotocol.EncodeDelegateName(delegateName)
 	require.NoError(err)
-	require.Equal("io1l9vaqmanwj47tlrpv6etf3pwq0s0snsq4vxke2", bucketInfo[0].VoterAddress)
-	require.Equal("io1ph0u2psnd7muq5xv9623rmxdsxc4uapxhzpg02", bucketInfo[1].VoterAddress)
-	require.Equal("io1vdtfpzkwpyngzvx7u2mauepnzja7kd5rryp0sg", bucketInfo[2].VoterAddress)
+	bucketInfo, err := p.getStakingBucketInfoByEpoch(height, epochNumber, encodedName)
+	require.NoError(err)
+
+	ethAddress1, err := util.IoAddrToEvmAddr("io1l9vaqmanwj47tlrpv6etf3pwq0s0snsq4vxke2")
+	require.NoError(err)
+	require.Equal(hex.EncodeToString(ethAddress1.Bytes()), bucketInfo[0].VoterAddress)
+
+	ethAddress2, err := util.IoAddrToEvmAddr("io1ph0u2psnd7muq5xv9623rmxdsxc4uapxhzpg02")
+	require.NoError(err)
+	require.Equal(hex.EncodeToString(ethAddress2.Bytes()), bucketInfo[1].VoterAddress)
+
+	ethAddress3, err := util.IoAddrToEvmAddr("io1vdtfpzkwpyngzvx7u2mauepnzja7kd5rryp0sg")
+	require.NoError(err)
+	require.Equal(hex.EncodeToString(ethAddress3.Bytes()), bucketInfo[2].VoterAddress)
 	for _, b := range bucketInfo {
 		require.True(b.Decay)
 		require.Equal(epochNumber, b.EpochNumber)
