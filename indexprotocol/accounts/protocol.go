@@ -152,9 +152,6 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx, genesis *indexpro
 func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block) error {
 	height := blk.Height()
 	epochNumber := p.epochCtx.GetEpochNumber(height)
-	// log action index
-	hashToGasPrice := make(map[string]*big.Int)
-	hashToSrcAddr := make(map[string]string)
 	// Special handling for epoch start height
 	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if height == epochHeight {
@@ -162,7 +159,15 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrap(err, "failed to rebuild account income table")
 		}
 	}
-
+	actionSuccess := make(map[hash.Hash256]bool)
+	for _, receipt := range blk.Receipts {
+		if receipt.Status == uint64(1) {
+			actionSuccess[receipt.ActionHash] = true
+		}
+	}
+	// log action index
+	hashToGasPrice := make(map[string]*big.Int)
+	hashToSrcAddr := make(map[string]string)
 	for _, selp := range blk.Actions {
 		actionHash := selp.Hash()
 		src, dst, err := getsrcAndDst(selp)
@@ -171,6 +176,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 		hashToSrcAddr[hex.EncodeToString(actionHash[:])] = src
 		hashToGasPrice[hex.EncodeToString(actionHash[:])] = selp.GasPrice()
+
+		if !actionSuccess[selp.Hash()] {
+			continue
+		}
 		act := selp.Action()
 		switch act := act.(type) {
 		case *action.Transfer:
@@ -178,6 +187,23 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
 				return errors.Wrapf(err, "failed to update balance history on height %d", height)
 			}
+		case *action.CreateStake:
+			actionType := "stakeCreate"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		case *action.DepositToStake:
+			actionType := "stakeAddDeposit"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		case *action.CandidateRegister:
+			actionType := "candidateRegister"
+			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
+		// TODO: Handle this when core adds amount in receipt log
+		case *action.WithdrawStake:
 		case *action.DepositToRewardingFund:
 			actionType := "depositToRewardingFund"
 			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, "", src, act.Amount().String()); err != nil {
