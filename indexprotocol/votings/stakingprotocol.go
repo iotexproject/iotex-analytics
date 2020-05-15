@@ -13,7 +13,6 @@ import (
 	"math"
 	"math/big"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
