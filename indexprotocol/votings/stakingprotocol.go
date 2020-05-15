@@ -13,11 +13,13 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/ioctl/util"
+	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
@@ -197,18 +199,34 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 
 func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	ret, err := p.stakingBucketTableOperator.Get(height, p.Store.GetDB(), nil)
+	if errors.Cause(err) == db.ErrNotExist {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get staking buckets")
+	}
 	bucketList, ok := ret.(*iotextypes.VoteBucketList)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(ret))
 	}
 	can, err := p.stakingCandidateTableOperator.Get(height, p.Store.GetDB(), nil)
+	if errors.Cause(err) == db.ErrNotExist {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get staking candidates")
+	}
 	candidateList, ok := can.(*iotextypes.CandidateListV2)
 	if !ok {
 		return nil, errors.Errorf("Unexpected type %s", reflect.TypeOf(can))
 	}
 	var candidateAddress string
 	for _, cand := range candidateList.Candidates {
-		if cand.Name == delegateName {
+		encodedName, err := indexprotocol.EncodeDelegateName(cand.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "error when encode delegate name")
+		}
+		if encodedName == delegateName {
 			candidateAddress = cand.OwnerAddress
 			break
 		}
@@ -233,9 +251,13 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 				votingPower := new(big.Float).SetInt(weightedVotes)
 				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 			}
+			voteOwnerAddress, err := util.IoAddrToEvmAddr(vote.Owner)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
+			}
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
-				VoterAddress:      vote.Owner,
+				VoterAddress:      hex.EncodeToString(voteOwnerAddress.Bytes()),
 				IsNative:          true,
 				Votes:             vote.StakedAmount,
 				WeightedVotes:     weightedVotes.Text(10),
