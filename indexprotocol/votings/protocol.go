@@ -404,6 +404,9 @@ func (p *Protocol) calculateEthereumStaking(height uint64, tx *sql.Tx) (*types.E
 		return nil, err
 	}
 	valueOfBuckets, err := p.bucketTableOperator.Get(height, p.Store.GetDB(), tx)
+	if errors.Cause(err) == db.ErrNotExist {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
