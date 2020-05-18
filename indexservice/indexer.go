@@ -89,7 +89,7 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 func (idx *Indexer) Start(ctx context.Context) error {
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
-	if reflect.ValueOf(chainClient).IsNil() {
+	if (reflect.ValueOf(chainClient).IsNil() || fmt.Sprint(chainClient) == "&{<nil>}") {
 		err := fmt.Errorf("chain endpoint is invalid")
 		return errors.Wrap(err, "Please provide the correct chain api")
 	}
