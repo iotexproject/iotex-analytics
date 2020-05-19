@@ -20,6 +20,7 @@ import (
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
@@ -94,7 +95,7 @@ func main() {
 		CP: chainmeta.NewProtocol(idx),
 		HP: hermes2.NewProtocol(idx, cfg.HermesConfig),
 	}}))))
-
+	http.Handle("/metrics", promhttp.Handler())
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
 
 	// Start GraphQL query service

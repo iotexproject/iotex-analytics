@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -29,6 +30,16 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
+)
+
+var (
+	blockHeightMtc = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "block_height",
+			Help: "block height",
+		},
+		[]string{},
+	)
 )
 
 // Indexer handles the index build for blocks
@@ -85,6 +96,7 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 
 // Start starts the indexer
 func (idx *Indexer) Start(ctx context.Context) error {
+	prometheus.MustRegister(blockHeightMtc)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
 
@@ -241,6 +253,7 @@ func (idx *Indexer) IndexInBatch(ctx context.Context, tipHeight uint64) error {
 			}
 			// Update lastHeight tracker
 			idx.lastHeight = blk.Height()
+			blockHeightMtc.With(prometheus.Labels{}).Set(float64(idx.lastHeight))
 		}
 		startHeight += count
 	}
