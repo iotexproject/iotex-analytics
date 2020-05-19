@@ -23,7 +23,7 @@ import (
 const (
 	selectBlockHistory     = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
 	selectBlockHistorySum  = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult)+SUM(stakeCreate)+SUM(stakeUnstake)+SUM(stakeWithdraw)+SUM(stakeAddDeposit)+SUM(stakeRestake)+SUM(stakeChangeCandidate)+SUM(stakeTransferOwnership)+SUM(candidateRegister)+SUM(candidateUpdate) FROM %s WHERE epoch_number>=? and epoch_number<=?"
-	selectTotalTransferred = "select sum(amount) from %s where epoch_number>=? and epoch_number<=?"
+	selectTotalTransferred = "select IFNULL(SUM(amount),0) from %s where epoch_number>=? and epoch_number<=?"
 )
 
 // Protocol defines the protocol of querying tables
