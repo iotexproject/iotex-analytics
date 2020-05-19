@@ -49,11 +49,11 @@ func TestXrc20(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15))
+	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)))
 	p := NewProtocol(store, indexprotocol.HermesConfig{
 		HermesContractAddress:    "testAddr",
 		MultiSendContractAddress: "testAddr",
-	}, epochctx.NewEpochCtx(36, 24, 15))
+	}, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)))
 
 	require.NoError(bp.CreateTables(ctx))
 	require.NoError(p.CreateTables(ctx))
@@ -66,7 +66,7 @@ func TestXrc20(t *testing.T) {
 		ConsensusScheme: "ROLLDPOS",
 	})
 
-	chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
+	first := chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: []byte(strconv.FormatUint(1000, 10)),
 	}, nil)
 	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
@@ -102,9 +102,13 @@ func TestXrc20(t *testing.T) {
 	}
 	data, err := candidateList.Serialize()
 	require.NoError(err)
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+	second := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,
 	}, nil)
+	gomock.InOrder(
+		second,
+		first,
+	)
 	chainClient.EXPECT().ReadContract(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.ReadContractResponse{
 		Receipt: &iotextypes.Receipt{Status: 1},
 		Data:    "xx",
