@@ -16,6 +16,7 @@ require (
 	github.com/iotexproject/iotex-election v0.2.11
 	github.com/iotexproject/iotex-proto v0.2.6-0.20200327040553-157f35632918
 	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.0.0
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/testify v1.4.0
 	github.com/vektah/gqlparser v1.1.2
