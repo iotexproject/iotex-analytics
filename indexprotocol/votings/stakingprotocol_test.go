@@ -37,7 +37,7 @@ var (
 			Index:            10,
 			CandidateAddress: "io1mflp9m6hcgm2qcghchsdqj3z3eccrnekx9p0ms",
 			StakedAmount:     "30000",
-			StakedDuration:   86400, // one day
+			StakedDuration:   1, // one day
 			CreateTime:       &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			StakeStartTime:   &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			UnstakeStartTime: &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
@@ -48,7 +48,7 @@ var (
 			Index:            11,
 			CandidateAddress: "io1mflp9m6hcgm2qcghchsdqj3z3eccrnekx9p0ms",
 			StakedAmount:     "30000",
-			StakedDuration:   86400,
+			StakedDuration:   1,
 			CreateTime:       &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			StakeStartTime:   &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			UnstakeStartTime: &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
@@ -59,7 +59,7 @@ var (
 			Index:            12,
 			CandidateAddress: "io1mflp9m6hcgm2qcghchsdqj3z3eccrnekx9p0ms",
 			StakedAmount:     "30000",
-			StakedDuration:   86400,
+			StakedDuration:   1,
 			CreateTime:       &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			StakeStartTime:   &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
 			UnstakeStartTime: &timestamp.Timestamp{Seconds: now.Unix(), Nanos: 0},
@@ -104,7 +104,7 @@ func TestStaking(t *testing.T) {
 	cfg := indexprotocol.VoteWeightCalConsts{
 		DurationLg: 1.2,
 		AutoStake:  1,
-		SelfStake:  1.05,
+		SelfStake:  1.06,
 	}
 	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(100)), indexprotocol.GravityChain{}, indexprotocol.Poll{
 		VoteThreshold:        "100000000000000000000",
@@ -186,16 +186,28 @@ func TestRemainingTime(t *testing.T) {
 	bucket = &iotextypes.VoteBucket{
 		StakeStartTime: timestamp,
 		StakedDuration: 100,
+		AutoStake:      false,
 	}
 	remaining = remainingTime(bucket)
-	require.True(remaining > 0)
+	require.True(remaining > 0 && remaining < time.Duration(100*24*time.Hour))
 
-	// case III: now is after starttime+stakedduration
-	bucketTime = time.Unix(time.Now().Unix()-200, 0)
+	// case III: AutoStake is true
+	bucketTime = time.Unix(time.Now().Unix()-10, 0)
 	timestamp, _ = ptypes.TimestampProto(bucketTime)
 	bucket = &iotextypes.VoteBucket{
 		StakeStartTime: timestamp,
 		StakedDuration: 100,
+		AutoStake:      true,
+	}
+	remaining = remainingTime(bucket)
+	require.Equal(time.Duration(100*24*time.Hour), remaining)
+
+	// case IV: now is after starttime+stakedduration
+	bucketTime = time.Unix(time.Now().Unix()-86410, 0)
+	timestamp, _ = ptypes.TimestampProto(bucketTime)
+	bucket = &iotextypes.VoteBucket{
+		StakeStartTime: timestamp,
+		StakedDuration: 1,
 	}
 	remaining = remainingTime(bucket)
 	require.Equal(time.Duration(0), remaining)

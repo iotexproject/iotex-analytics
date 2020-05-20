@@ -271,7 +271,7 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 }
 
 func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) *big.Int {
-	remainingTime := float64(v.StakedDuration)
+	remainingTime := float64(v.StakedDuration * 86400)
 	weight := float64(1)
 	var m float64
 	if v.AutoStake {
@@ -280,7 +280,8 @@ func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.Vo
 	if remainingTime > 0 {
 		weight += math.Log(math.Ceil(remainingTime/86400)*(1+m)) / math.Log(cfg.DurationLg) / 100
 	}
-	if selfStake {
+	if selfStake && v.AutoStake && v.StakedDuration >= 91 {
+		// self-stake extra bonus requires enable auto-stake for at least 3 months
 		weight *= cfg.SelfStake
 	}
 	amount, ok := new(big.Float).SetString(v.StakedAmount)
@@ -297,11 +298,15 @@ func remainingTime(bucket *iotextypes.VoteBucket) time.Duration {
 	if now.Before(startTime) {
 		return 0
 	}
-	endTime := startTime.Add(time.Duration(bucket.StakedDuration) * time.Second)
-	if endTime.After(now) {
-		return startTime.Add(time.Duration(bucket.StakedDuration) * time.Second).Sub(now)
+	duration := time.Duration(bucket.StakedDuration) * 24 * time.Hour
+	if !bucket.AutoStake {
+		endTime := startTime.Add(duration)
+		if endTime.After(now) {
+			return endTime.Sub(now)
+		}
+		return 0
 	}
-	return 0
+	return duration
 }
 
 func selfStakeIndexMap(candidates *iotextypes.CandidateListV2) map[uint64]struct{} {
