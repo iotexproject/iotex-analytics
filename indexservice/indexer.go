@@ -9,6 +9,8 @@ package indexservice
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
@@ -99,7 +101,10 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	prometheus.MustRegister(blockHeightMtc)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
-
+	if (reflect.ValueOf(chainClient).IsNil() || fmt.Sprint(chainClient) == "&{<nil>}") {
+		err := fmt.Errorf("chain endpoint is invalid")
+		return errors.Wrap(err, "Please provide the correct chain api")
+	}
 	if err := idx.Store.Start(ctx); err != nil {
 		return errors.Wrap(err, "failed to start db")
 	}
