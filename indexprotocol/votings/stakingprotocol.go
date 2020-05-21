@@ -129,11 +129,11 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		}
 		weightedAmount, err := calculateVoteWeight(p.voteCfg, vote, selfStake)
 		if err != nil {
-			return errors.Wrap(err, "calculate vote weight error")
+			return errors.Wrap(err, "failed to calculate vote weight")
 		}
 		stakeAmount, ok := big.NewInt(0).SetString(vote.StakedAmount, 10)
 		if !ok {
-			return errors.New("stake amount convert error")
+			return errors.New("failed to convert string to big int")
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, weightedAmount)
