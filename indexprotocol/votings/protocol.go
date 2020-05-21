@@ -481,8 +481,7 @@ func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([
 			weightedVotes := vote.WeightedAmount()
 			if _, ok := probationMap[candName]; ok {
 				// filter based on probation
-				votingPower := new(big.Float).SetInt(weightedVotes)
-				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+				weightedVotes = weightedVotes.Mul(weightedVotes, big.NewInt(int64(intensityRate*1e15))).Div(weightedVotes, big.NewInt(1e15))
 			}
 			votinginfo := &VotingInfo{
 				EpochNumber:       epochNum,
@@ -736,8 +735,7 @@ func (p *Protocol) updateAggregateVotingandVotingMetaTable(tx *sql.Tx, votes []*
 	for key, val := range sumOfWeightedVotes {
 		if _, ok := probationMap[key.candidateName]; ok {
 			// filter based on probation
-			votingPower := new(big.Float).SetInt(val)
-			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			val = val.Mul(val, big.NewInt(int64(intensityRate*1e15))).Div(val, big.NewInt(1e15))
 		}
 		if _, err = aggregateStmt.Exec(
 			key.epochNumber,
