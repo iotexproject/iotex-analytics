@@ -34,12 +34,6 @@ func (p *Protocol) processStaking(tx *sql.Tx, chainClient iotexapi.APIServiceCli
 	if err != nil {
 		return errors.Wrap(err, "failed to get buckets count")
 	}
-	if probationList != nil {
-		candidateList, err = filterStakingCandidates(candidateList, probationList, epochStartheight)
-		if err != nil {
-			return errors.Wrap(err, "failed to filter candidate with probation list")
-		}
-	}
 	// after get and clean data,the following code is for writing mysql
 	// update staking_bucket and height_to_staking_bucket table
 	if err = p.stakingBucketTableOperator.Put(epochStartheight, voteBucketList, tx); err != nil {
@@ -48,6 +42,12 @@ func (p *Protocol) processStaking(tx *sql.Tx, chainClient iotexapi.APIServiceCli
 	// update staking_candidate and height_to_staking_candidate table
 	if err = p.stakingCandidateTableOperator.Put(epochStartheight, candidateList, tx); err != nil {
 		return
+	}
+	if probationList != nil {
+		candidateList, err = filterStakingCandidates(candidateList, probationList, epochStartheight)
+		if err != nil {
+			return errors.Wrap(err, "failed to filter candidate with probation list")
+		}
 	}
 	// update voting_result table
 	if err = p.updateStakingResult(tx, candidateList, epochNumber, gravityHeight); err != nil {
@@ -127,11 +127,13 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if _, ok := selfStakeIndex[vote.Index]; ok {
 			selfStake = true
 		}
-		weightedAmount := calculateVoteWeight(p.voteCfg, vote, selfStake)
+		weightedAmount, err := calculateVoteWeight(p.voteCfg, vote, selfStake)
+		if err != nil {
+			return errors.Wrap(err, "calculate vote weight error")
+		}
 		stakeAmount, ok := big.NewInt(0).SetString(vote.StakedAmount, 10)
 		if !ok {
-			err = errors.New("stake amount convert error")
-			return
+			return errors.New("stake amount convert error")
 		}
 		if val, ok := sumOfWeightedVotes[key]; ok {
 			val.Add(val, weightedAmount)
@@ -154,8 +156,7 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 	for key, val := range sumOfWeightedVotes {
 		if _, ok := probationMap[key.candidateName]; ok {
 			// filter based on probation
-			votingPower := new(big.Float).SetInt(val)
-			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+			val = val.Mul(val, big.NewInt(int64(intensityRate*1e15))).Div(val, big.NewInt(1e15))
 		}
 		if _, ok := nameMap[key.candidateName]; !ok {
 			return errors.New("candidate cannot find name through owner address")
@@ -244,11 +245,13 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 			if _, ok := selfStakeIndex[vote.Index]; ok {
 				selfStake = true
 			}
-			weightedVotes := calculateVoteWeight(p.voteCfg, vote, selfStake)
+			weightedVotes, err := calculateVoteWeight(p.voteCfg, vote, selfStake)
+			if err != nil {
+				return nil, errors.Wrap(err, "calculate vote weight error")
+			}
 			if _, ok := probationMap[vote.CandidateAddress]; ok {
 				// filter based on probation
-				votingPower := new(big.Float).SetInt(weightedVotes)
-				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
+				weightedVotes = weightedVotes.Mul(weightedVotes, big.NewInt(int64(intensityRate*1e15))).Div(weightedVotes, big.NewInt(1e15))
 			}
 			voteOwnerAddress, err := util.IoAddrToEvmAddr(vote.Owner)
 			if err != nil {
@@ -270,7 +273,7 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 	return votinginfoList, nil
 }
 
-func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) *big.Int {
+func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) (*big.Int, error) {
 	remainingTime := float64(v.StakedDuration * 86400)
 	weight := float64(1)
 	var m float64
@@ -284,12 +287,14 @@ func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.Vo
 		// self-stake extra bonus requires enable auto-stake for at least 3 months
 		weight *= cfg.SelfStake
 	}
-	amount, ok := new(big.Float).SetString(v.StakedAmount)
+
+	amountInt, ok := big.NewInt(0).SetString(v.StakedAmount, 10)
 	if !ok {
-		return big.NewInt(0)
+		return nil, errors.New("failed to convert string to big int")
 	}
+	amount := new(big.Float).SetInt(amountInt)
 	weightedAmount, _ := amount.Mul(amount, big.NewFloat(weight)).Int(nil)
-	return weightedAmount
+	return weightedAmount, nil
 }
 
 func remainingTime(bucket *iotextypes.VoteBucket) time.Duration {
