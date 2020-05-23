@@ -156,7 +156,8 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 	for key, val := range sumOfWeightedVotes {
 		if _, ok := probationMap[key.candidateName]; ok {
 			// filter based on probation
-			val = val.Mul(val, big.NewInt(int64(intensityRate*1e15))).Div(val, big.NewInt(1e15))
+			votingPower := new(big.Float).SetInt(val)
+			val, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 		}
 		if _, ok := nameMap[key.candidateName]; !ok {
 			return errors.New("candidate cannot find name through owner address")
@@ -251,7 +252,8 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 			}
 			if _, ok := probationMap[vote.CandidateAddress]; ok {
 				// filter based on probation
-				weightedVotes = weightedVotes.Mul(weightedVotes, big.NewInt(int64(intensityRate*1e15))).Div(weightedVotes, big.NewInt(1e15))
+				votingPower := new(big.Float).SetInt(weightedVotes)
+				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 			}
 			voteOwnerAddress, err := util.IoAddrToEvmAddr(vote.Owner)
 			if err != nil {
