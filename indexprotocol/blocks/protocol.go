@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -121,13 +122,15 @@ type Protocol struct {
 	ActiveBlockProducers []string
 	OperatorAddrToName   map[string]string
 	epochCtx             *epochctx.EpochCtx
+	gravityChainCfg      indexprotocol.GravityChain
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx) *Protocol {
+func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain) *Protocol {
 	return &Protocol{
-		Store:    store,
-		epochCtx: epochctx,
+		Store:           store,
+		epochCtx:        epochctx,
+		gravityChainCfg: gravityChainCfg,
 	}
 }
 
@@ -382,11 +385,17 @@ func (p *Protocol) updateDelegates(
 	if height >= p.epochCtx.FairbankHeight() {
 		return p.updateStakingDelegates(chainClient, height)
 	}
+	var preEpochStartHeight uint64
+	if epochNumber == 1 {
+		preEpochStartHeight = p.gravityChainCfg.GravityChainStartHeight
+	} else {
+		preEpochStartHeight = p.epochCtx.GetEpochHeight(epochNumber - 1)
+	}
 	var gravityChainStartHeight uint64
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(preEpochStartHeight, 10))},
 	}
 	retryInterval := time.Duration(backoffInterval) * time.Minute
 	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
@@ -411,7 +420,7 @@ func (p *Protocol) updateDelegates(
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
 		Offset: uint32(0),
-		Limit:  uint32(p.epochCtx.NumCandidateDelegates()),
+		Limit:  math.MaxUint32,
 	}
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {
