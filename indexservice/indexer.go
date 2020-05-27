@@ -200,8 +200,8 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
 	actionsProtocol := actions.NewProtocol(idx.Store, idx.hermesConfig, idx.epochCtx)
-	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx)
-	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding)
+	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain)
+	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding, idx.Config.GravityChain)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
 	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll, idx.Config.VoteWeightCalConsts)
 	if err != nil {

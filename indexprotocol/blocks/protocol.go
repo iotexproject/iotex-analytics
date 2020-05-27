@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -121,13 +122,15 @@ type Protocol struct {
 	ActiveBlockProducers []string
 	OperatorAddrToName   map[string]string
 	epochCtx             *epochctx.EpochCtx
+	gravityChainCfg      indexprotocol.GravityChain
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx) *Protocol {
+func NewProtocol(store s.Store, epochctx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain) *Protocol {
 	return &Protocol{
-		Store:    store,
-		epochCtx: epochctx,
+		Store:           store,
+		epochCtx:        epochctx,
+		gravityChainCfg: gravityChainCfg,
 	}
 }
 
@@ -375,7 +378,7 @@ func (p *Protocol) updateDelegates(
 	electionClient api.APIServiceClient,
 	height uint64,
 	epochNumber uint64,
-) error {
+) (err error) {
 	if err := p.updateActiveBlockProducers(chainClient, epochNumber); err != nil {
 		return errors.Wrap(err, "update active block producers")
 	}
@@ -383,35 +386,31 @@ func (p *Protocol) updateDelegates(
 		return p.updateStakingDelegates(chainClient, height)
 	}
 	var gravityChainStartHeight uint64
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
-	}
-	retryInterval := time.Duration(backoffInterval) * time.Minute
-	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
-	nerr := backoff.Retry(func() error {
-		readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-		if err != nil {
-			return err
+	if epochNumber == 1 {
+		gravityChainStartHeight = p.gravityChainCfg.GravityChainStartHeight
+	} else {
+		prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+		retryInterval := time.Duration(backoffInterval) * time.Minute
+		bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
+		nerr := backoff.Retry(func() error {
+			gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse gravityChainStartHeight")
+			}
+			if gravityChainStartHeight == 0 {
+				//retry to get chain start height again
+				return errors.New("waiting for fetching next timestamp in election service")
+			}
+			return nil
+		}, bo)
+		if nerr != nil {
+			return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
 		}
-		gravityChainStartHeight, err = strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse gravityChainStartHeight")
-		}
-		if gravityChainStartHeight == 0 {
-			//retry to get chain start height again
-			return errors.New("waiting for fetching next timestamp in election service")
-		}
-		return nil
-	}, bo)
-	if nerr != nil {
-		return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
 	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
 		Offset: uint32(0),
-		Limit:  uint32(p.epochCtx.NumCandidateDelegates()),
+		Limit:  math.MaxUint32,
 	}
 	getCandidatesResponse, err := electionClient.GetCandidates(context.Background(), getCandidatesRequest)
 	if err != nil {

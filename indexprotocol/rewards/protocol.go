@@ -117,6 +117,7 @@ type Protocol struct {
 	RewardAddrToName map[string][]string
 	RewardConfig     indexprotocol.Rewarding
 	epochCtx         *epochctx.EpochCtx
+	gravityChainCfg  indexprotocol.GravityChain
 }
 
 // RewardInfo indicates the amount of different reward types
@@ -131,11 +132,13 @@ func NewProtocol(
 	store s.Store,
 	epochCtx *epochctx.EpochCtx,
 	rewardingConfig indexprotocol.Rewarding,
+	gravityChainCfg indexprotocol.GravityChain,
 ) *Protocol {
 	return &Protocol{
-		Store:        store,
-		RewardConfig: rewardingConfig,
-		epochCtx:     epochCtx,
+		Store:           store,
+		RewardConfig:    rewardingConfig,
+		epochCtx:        epochCtx,
+		gravityChainCfg: gravityChainCfg,
 	}
 }
 
@@ -167,7 +170,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	// Special handling for epoch start height
 	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if indexCtx.ConsensusScheme == "ROLLDPOS" && (height == epochHeight || p.RewardAddrToName == nil) {
-		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height); err != nil {
+		if err := p.updateCandidateRewardAddress(chainClient, electionClient, height, epochNumber); err != nil {
 			return errors.Wrapf(err, "failed to update candidates in epoch %d", epochNumber)
 		}
 	}
@@ -339,22 +342,20 @@ func (p *Protocol) updateCandidateRewardAddress(
 	chainClient iotexapi.APIServiceClient,
 	electionClient api.APIServiceClient,
 	height uint64,
-) error {
+	epochNumber uint64,
+) (err error) {
 	if height >= p.epochCtx.FairbankHeight() {
 		return p.updateStakingCandidateRewardAddress(chainClient, height)
 	}
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		return errors.Wrap(err, "failed to get gravity chain start height")
-	}
-	gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse gravityChainStartHeight")
+	var gravityChainStartHeight uint64
+	if epochNumber == 1 {
+		gravityChainStartHeight = p.gravityChainCfg.GravityChainStartHeight
+	} else {
+		prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+		gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber-1)
+		}
 	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),

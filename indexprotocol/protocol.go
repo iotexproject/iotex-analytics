@@ -95,6 +95,27 @@ type BlockHandler interface {
 	HandleBlock(context.Context, *sql.Tx, *block.Block) error
 }
 
+// GetGravityChainStartHeight get gravity chain start height
+func GetGravityChainStartHeight(
+	chainClient iotexapi.APIServiceClient,
+	height uint64,
+) (uint64, error) {
+	readStateRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(PollProtocolID),
+		MethodName: []byte("GetGravityChainStartHeight"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
+	}
+	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to get gravity chain start height")
+	}
+	gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
+	if err != nil {
+		return uint64(0), errors.Wrap(err, "failed to parse gravityChainStartHeight")
+	}
+	return gravityChainStartHeight, nil
+}
+
 // GetAllStakingBuckets get all buckets by height
 func GetAllStakingBuckets(chainClient iotexapi.APIServiceClient, height uint64) (voteBucketListAll *iotextypes.VoteBucketList, err error) {
 	voteBucketListAll = &iotextypes.VoteBucketList{}

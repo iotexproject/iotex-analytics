@@ -286,7 +286,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			gravityHeight = p.GravityChainCfg.GravityChainStartHeight
 		} else {
 			prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
-			gravityHeight, err = p.getGravityChainStartHeight(chainClient, prevEpochHeight)
+			gravityHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
 			if err != nil {
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
@@ -566,26 +566,6 @@ func (p *Protocol) getRawData(
 		return nil, nil, time.Time{}, err
 	}
 	return buckets, regs, mintTime, nil
-}
-
-func (p *Protocol) getGravityChainStartHeight(
-	chainClient iotexapi.APIServiceClient,
-	height uint64,
-) (uint64, error) {
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(height, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		return uint64(0), errors.Wrap(err, "failed to get gravity chain start height")
-	}
-	gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
-	if err != nil {
-		return uint64(0), errors.Wrap(err, "failed to parse gravityChainStartHeight")
-	}
-	return gravityChainStartHeight, nil
 }
 
 func (p *Protocol) getNativeBucket(

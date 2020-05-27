@@ -52,7 +52,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1, epochctx.FairbankHeight(100000)))
+	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1, epochctx.FairbankHeight(100000)), indexprotocol.GravityChain{GravityChainStartHeight: 1})
 
 	require.NoError(p.CreateTables(ctx))
 
@@ -122,11 +122,8 @@ func TestProtocol(t *testing.T) {
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk2.Height(), 10))},
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
 	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: []byte(strconv.FormatUint(1100, 10)),
-	}, nil)
 
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
