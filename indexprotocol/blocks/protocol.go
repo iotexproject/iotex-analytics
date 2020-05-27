@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -378,44 +377,26 @@ func (p *Protocol) updateDelegates(
 	electionClient api.APIServiceClient,
 	height uint64,
 	epochNumber uint64,
-) error {
+) (err error) {
 	if err := p.updateActiveBlockProducers(chainClient, epochNumber); err != nil {
 		return errors.Wrap(err, "update active block producers")
 	}
 	if height >= p.epochCtx.FairbankHeight() {
 		return p.updateStakingDelegates(chainClient, height)
 	}
-	var preEpochStartHeight uint64
-	if epochNumber == 1 {
-		preEpochStartHeight = p.gravityChainCfg.GravityChainStartHeight
-	} else {
-		preEpochStartHeight = p.epochCtx.GetEpochHeight(epochNumber - 1)
-	}
 	var gravityChainStartHeight uint64
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(preEpochStartHeight, 10))},
+	if epochNumber == 1 {
+		gravityChainStartHeight = p.gravityChainCfg.GravityChainStartHeight
+	} else {
+		prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+		gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber-1)
+		}
 	}
-	retryInterval := time.Duration(backoffInterval) * time.Minute
-	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
-	nerr := backoff.Retry(func() error {
-		readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-		if err != nil {
-			return err
-		}
-		gravityChainStartHeight, err = strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse gravityChainStartHeight")
-		}
-		if gravityChainStartHeight == 0 {
-			//retry to get chain start height again
-			return errors.New("waiting for fetching next timestamp in election service")
-		}
-		return nil
-	}, bo)
-	if nerr != nil {
-		return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
+	if gravityChainStartHeight == 0 {
+		//retry to get chain start height again
+		return errors.New("waiting for fetching next timestamp in chain service")
 	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),

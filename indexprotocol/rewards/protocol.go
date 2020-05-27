@@ -343,28 +343,23 @@ func (p *Protocol) updateCandidateRewardAddress(
 	electionClient api.APIServiceClient,
 	height uint64,
 	epochNumber uint64,
-) error {
+) (err error) {
 	if height >= p.epochCtx.FairbankHeight() {
 		return p.updateStakingCandidateRewardAddress(chainClient, height)
 	}
-	var preEpochStartHeight uint64
+	var gravityChainStartHeight uint64
 	if epochNumber == 1 {
-		preEpochStartHeight = p.gravityChainCfg.GravityChainStartHeight
+		gravityChainStartHeight = p.gravityChainCfg.GravityChainStartHeight
 	} else {
-		preEpochStartHeight = p.epochCtx.GetEpochHeight(epochNumber - 1)
+		prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+		gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber-1)
+		}
 	}
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(preEpochStartHeight, 10))},
-	}
-	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
-	if err != nil {
-		return errors.Wrap(err, "failed to get gravity chain start height")
-	}
-	gravityChainStartHeight, err := strconv.ParseUint(string(readStateRes.GetData()), 10, 64)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse gravityChainStartHeight")
+	if gravityChainStartHeight == 0 {
+		//retry to get chain start height again
+		return errors.New("waiting for fetching next timestamp in chain service")
 	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
