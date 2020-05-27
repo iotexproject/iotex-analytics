@@ -55,7 +55,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)), indexprotocol.GravityChain{})
+	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)), indexprotocol.GravityChain{GravityChainStartHeight: 1})
 	p := NewProtocol(store, indexprotocol.HermesConfig{
 		HermesContractAddress:    "testAddr",
 		MultiSendContractAddress: "testAddr",
@@ -105,17 +105,10 @@ func TestProtocol(t *testing.T) {
 	}
 	data, err := candidateList.Serialize()
 	require.NoError(err)
-	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
 		Data: data,
 	}, nil)
 
-	second := chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: []byte(strconv.FormatUint(1000, 10)),
-	}, nil)
-	gomock.InOrder(
-		first,
-		second,
-	)
 	chainClient.EXPECT().ReadContract(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.ReadContractResponse{
 		Receipt: &iotextypes.Receipt{Status: 1},
 		Data:    "xx",

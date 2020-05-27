@@ -357,10 +357,6 @@ func (p *Protocol) updateCandidateRewardAddress(
 			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber-1)
 		}
 	}
-	if gravityChainStartHeight == 0 {
-		//retry to get chain start height again
-		return errors.New("waiting for fetching next timestamp in chain service")
-	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),
 		Offset: uint32(0),

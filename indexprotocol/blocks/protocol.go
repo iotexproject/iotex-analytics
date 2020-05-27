@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-core/action"
@@ -389,14 +390,22 @@ func (p *Protocol) updateDelegates(
 		gravityChainStartHeight = p.gravityChainCfg.GravityChainStartHeight
 	} else {
 		prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
-		gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber-1)
+		retryInterval := time.Duration(backoffInterval) * time.Minute
+		bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(retryInterval), numOfRetry)
+		nerr := backoff.Retry(func() error {
+			gravityChainStartHeight, err = indexprotocol.GetGravityChainStartHeight(chainClient, prevEpochHeight)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse gravityChainStartHeight")
+			}
+			if gravityChainStartHeight == 0 {
+				//retry to get chain start height again
+				return errors.New("waiting for fetching next timestamp in election service")
+			}
+			return nil
+		}, bo)
+		if nerr != nil {
+			return errors.Wrap(nerr, "failed to get gravity chain start height by backoff")
 		}
-	}
-	if gravityChainStartHeight == 0 {
-		//retry to get chain start height again
-		return errors.New("waiting for fetching next timestamp in chain service")
 	}
 	getCandidatesRequest := &api.GetCandidatesRequest{
 		Height: strconv.Itoa(int(gravityChainStartHeight)),

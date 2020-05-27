@@ -291,10 +291,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
 		}
-		if gravityHeight == 0 {
-			//retry to get chain start height again
-			return errors.New("waiting for fetching next timestamp in chain service")
-		}
 
 		// process staking
 		if blkheight >= p.epochCtx.FairbankHeight() {
