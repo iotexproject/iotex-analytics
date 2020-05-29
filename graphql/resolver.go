@@ -1578,12 +1578,12 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		case err != nil:
 			return errors.Wrap(err, "failed to get hermes distribution by delegate name")
 		}
-		for _, ratioInfo := range res {
+		for i, ratioInfo := range res {
 			info := &Ratio{
 				BlockRewardRatio:     ratioInfo.BlockRewardRatio,
 				EpochRewardRatio:     ratioInfo.EpochRewardRatio,
 				FoundationBonusRatio: ratioInfo.FoundationBonusRatio,
-				EpochNumber:          startEpoch,
+				EpochNumber:          startEpoch + i,
 			}
 			distributionRatioList = append(distributionRatioList, info)
 		}

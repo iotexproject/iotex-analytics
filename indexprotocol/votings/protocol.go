@@ -65,7 +65,7 @@ const (
 	createVotingResult = "CREATE TABLE IF NOT EXISTS %s " +
 		"(epoch_number DECIMAL(65, 0) NOT NULL, delegate_name VARCHAR(255) NOT NULL, operator_address VARCHAR(41) NOT NULL, " +
 		"reward_address VARCHAR(41) NOT NULL, total_weighted_votes DECIMAL(65, 0) NOT NULL, self_staking DECIMAL(65,0) NOT NULL, " +
-		"block_reward_percentage INT DEFAULT 100, epoch_reward_percentage INT DEFAULT 100, foundation_bonus_percentage INT DEFAULT 100, " +
+		"block_reward_percentage VARCHAR(6) DEFAULT 100.00, epoch_reward_percentage VARCHAR(6) DEFAULT 100.00, foundation_bonus_percentage VARCHAR(6) DEFAULT 100.00, " +
 		"staking_address VARCHAR(40) DEFAULT %s)"
 	selectVotingResultInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
@@ -94,9 +94,9 @@ type (
 		RewardAddress             string
 		TotalWeightedVotes        string
 		SelfStaking               string
-		BlockRewardPercentage     uint64
-		EpochRewardPercentage     uint64
-		FoundationBonusPercentage uint64
+		BlockRewardPercentage     float64
+		EpochRewardPercentage     float64
+		FoundationBonusPercentage float64
 		StakingAddress            string
 	}
 
@@ -650,9 +650,9 @@ func (p *Protocol) updateVotingResultTable(tx *sql.Tx, delegates []*types.Candid
 			ra,
 			totalWeightedVotes,
 			selfStakingTokens,
-			blockRewardPortion,
-			epochRewardPortion,
-			foundationBonusPortion,
+			fmt.Sprintf("%0.2f", blockRewardPortion),
+			fmt.Sprintf("%0.2f", epochRewardPortion),
+			fmt.Sprintf("%0.2f", foundationBonusPortion),
 			address,
 		); err != nil {
 			return err
@@ -820,7 +820,7 @@ func (p *Protocol) mergeResult(height uint64, result *types.ElectionResult, nati
 	return mergedVotes, bucketFlag, mergedDelegates, nil
 }
 
-func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage int64, err error) {
+func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, gravityChainHeight uint64) (blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage float64, err error) {
 	if p.GravityChainCfg.GravityChainAPIs == nil || gravityChainHeight < p.GravityChainCfg.RewardPercentageStartHeight {
 		blockRewardPercentage = 100
 		epochRewardPercentage = 100
@@ -850,21 +850,21 @@ func (p *Protocol) getDelegateRewardPortions(stakingAddress common.Address, grav
 				if err != nil {
 					return err
 				}
-				blockRewardPercentage = blockPortion / 100
+				blockRewardPercentage = float64(blockPortion) / 100
 			}
 			if len(epochRewardPortion) > 0 {
 				epochPortion, err := strconv.ParseInt(hex.EncodeToString(epochRewardPortion), 16, 64)
 				if err != nil {
 					return err
 				}
-				epochRewardPercentage = epochPortion / 100
+				epochRewardPercentage = float64(epochPortion) / 100
 			}
 			if len(foundationRewardPortion) > 0 {
 				foundationPortion, err := strconv.ParseInt(hex.EncodeToString(foundationRewardPortion), 16, 64)
 				if err != nil {
 					return err
 				}
-				foundationBonusPercentage = foundationPortion / 100
+				foundationBonusPercentage = float64(foundationPortion) / 100
 			}
 		}
 		return nil
