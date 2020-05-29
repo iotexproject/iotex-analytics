@@ -248,9 +248,9 @@ func (p *Protocol) GetHermesBookkeeping(startEpoch uint64, epochCount uint64, re
 			if distributePlan.BlockRewardPercentage < waiverThresholdF || distributePlan.EpochRewardPercentage < waiverThresholdF || distributePlan.FoundationBonusPercentage < waiverThresholdF {
 				feeWaiver = false
 			}
-			distrReward, err := calculateDistributeReward(distributePlan, rewards)
+			distrReward, err := calculatedDistributedReward(distributePlan, rewards)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to calculate reward distribution plan")
+				return nil, errors.Wrap(err, "failed to calculate distributed reward")
 			}
 			for voterAddr, weightedVotes := range voterMap {
 				amount := new(big.Int).Set(distrReward)
@@ -309,7 +309,7 @@ func (p *Protocol) GetAverageHermesStats(startEpoch uint64, epochCount uint64, r
 		for epoch, rewards := range rewardsMap {
 			distributePlan := planMap[epoch]
 			totalWeightedVotesSum.Add(totalWeightedVotesSum, distributePlan.TotalWeightedVotes)
-			distrRewardSum, err = calculateDistributeReward(distributePlan, rewards)
+			distrRewardSum, err = calculatedDistributedReward(distributePlan, rewards)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to calculate reward distribution plan")
 			}
@@ -365,7 +365,7 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 
 		for epoch, rewards := range rewardsMap {
 			distributePlan := planMap[epoch]
-			distrReward, err := calculateDistributeReward(distributePlan, rewards)
+			distrReward, err := calculatedDistributedReward(distributePlan, rewards)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to calculate reward distribution plan")
 			}
@@ -386,7 +386,7 @@ func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterI
 	return delegateDistributions, nil
 }
 
-func calculateDistributeReward(distributePlan *HermesDistributionPlan, rewards *HermesDistributionSource) (*big.Int, error) {
+func calculatedDistributedReward(distributePlan *HermesDistributionPlan, rewards *HermesDistributionSource) (*big.Int, error) {
 	blockRewardPercentage := distributePlan.BlockRewardPercentage
 	epochRewardPercentage := distributePlan.EpochRewardPercentage
 	foundationBonusPercentage := distributePlan.FoundationBonusPercentage
