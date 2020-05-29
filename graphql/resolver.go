@@ -1570,7 +1570,6 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		if err != nil {
 			return errors.Wrap(err, "failed to format delegate name")
 		}
-		//delegateName,err = EncodeDelegateName(delegateName)
 		res, err := r.HP.GetHermes2Ratio(harg, encodedDelegateName)
 		switch {
 		case errors.Cause(err) == indexprotocol.ErrNotExist:
