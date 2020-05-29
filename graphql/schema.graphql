@@ -317,12 +317,13 @@ type ByDelegateResponse {
     count: Int!
     totalRewardsDistributed: String!
     distributionRatio: [Ratio]!
-    }
+}
+
 type Ratio {
     epochNumber: Int!
-    blockRewardRatio: Int!
-    epochRewardRatio: Int!
-    foundationBonusRatio: Int!
+    blockRewardRatio: Float!
+    epochRewardRatio: Float!
+    foundationBonusRatio: Float!
 }
 
 type DelegateInfo {

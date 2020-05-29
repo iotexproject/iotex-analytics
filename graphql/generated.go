@@ -2341,12 +2341,13 @@ type ByDelegateResponse {
     count: Int!
     totalRewardsDistributed: String!
     distributionRatio: [Ratio]!
-    }
+}
+
 type Ratio {
     epochNumber: Int!
-    blockRewardRatio: Int!
-    epochRewardRatio: Int!
-    foundationBonusRatio: Int!
+    blockRewardRatio: Float!
+    epochRewardRatio: Float!
+    foundationBonusRatio: Float!
 }
 
 type DelegateInfo {
@@ -6946,10 +6947,10 @@ func (ec *executionContext) _Ratio_blockRewardRatio(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(float64)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Ratio_epochRewardRatio(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
@@ -6973,10 +6974,10 @@ func (ec *executionContext) _Ratio_epochRewardRatio(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(float64)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Ratio_foundationBonusRatio(ctx context.Context, field graphql.CollectedField, obj *Ratio) graphql.Marshaler {
@@ -7000,10 +7001,10 @@ func (ec *executionContext) _Ratio_foundationBonusRatio(ctx context.Context, fie
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(float64)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Reward_exist(ctx context.Context, field graphql.CollectedField, obj *Reward) graphql.Marshaler {

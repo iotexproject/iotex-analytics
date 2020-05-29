@@ -1570,7 +1570,6 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 		if err != nil {
 			return errors.Wrap(err, "failed to format delegate name")
 		}
-		//delegateName,err = EncodeDelegateName(delegateName)
 		res, err := r.HP.GetHermes2Ratio(harg, encodedDelegateName)
 		switch {
 		case errors.Cause(err) == indexprotocol.ErrNotExist:
@@ -1583,7 +1582,7 @@ func (r *queryResolver) getHermes2ByDelegate(ctx context.Context, startEpoch int
 				BlockRewardRatio:     ratioInfo.BlockRewardRatio,
 				EpochRewardRatio:     ratioInfo.EpochRewardRatio,
 				FoundationBonusRatio: ratioInfo.FoundationBonusRatio,
-				EpochNumber:          startEpoch,
+				EpochNumber:          ratioInfo.EpochNumber,
 			}
 			distributionRatioList = append(distributionRatioList, info)
 		}

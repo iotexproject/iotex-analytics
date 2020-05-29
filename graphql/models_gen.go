@@ -228,10 +228,10 @@ type Productivity struct {
 }
 
 type Ratio struct {
-	EpochNumber          int `json:"epochNumber"`
-	BlockRewardRatio     int `json:"blockRewardRatio"`
-	EpochRewardRatio     int `json:"epochRewardRatio"`
-	FoundationBonusRatio int `json:"foundationBonusRatio"`
+	EpochNumber          int     `json:"epochNumber"`
+	BlockRewardRatio     float64 `json:"blockRewardRatio"`
+	EpochRewardRatio     float64 `json:"epochRewardRatio"`
+	FoundationBonusRatio float64 `json:"foundationBonusRatio"`
 }
 
 type Reward struct {
