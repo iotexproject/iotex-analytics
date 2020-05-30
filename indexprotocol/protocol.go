@@ -81,6 +81,7 @@ type (
 		AutoStake  float64 `yaml:"autoStake"`
 		SelfStake  float64 `yaml:"selfStake"`
 	}
+	// RewardPortionCfg is contains the configs for rewarding portion contract
 	RewardPortionCfg struct {
 		RewardPortionContract             string `yaml:"rewardPortionContract"`
 		RewardPortionContractDeployHeight uint64 `yaml:"rewardportionContractDeployHeight"`
