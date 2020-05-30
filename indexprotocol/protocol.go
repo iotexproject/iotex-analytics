@@ -81,6 +81,10 @@ type (
 		AutoStake  float64 `yaml:"autoStake"`
 		SelfStake  float64 `yaml:"selfStake"`
 	}
+	RewardPortionCfg struct {
+		RewardPortionContract             string `yaml:"rewardPortionContract"`
+		RewardPortionContractDeployHeight uint64 `yaml:"rewardportionContractDeployHeight"`
+	}
 )
 
 // Protocol defines the protocol interfaces for block indexer

@@ -14,7 +14,6 @@ import (
 	"math"
 	"math/big"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -90,15 +89,14 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 		return errors.Errorf("get delegate reward portions:%d,%s", epochStartheight, err.Error())
 	}
 
-	blockRewardPortion, epochRewardPortion, foundationBonusPortion := 0.0, 0.0, 0.0
 	for _, candidate := range candidates.Candidates {
 		stakingAddress, err := util.IoAddrToEvmAddr(candidate.OwnerAddress)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 		}
-		blockRewardPortion = blockRewardPortionMap[strings.ToLower(stakingAddress.String()[2:])]
-		epochRewardPortion = epochRewardPortionMap[strings.ToLower(stakingAddress.String()[2:])]
-		foundationBonusPortion = foundationBonusPortionMap[strings.ToLower(stakingAddress.String()[2:])]
+		blockRewardPortion := blockRewardPortionMap[hex.EncodeToString(stakingAddress.Bytes())]
+		epochRewardPortion := epochRewardPortionMap[hex.EncodeToString(stakingAddress.Bytes())]
+		foundationBonusPortion := foundationBonusPortionMap[hex.EncodeToString(stakingAddress.Bytes())]
 		encodedName, err := indexprotocol.EncodeDelegateName(candidate.Name)
 		if err != nil {
 			return errors.Wrap(err, "encode delegate name error")
@@ -298,28 +296,25 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 	foundationBonusPercentage = make(map[string]float64)
 	if epochStartHeight == p.epochCtx.FairbankHeight() {
 		// init from contract,from contract deployed height to epochStartheight-1,get latest portion
-		if p.rewardPortionContract == "" {
-			// todo make sure if ignore this error
-			//err = errors.New("portion contract address is empty")
+		if p.rewardPortionCfg.RewardPortionContract == "" {
+			err = errors.New("portion contract address is empty")
 			return
 		}
-		if p.rewardPortionContractDeployHeight > epochStartHeight {
-			// todo make sure if ignore this error
-			//err = errors.New("portion contract deploy height should less than fairbank height")
+		if p.rewardPortionCfg.RewardPortionContractDeployHeight >= epochStartHeight {
+			err = errors.New("portion contract deploy height should less than fairbank height")
 			return
 		}
-		count := epochStartHeight - p.rewardPortionContractDeployHeight
-		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getlog(p.rewardPortionContract, p.rewardPortionContractDeployHeight, count, chainClient, p.abi)
+		count := epochStartHeight - p.rewardPortionCfg.RewardPortionContractDeployHeight
+		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getlog(p.rewardPortionCfg.RewardPortionContract, p.rewardPortionCfg.RewardPortionContractDeployHeight, count, chainClient, p.abi)
 		if err != nil {
-			err = errors.Wrap(err, "get log from chain error")
+			err = errors.Wrap(err, "failed to get log from chain")
 			return
 		}
 	} else {
 		// get from mysql first
 		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getLastEpochPortion(p.Store.GetDB(), epochNumber-1)
-		if err != nil && errors.Cause(err) != indexprotocol.ErrNotExist {
-			// todo make sure if ignore this error
-			err = errors.Wrap(err, "get last epoch portion error")
+		if err != nil {
+			err = errors.Wrap(err, "failed to get last epoch portion")
 			return
 		}
 
@@ -331,9 +326,9 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		}
 		count := epochStartHeight - lastEpochStartHeight
 		var blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog map[string]float64
-		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getlog(p.rewardPortionContract, lastEpochStartHeight, count, chainClient, p.abi)
+		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getlog(p.rewardPortionCfg.RewardPortionContract, lastEpochStartHeight, count, chainClient, p.abi)
 		if err != nil {
-			err = errors.Wrap(err, "get log from chain error")
+			err = errors.Wrap(err, "failed to get log from chain")
 			return
 		}
 		// update to mysql's portion
@@ -412,16 +407,15 @@ func ownerAddressToNameMap(candidates *iotextypes.CandidateListV2) (ret map[stri
 	return
 }
 
-func getlog(contractAddress string, from, count uint64, chainClient iotexapi.APIServiceClient, delegateABI abi.ABI) (blockReward, epochReward, foundationReward map[string]float64, err error) {
+func getlog(contractAddress string, from, count uint64, chainClient iotexapi.APIServiceClient, delegateProfileABI abi.ABI) (blockReward, epochReward, foundationReward map[string]float64, err error) {
 	blockReward = make(map[string]float64)
 	epochReward = make(map[string]float64)
 	foundationReward = make(map[string]float64)
-	topics := make([][]byte, 0)
 	tp, err := hex.DecodeString(topicProfileUpdated)
 	if err != nil {
 		return
 	}
-	topics = append(topics, tp)
+	topics := [][]byte{tp}
 
 	response, err := chainClient.GetLogs(context.Background(), &iotexapi.GetLogsRequest{
 		Filter: &iotexapi.LogsFilter{
@@ -443,16 +437,16 @@ func getlog(contractAddress string, from, count uint64, chainClient iotexapi.API
 			switch hex.EncodeToString(topic) {
 			case topicProfileUpdated:
 				event := new(contract.DelegateProfileProfileUpdated)
-				if err := delegateABI.Unpack(event, "ProfileUpdated", l.Data); err != nil {
+				if err := delegateProfileABI.Unpack(event, "ProfileUpdated", l.Data); err != nil {
 					continue
 				}
 				switch event.Name {
 				case blockRewardPortion:
-					blockReward[strings.ToLower(event.Delegate.String()[2:])] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
+					blockReward[hex.EncodeToString(event.Delegate.Bytes())] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
 				case epochRewardPortion:
-					epochReward[strings.ToLower(event.Delegate.String()[2:])] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
+					epochReward[hex.EncodeToString(event.Delegate.Bytes())] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
 				case foundationRewardPortion:
-					foundationReward[strings.ToLower(event.Delegate.String()[2:])] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
+					foundationReward[hex.EncodeToString(event.Delegate.Bytes())] = float64(big.NewInt(0).SetBytes(event.Value).Uint64()) / 100
 				}
 			}
 		}
@@ -464,7 +458,7 @@ func getLastEpochPortion(db *sql.DB, epochNumber uint64) (blockReward, epochRewa
 	blockReward = make(map[string]float64)
 	epochReward = make(map[string]float64)
 	foundationReward = make(map[string]float64)
-	getQuery := fmt.Sprintf(selectVotingResultFromStakingAddress,
+	getQuery := fmt.Sprintf(selectVotingResultForAllDelegates,
 		VotingResultTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {

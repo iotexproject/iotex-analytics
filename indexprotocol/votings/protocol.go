@@ -77,9 +77,9 @@ const (
 	createVotingMetaTable = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, " +
 		"UNIQUE KEY %s (epoch_number))"
-	selectVotingResult                   = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
-	selectVotingResultFromStakingAddress = "SELECT * FROM %s WHERE epoch_number=?"
-	insertVotingResult                   = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
+	selectVotingResult                = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
+	selectVotingResultForAllDelegates = "SELECT * FROM %s WHERE epoch_number=?"
+	insertVotingResult                = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
 	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
@@ -137,27 +137,26 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
-	Store                             s.Store
-	bucketTableOperator               committee.Operator
-	registrationTableOperator         committee.Operator
-	stakingBucketTableOperator        committee.Operator
-	stakingCandidateTableOperator     committee.Operator
-	nativeBucketTableOperator         committee.Operator
-	timeTableOperator                 *committee.TimeTableOperator
-	epochCtx                          *epochctx.EpochCtx
-	GravityChainCfg                   indexprotocol.GravityChain
-	voteCfg                           indexprotocol.VoteWeightCalConsts
-	SkipManifiedCandidate             bool
-	VoteThreshold                     *big.Int
-	ScoreThreshold                    *big.Int
-	SelfStakingThreshold              *big.Int
-	rewardPortionContract             string
-	rewardPortionContractDeployHeight uint64
-	abi                               abi.ABI
+	Store                         s.Store
+	bucketTableOperator           committee.Operator
+	registrationTableOperator     committee.Operator
+	stakingBucketTableOperator    committee.Operator
+	stakingCandidateTableOperator committee.Operator
+	nativeBucketTableOperator     committee.Operator
+	timeTableOperator             *committee.TimeTableOperator
+	epochCtx                      *epochctx.EpochCtx
+	GravityChainCfg               indexprotocol.GravityChain
+	voteCfg                       indexprotocol.VoteWeightCalConsts
+	SkipManifiedCandidate         bool
+	VoteThreshold                 *big.Int
+	ScoreThreshold                *big.Int
+	SelfStakingThreshold          *big.Int
+	rewardPortionCfg              indexprotocol.RewardPortionCfg
+	abi                           abi.ABI
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts, rewardPortionContract string, rewardPortionContractDeployHeight uint64) (*Protocol, error) {
+func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts, rewardPortionCfg indexprotocol.RewardPortionCfg) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		return nil, err
@@ -195,23 +194,22 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		return nil, errors.Wrap(err, "Failed to get parsed delegate profile ABI interface")
 	}
 	return &Protocol{
-		Store:                             store,
-		bucketTableOperator:               bucketTableOperator,
-		registrationTableOperator:         registrationTableOperator,
-		nativeBucketTableOperator:         nativeBucketTableOperator,
-		stakingBucketTableOperator:        stakingBucketTableOperator,
-		stakingCandidateTableOperator:     stakingCandidateTableOperator,
-		timeTableOperator:                 committee.NewTimeTableOperator("mint_time", committee.MYSQL),
-		epochCtx:                          epochCtx,
-		GravityChainCfg:                   gravityChainCfg,
-		voteCfg:                           voteCfg,
-		VoteThreshold:                     voteThreshold,
-		ScoreThreshold:                    scoreThreshold,
-		SelfStakingThreshold:              selfStakingThreshold,
-		SkipManifiedCandidate:             pollCfg.SkipManifiedCandidate,
-		rewardPortionContract:             rewardPortionContract,
-		rewardPortionContractDeployHeight: rewardPortionContractDeployHeight,
-		abi:                               delegateABI,
+		Store:                         store,
+		bucketTableOperator:           bucketTableOperator,
+		registrationTableOperator:     registrationTableOperator,
+		nativeBucketTableOperator:     nativeBucketTableOperator,
+		stakingBucketTableOperator:    stakingBucketTableOperator,
+		stakingCandidateTableOperator: stakingCandidateTableOperator,
+		timeTableOperator:             committee.NewTimeTableOperator("mint_time", committee.MYSQL),
+		epochCtx:                      epochCtx,
+		GravityChainCfg:               gravityChainCfg,
+		voteCfg:                       voteCfg,
+		VoteThreshold:                 voteThreshold,
+		ScoreThreshold:                scoreThreshold,
+		SelfStakingThreshold:          selfStakingThreshold,
+		SkipManifiedCandidate:         pollCfg.SkipManifiedCandidate,
+		rewardPortionCfg:              rewardPortionCfg,
+		abi:                           delegateABI,
 	}, nil
 }
 
