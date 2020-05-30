@@ -7,6 +7,8 @@ dardanellesOn: true
 fairbankHeight: 5165641
 consensusScheme: "ROLLDPOS"
 rangeQueryLimit: 100
+rewardPortionContract: "io16dxewjaec7ddxuk8n6g2dpezthzjlfuqu4w9df"
+rewardportionContractDeployHeight: 3615690
 genesis:
   account:
     initBalances:

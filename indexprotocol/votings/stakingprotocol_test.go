@@ -106,19 +106,19 @@ func TestStaking(t *testing.T) {
 		AutoStake:  1,
 		SelfStake:  1.06,
 	}
-	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(100)), indexprotocol.GravityChain{}, indexprotocol.Poll{
+	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(110000)), indexprotocol.GravityChain{}, indexprotocol.Poll{
 		VoteThreshold:        "100000000000000000000",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
-	}, cfg)
+	}, cfg, "", 100000)
 	require.NoError(err)
 	require.NoError(p.CreateTables(context.Background()))
 	tx, err := p.Store.GetDB().Begin()
 	require.NoError(err)
-	require.NoError(p.processStaking(tx, chainClient, height, epochNumber, nil, 0))
+	require.NoError(p.processStaking(tx, chainClient, height, epochNumber, nil))
 	require.NoError(tx.Commit())
+
 	// case I: checkout bucket if it's written right
-	require.NoError(err)
 	ret, err := p.stakingBucketTableOperator.Get(height, p.Store.GetDB(), nil)
 	require.NoError(err)
 	bucketList, ok := ret.(*iotextypes.VoteBucketList)

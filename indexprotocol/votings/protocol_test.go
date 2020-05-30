@@ -61,7 +61,7 @@ func TestProtocol(t *testing.T) {
 		VoteThreshold:        "0",
 		ScoreThreshold:       "0",
 		SelfStakingThreshold: "0",
-	}, cfg)
+	}, cfg, "", 123)
 	require.NoError(err)
 	require.NoError(p.CreateTables(ctx))
 
