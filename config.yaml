@@ -8,8 +8,8 @@ fairbankHeight: 3252241
 consensusScheme: "ROLLDPOS"
 rangeQueryLimit: 100
 rewardPortionCfg:
-  rewardPortionContract: "io1lfl4ppn2c3wcft04f0rk0jy9lyn4pcjcm7638u"
-  rewardportionContractDeployHeight: 5095225
+  rewardPortionContract: "io1ktrmwyqcu6d6l403ag6gkjtmlq60nv9qp72zpe"
+  rewardportionContractDeployHeight: 3653543
 genesis:
   account:
     initBalances:
