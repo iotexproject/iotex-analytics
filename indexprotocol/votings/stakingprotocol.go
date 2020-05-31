@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -294,6 +295,11 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 	blockRewardPercentage = make(map[string]float64)
 	epochRewardPercentage = make(map[string]float64)
 	foundationBonusPercentage = make(map[string]float64)
+	delegateABI, err := abi.JSON(strings.NewReader(contract.DelegateProfileABI))
+	if err != nil {
+		err = errors.Wrap(err, "Failed to get parsed delegate profile ABI interface")
+		return
+	}
 	if epochStartHeight == p.epochCtx.FairbankHeight() {
 		// init from contract,from contract deployed height to epochStartheight-1,get latest portion
 		if p.rewardPortionCfg.RewardPortionContract == "" {
@@ -305,7 +311,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 			return
 		}
 		count := epochStartHeight - p.rewardPortionCfg.RewardPortionContractDeployHeight
-		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getlog(p.rewardPortionCfg.RewardPortionContract, p.rewardPortionCfg.RewardPortionContractDeployHeight, count, chainClient, p.abi)
+		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getLog(p.rewardPortionCfg.RewardPortionContract, p.rewardPortionCfg.RewardPortionContractDeployHeight, count, chainClient, delegateABI)
 		if err != nil {
 			err = errors.Wrap(err, "failed to get log from chain")
 			return
@@ -326,7 +332,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		}
 		count := epochStartHeight - lastEpochStartHeight
 		var blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog map[string]float64
-		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getlog(p.rewardPortionCfg.RewardPortionContract, lastEpochStartHeight, count, chainClient, p.abi)
+		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getLog(p.rewardPortionCfg.RewardPortionContract, lastEpochStartHeight, count, chainClient, delegateABI)
 		if err != nil {
 			err = errors.Wrap(err, "failed to get log from chain")
 			return
@@ -407,7 +413,7 @@ func ownerAddressToNameMap(candidates *iotextypes.CandidateListV2) (ret map[stri
 	return
 }
 
-func getlog(contractAddress string, from, count uint64, chainClient iotexapi.APIServiceClient, delegateProfileABI abi.ABI) (blockReward, epochReward, foundationReward map[string]float64, err error) {
+func getLog(contractAddress string, from, count uint64, chainClient iotexapi.APIServiceClient, delegateProfileABI abi.ABI) (blockReward, epochReward, foundationReward map[string]float64, err error) {
 	blockReward = make(map[string]float64)
 	epochReward = make(map[string]float64)
 	foundationReward = make(map[string]float64)

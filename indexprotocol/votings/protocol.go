@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -152,7 +151,6 @@ type Protocol struct {
 	ScoreThreshold                *big.Int
 	SelfStakingThreshold          *big.Int
 	rewardPortionCfg              indexprotocol.RewardPortionCfg
-	abi                           abi.ABI
 }
 
 // NewProtocol creates a new protocol
@@ -189,10 +187,6 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 	if !ok {
 		return nil, errors.New("Invalid self staking threshold")
 	}
-	delegateABI, err := abi.JSON(strings.NewReader(contract.DelegateProfileABI))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get parsed delegate profile ABI interface")
-	}
 	return &Protocol{
 		Store:                         store,
 		bucketTableOperator:           bucketTableOperator,
@@ -209,7 +203,6 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		SelfStakingThreshold:          selfStakingThreshold,
 		SkipManifiedCandidate:         pollCfg.SkipManifiedCandidate,
 		rewardPortionCfg:              rewardPortionCfg,
-		abi:                           delegateABI,
 	}, nil
 }
 
