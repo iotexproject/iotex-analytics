@@ -73,6 +73,7 @@ type Config struct {
 	Poll                    indexprotocol.Poll                `yaml:"poll"`
 	HermesConfig            indexprotocol.HermesConfig        `yaml:"hermesConfig"`
 	VoteWeightCalConsts     indexprotocol.VoteWeightCalConsts `yaml:"voteWeightCalConsts"`
+	RewardPortionCfg        indexprotocol.RewardPortionCfg    `yaml:"rewardPortionCfg"`
 }
 
 // NewIndexer creates a new indexer
@@ -203,7 +204,7 @@ func (idx *Indexer) RegisterDefaultProtocols() error {
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding, idx.Config.GravityChain)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
-	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll, idx.Config.VoteWeightCalConsts)
+	votingsProtocol, err := votings.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain, idx.Config.Poll, idx.Config.VoteWeightCalConsts, idx.Config.RewardPortionCfg)
 	if err != nil {
 		log.L().Error("failed to make new voting protocol", zap.Error(err))
 	}

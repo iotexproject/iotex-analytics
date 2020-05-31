@@ -76,13 +76,13 @@ const (
 	createVotingMetaTable = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"voted_token DECIMAL(65,0) NOT NULL, delegate_count DECIMAL(65,0) NOT NULL, total_weighted DECIMAL(65, 0) NOT NULL, " +
 		"UNIQUE KEY %s (epoch_number))"
-	selectVotingResult = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
-	insertVotingResult = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
+	selectVotingResult                = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
+	selectVotingResultForAllDelegates = "SELECT * FROM %s WHERE epoch_number=?"
+	insertVotingResult                = "INSERT INTO %s (epoch_number, delegate_name, operator_address, reward_address, " +
 		"total_weighted_votes, self_staking, block_reward_percentage, epoch_reward_percentage, foundation_bonus_percentage, staking_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertAggregateVoting = "INSERT IGNORE INTO %s (epoch_number, candidate_name, voter_address, native_flag, aggregate_votes) VALUES (?, ?, ?, ?, ?)"
 	insertVotingMeta      = "INSERT INTO %s (epoch_number, voted_token, delegate_count, total_weighted) VALUES (?, ?, ?, ?)"
 	selectBlockHistory    = "SELECT timestamp FROM %s WHERE block_height = (SELECT block_height FROM %s WHERE action_type = ? AND block_height < ? AND block_height >= ?)"
-	rowExists             = "SELECT * FROM %s WHERE epoch_number = ?"
 )
 
 type (
@@ -150,10 +150,11 @@ type Protocol struct {
 	VoteThreshold                 *big.Int
 	ScoreThreshold                *big.Int
 	SelfStakingThreshold          *big.Int
+	rewardPortionCfg              indexprotocol.RewardPortionCfg
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts) (*Protocol, error) {
+func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg indexprotocol.GravityChain, pollCfg indexprotocol.Poll, voteCfg indexprotocol.VoteWeightCalConsts, rewardPortionCfg indexprotocol.RewardPortionCfg) (*Protocol, error) {
 	bucketTableOperator, err := committee.NewBucketTableOperator("buckets", committee.MYSQL)
 	if err != nil {
 		return nil, err
@@ -201,6 +202,7 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 		ScoreThreshold:                scoreThreshold,
 		SelfStakingThreshold:          selfStakingThreshold,
 		SkipManifiedCandidate:         pollCfg.SkipManifiedCandidate,
+		rewardPortionCfg:              rewardPortionCfg,
 	}, nil
 }
 
@@ -281,6 +283,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return errors.Wrapf(err, "failed to put data into probation tables in epoch %d", epochNumber)
 		}
 
+		// process staking
+		if blkheight >= p.epochCtx.FairbankHeight() {
+			return p.processStaking(tx, chainClient, blkheight, epochNumber, probationList)
+		}
+
 		var gravityHeight uint64
 		if epochNumber == 1 {
 			gravityHeight = p.GravityChainCfg.GravityChainStartHeight
@@ -290,11 +297,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			if err != nil {
 				return errors.Wrapf(err, "failed to get gravity height from chain service in epoch %d", epochNumber)
 			}
-		}
-
-		// process staking
-		if blkheight >= p.epochCtx.FairbankHeight() {
-			return p.processStaking(tx, chainClient, blkheight, epochNumber, probationList, gravityHeight)
 		}
 
 		if err := p.fetchAndStoreRawBuckets(tx, electionClient, chainClient, epochNumber, blkheight, gravityHeight); err != nil {
