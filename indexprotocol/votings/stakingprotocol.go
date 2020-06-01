@@ -297,7 +297,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 	foundationBonusPercentage = make(map[string]float64)
 	delegateABI, err := abi.JSON(strings.NewReader(contract.DelegateProfileABI))
 	if err != nil {
-		err = errors.Wrap(err, "Failed to get parsed delegate profile ABI interface")
+		err = errors.Wrap(err, "failed to get parsed delegate profile ABI interface")
 		return
 	}
 	if epochStartHeight == p.epochCtx.FairbankHeight() {
@@ -426,7 +426,7 @@ func getLog(contractAddress string, from, count uint64, chainClient iotexapi.API
 	response, err := chainClient.GetLogs(context.Background(), &iotexapi.GetLogsRequest{
 		Filter: &iotexapi.LogsFilter{
 			Address: []string{contractAddress},
-			Topics:  []*iotexapi.Topics{&iotexapi.Topics{Topic: topics}},
+			Topics:  []*iotexapi.Topics{{Topic: topics}},
 		},
 		Lookup: &iotexapi.GetLogsRequest_ByRange{
 			ByRange: &iotexapi.GetLogsByRange{
