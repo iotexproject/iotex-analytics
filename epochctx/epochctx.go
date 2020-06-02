@@ -84,11 +84,6 @@ func (e *EpochCtx) NumCandidateDelegates() uint64 {
 	return e.numCandidateDelegates
 }
 
-// FairbankHeight returns the height of fairbank
-func (e *EpochCtx) FairbankHeight() uint64 {
-	return e.fairbankHeight
-}
-
 // FairbankEffectiveHeight returns the effective height of fairbank
 func (e *EpochCtx) FairbankEffectiveHeight() uint64 {
 	return e.fairbankHeight + e.numDelegates*e.numSubEpochsDardanelles
