@@ -284,7 +284,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 
 		// process staking
-		if blkheight >= p.epochCtx.FairbankHeight() {
+		if blkheight >= p.epochCtx.FairbankEffectiveHeight() {
 			return p.processStaking(tx, chainClient, blkheight, epochNumber, probationList)
 		}
 
@@ -444,7 +444,7 @@ func (p *Protocol) resultByHeight(height uint64, tx *sql.Tx) ([]*types.Vote, []b
 // GetBucketInfoByEpoch gets bucket information by epoch
 func (p *Protocol) GetBucketInfoByEpoch(epochNum uint64, delegateName string) ([]*VotingInfo, error) {
 	height := p.epochCtx.GetEpochHeight(epochNum)
-	if height >= p.epochCtx.FairbankHeight() {
+	if height >= p.epochCtx.FairbankEffectiveHeight() {
 		return p.getStakingBucketInfoByEpoch(height, epochNum, delegateName)
 	}
 	votes, voteFlag, delegates, err := p.resultByHeight(height, nil)

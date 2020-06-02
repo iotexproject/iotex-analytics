@@ -300,7 +300,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		err = errors.Wrap(err, "failed to get parsed delegate profile ABI interface")
 		return
 	}
-	if epochStartHeight == p.epochCtx.FairbankHeight() {
+	if epochStartHeight == p.epochCtx.FairbankEffectiveHeight() {
 		// init from contract,from contract deployed height to epochStartheight-1,get latest portion
 		if p.rewardPortionCfg.RewardPortionContract == "" {
 			err = errors.New("portion contract address is empty")
