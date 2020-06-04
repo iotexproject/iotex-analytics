@@ -238,6 +238,8 @@ type Chain {
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
     totalTransferredTokens(pagination: EpochRange): String!
+    totalSupply String!
+    totalCirculatingSupply String!
 }
 
 type NumberOfActions{

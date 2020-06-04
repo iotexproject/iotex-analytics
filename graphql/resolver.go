@@ -145,6 +145,12 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	if containField(requestedFields, "totalTransferredTokens") {
 		g.Go(func() error { return r.gettotalTransferredTokens(ctx, chainResponse) })
 	}
+	if containField(requestedFields, "totalSupply") {
+		g.Go(func() error { return r.gettotalSupply(ctx, chainResponse) })
+	}
+	if containField(requestedFields, "totalCirculatingSupply") {
+		g.Go(func() error { return r.gettotalCirculatingSupply(ctx, chainResponse) })
+	}
 	return chainResponse, g.Wait()
 }
 
@@ -1184,6 +1190,17 @@ func (r *queryResolver) gettotalTransferredTokens(ctx context.Context, chainResp
 	}
 	chainResponse.TotalTransferredTokens = total
 	return nil
+}
+
+func (r *queryResolver) gettotalSupply(ctx context.Context, chainResponse *Chain) error {
+	// TODO
+	// total supply = 10B - Balance(all zero address) + 2.7B (due to Postmortem 1) - Balance(nsv1) - Balance(bnfx)
+
+}
+
+func (r *queryResolver) gettotalCirculatingSupply(ctx context.Context, chainResponse *Chain) error {
+	// TODO
+	// total circulating = total supply - SUM(lock addresses) - reward pool fund
 }
 
 func (r *queryResolver) getRewards(delegateResponse *Delegate, startEpoch int, epochCount int, delegateName string) error {
