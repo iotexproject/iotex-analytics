@@ -7,23 +7,35 @@
 package chainmeta
 
 import (
+	"context"
 	"fmt"
+	"math/big"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 )
 
 const (
+	lockAddresses = "io1uqhmnttmv0pg8prugxxn7d8ex9angrvfjfthxa" // Separate multiple addresses with ","
+	totalBalance  = "12700000000000000000000000000"             // 10B + 2.7B (due to Postmortem 1)
+	nsv1Balance   = "262281303940000000000000000"
+	bnfxBalance   = "3414253030000000000000000"
+
 	selectBlockHistory     = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
 	selectBlockHistorySum  = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult)+SUM(stakeCreate)+SUM(stakeUnstake)+SUM(stakeWithdraw)+SUM(stakeAddDeposit)+SUM(stakeRestake)+SUM(stakeChangeCandidate)+SUM(stakeTransferOwnership)+SUM(candidateRegister)+SUM(candidateUpdate) FROM %s WHERE epoch_number>=? and epoch_number<=?"
 	selectTotalTransferred = "select IFNULL(SUM(amount),0) from %s where epoch_number>=? and epoch_number<=?"
+	selectTotalSupply      = "SELECT SUM(income) from %s WHERE address=?"
 )
 
 // Protocol defines the protocol of querying tables
@@ -181,4 +193,110 @@ func (p *Protocol) GetTotalTransferredTokens(startEpoch uint64, epochCount uint6
 		return
 	}
 	return
+}
+
+// GetTotalSupply 10B - Balance(all zero address) + 2.7B (due to Postmortem 1) - Balance(nsv1) - Balance(bnfx)
+func (p *Protocol) GetTotalSupply() (count string, err error) {
+	// get zero address balance.
+	getQuery := fmt.Sprintf(selectTotalSupply, accounts.AccountIncomeTableName)
+	zeroAddressBalance, err := p.getBalanceSumByAddress(getQuery, address.ZeroAddress)
+	if err != nil {
+		return "0", err
+	}
+
+	zeroAddressBalanceInt, ok := new(big.Int).SetString(zeroAddressBalance, 10)
+	if !ok {
+		err = errors.New("failed to format to big int:" + zeroAddressBalance)
+		return
+	}
+
+	// Convert string format to big.Int format
+	totalBalanceInt, _ := new(big.Int).SetString(totalBalance, 10)
+	nsv1BalanceInt, _ := new(big.Int).SetString(nsv1Balance, 10)
+	bnfxBalanceInt, _ := new(big.Int).SetString(bnfxBalance, 10)
+
+	// Compute 10B + 2.7B (due to Postmortem 1) - Balance(all zero address) - Balance(nsv1) - Balance(bnfx)
+	return new(big.Int).Sub(new(big.Int).Sub(new(big.Int).Sub(totalBalanceInt, zeroAddressBalanceInt), nsv1BalanceInt), bnfxBalanceInt).String(), nil
+}
+
+// GetTotalCirculatingSupply total supply - SUM(lock addresses) - reward pool fund
+func (p *Protocol) GetTotalCirculatingSupply(ctx context.Context, totalSupply string) (count string, err error) {
+	// Sum lock addresses balances
+	lockAddressesBalanceInt, err := p.getLockAddressesBalance(strings.Split(lockAddresses, ","))
+	if err != nil {
+		return "0", err
+	}
+
+	// AvailableBalance == Rewards in the pool that has not been issued to anyone
+	availableRewardInt, err := p.getAvailableReward(ctx)
+	if err != nil {
+		return "0", err
+	}
+
+	// Convert string format to big.Int format
+	totalSupplyInt, ok := new(big.Int).SetString(totalSupply, 10)
+	if !ok {
+		err = errors.New("failed to format to big int:" + totalSupply)
+		return "0", err
+
+	}
+
+	// Compute total supply - SUM(lock addresses) - reward pool fund
+	return new(big.Int).Sub(new(big.Int).Sub(totalSupplyInt, lockAddressesBalanceInt), availableRewardInt).String(), nil
+}
+
+func (p *Protocol) getBalanceSumByAddress(getQuery, address string) (balance string, err error) {
+	db := p.indexer.Store.GetDB()
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		err = errors.Wrap(err, "failed to prepare get query")
+		return
+	}
+
+	defer stmt.Close()
+
+	if err = stmt.QueryRow(address).Scan(&balance); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
+
+func (p *Protocol) getLockAddressesBalance(addresses []string) (*big.Int, error) {
+	lockAddressesBalanceInt := big.NewInt(0)
+	getQuery := fmt.Sprintf(selectTotalSupply, accounts.AccountIncomeTableName)
+	for _, address := range addresses {
+		balance, err := p.getBalanceSumByAddress(getQuery, address)
+		if err != nil {
+			return nil, err
+		}
+		balanceInt, ok := new(big.Int).SetString(balance, 10)
+		if !ok {
+			err = errors.New("failed to format to big int:" + balance)
+			return nil, err
+		}
+
+		lockAddressesBalanceInt = new(big.Int).Add(lockAddressesBalanceInt, balanceInt)
+	}
+	return lockAddressesBalanceInt, nil
+}
+
+func (p *Protocol) getAvailableReward(ctx context.Context) (*big.Int, error) {
+	request := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte("rewarding"),
+		MethodName: []byte("AvailableBalance"),
+	}
+
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	chainClient := indexCtx.ChainClient
+	response, err := chainClient.ReadState(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	availableRewardInt, ok := new(big.Int).SetString(string(response.Data), 10)
+	if !ok {
+		err = errors.New("failed to format to big int:" + string(response.Data))
+		return nil, err
+	}
+	return availableRewardInt, nil
 }
