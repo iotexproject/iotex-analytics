@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
-	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
@@ -35,7 +34,7 @@ const (
 	selectBlockHistory     = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
 	selectBlockHistorySum  = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult)+SUM(stakeCreate)+SUM(stakeUnstake)+SUM(stakeWithdraw)+SUM(stakeAddDeposit)+SUM(stakeRestake)+SUM(stakeChangeCandidate)+SUM(stakeTransferOwnership)+SUM(candidateRegister)+SUM(candidateUpdate) FROM %s WHERE epoch_number>=? and epoch_number<=?"
 	selectTotalTransferred = "select IFNULL(SUM(amount),0) from %s where epoch_number>=? and epoch_number<=?"
-	selectTotalSupply      = "SELECT SUM(income) from %s WHERE address=?"
+	selectBalanceByAddress = "SELECT SUM(income) from %s WHERE address=?"
 )
 
 // Protocol defines the protocol of querying tables
@@ -198,8 +197,7 @@ func (p *Protocol) GetTotalTransferredTokens(startEpoch uint64, epochCount uint6
 // GetTotalSupply 10B - Balance(all zero address) + 2.7B (due to Postmortem 1) - Balance(nsv1) - Balance(bnfx)
 func (p *Protocol) GetTotalSupply() (count string, err error) {
 	// get zero address balance.
-	getQuery := fmt.Sprintf(selectTotalSupply, accounts.AccountIncomeTableName)
-	zeroAddressBalance, err := p.getBalanceSumByAddress(getQuery, address.ZeroAddress)
+	zeroAddressBalance, err := p.getBalanceSumByAddress(address.ZeroAddress)
 	if err != nil {
 		return "0", err
 	}
@@ -245,8 +243,9 @@ func (p *Protocol) GetTotalCirculatingSupply(ctx context.Context, totalSupply st
 	return new(big.Int).Sub(new(big.Int).Sub(totalSupplyInt, lockAddressesBalanceInt), availableRewardInt).String(), nil
 }
 
-func (p *Protocol) getBalanceSumByAddress(getQuery, address string) (balance string, err error) {
+func (p *Protocol) getBalanceSumByAddress(address string) (balance string, err error) {
 	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectBalanceByAddress, accounts.AccountIncomeTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
@@ -264,9 +263,8 @@ func (p *Protocol) getBalanceSumByAddress(getQuery, address string) (balance str
 
 func (p *Protocol) getLockAddressesBalance(addresses []string) (*big.Int, error) {
 	lockAddressesBalanceInt := big.NewInt(0)
-	getQuery := fmt.Sprintf(selectTotalSupply, accounts.AccountIncomeTableName)
 	for _, address := range addresses {
-		balance, err := p.getBalanceSumByAddress(getQuery, address)
+		balance, err := p.getBalanceSumByAddress(address)
 		if err != nil {
 			return nil, err
 		}
@@ -287,9 +285,7 @@ func (p *Protocol) getAvailableReward(ctx context.Context) (*big.Int, error) {
 		MethodName: []byte("AvailableBalance"),
 	}
 
-	indexCtx := indexcontext.MustGetIndexCtx(ctx)
-	chainClient := indexCtx.ChainClient
-	response, err := chainClient.ReadState(ctx, request)
+	response, err := p.indexer.ChainClient.ReadState(ctx, request)
 	if err != nil {
 		return nil, err
 	}
