@@ -8,6 +8,7 @@ package chainmeta
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"strings"
@@ -254,9 +255,15 @@ func (p *Protocol) getBalanceSumByAddress(address string) (balance string, err e
 
 	defer stmt.Close()
 
-	if err = stmt.QueryRow(address).Scan(&balance); err != nil {
+	var scaner sql.NullString
+	if err = stmt.QueryRow(address).Scan(&scaner); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
+	}
+	if scaner.Valid {
+		balance = scaner.String
+	} else {
+		balance = "0"
 	}
 	return
 }
