@@ -145,6 +145,9 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	if containField(requestedFields, "totalTransferredTokens") {
 		g.Go(func() error { return r.gettotalTransferredTokens(ctx, chainResponse) })
 	}
+	if containField(requestedFields, "totalSupply") || containField(requestedFields, "totalCirculatingSupply") {
+		g.Go(func() error { return r.getTotalAndTotalCirculatingSupply(ctx, chainResponse) })
+	}
 	return chainResponse, g.Wait()
 }
 
@@ -1183,6 +1186,23 @@ func (r *queryResolver) gettotalTransferredTokens(ctx context.Context, chainResp
 		return errors.Wrap(err, "failed to get total transferred tokens")
 	}
 	chainResponse.TotalTransferredTokens = total
+	return nil
+}
+
+func (r *queryResolver) getTotalAndTotalCirculatingSupply(ctx context.Context, chainResponse *Chain) error {
+	totalSupply, err := r.CP.GetTotalSupply()
+	if err != nil {
+		return err
+	}
+
+	TotalCirculatingSupply, err := r.CP.GetTotalCirculatingSupply(ctx, totalSupply)
+	if err != nil {
+		return err
+	}
+
+	chainResponse.TotalSupply = totalSupply
+	chainResponse.TotalCirculatingSupply = TotalCirculatingSupply
+
 	return nil
 }
 

@@ -158,6 +158,8 @@ type ComplexityRoot struct {
 		MostRecentEpoch        func(childComplexity int) int
 		MostRecentTps          func(childComplexity int, blockWindow int) int
 		NumberOfActions        func(childComplexity int, pagination *EpochRange) int
+		TotalCirculatingSupply func(childComplexity int) int
+		TotalSupply            func(childComplexity int) int
 		TotalTransferredTokens func(childComplexity int, pagination *EpochRange) int
 		VotingResultMeta       func(childComplexity int) int
 	}
@@ -966,6 +968,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Chain.NumberOfActions(childComplexity, args["pagination"].(*EpochRange)), true
+
+	case "Chain.TotalCirculatingSupply":
+		if e.complexity.Chain.TotalCirculatingSupply == nil {
+			break
+		}
+
+		return e.complexity.Chain.TotalCirculatingSupply(childComplexity), true
+
+	case "Chain.TotalSupply":
+		if e.complexity.Chain.TotalSupply == nil {
+			break
+		}
+
+		return e.complexity.Chain.TotalSupply(childComplexity), true
 
 	case "Chain.TotalTransferredTokens":
 		if e.complexity.Chain.TotalTransferredTokens == nil {
@@ -2262,6 +2278,8 @@ type Chain {
     mostRecentTPS(blockWindow: Int!): Float!
     numberOfActions(pagination: EpochRange): NumberOfActions
     totalTransferredTokens(pagination: EpochRange): String!
+    totalSupply: String!
+    totalCirculatingSupply: String!
 }
 
 type NumberOfActions{
@@ -5141,6 +5159,60 @@ func (ec *executionContext) _Chain_totalTransferredTokens(ctx context.Context, f
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalTransferredTokens, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Chain_totalSupply(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Chain",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalSupply, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Chain_totalCirculatingSupply(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Chain",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCirculatingSupply, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -10130,6 +10202,16 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Chain_numberOfActions(ctx, field, obj)
 		case "totalTransferredTokens":
 			out.Values[i] = ec._Chain_totalTransferredTokens(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalSupply":
+			out.Values[i] = ec._Chain_totalSupply(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalCirculatingSupply":
+			out.Values[i] = ec._Chain_totalCirculatingSupply(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}

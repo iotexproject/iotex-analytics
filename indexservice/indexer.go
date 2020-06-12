@@ -50,6 +50,7 @@ type Indexer struct {
 	Registry       *indexprotocol.Registry
 	IndexProtocols []indexprotocol.Protocol
 	Config         Config
+	ChainClient    iotexapi.APIServiceClient
 	lastHeight     uint64
 	terminate      chan bool
 	epochCtx       *epochctx.EpochCtx
@@ -102,6 +103,7 @@ func (idx *Indexer) Start(ctx context.Context) error {
 	prometheus.MustRegister(blockHeightMtc)
 	indexCtx := indexcontext.MustGetIndexCtx(ctx)
 	chainClient := indexCtx.ChainClient
+	idx.ChainClient = chainClient
 	if reflect.ValueOf(chainClient).IsNil() || fmt.Sprint(chainClient) == "&{<nil>}" {
 		err := fmt.Errorf("chain endpoint is invalid")
 		return errors.Wrap(err, "Please provide the correct chain api")

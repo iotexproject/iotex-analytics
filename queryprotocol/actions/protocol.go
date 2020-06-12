@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
-
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
@@ -26,7 +25,6 @@ import (
 )
 
 const (
-	zeroAddress                    = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7"
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
@@ -763,7 +761,7 @@ func (p *Protocol) GetTopHolders(endEpochNumber, skip, first uint64) (holders []
 		return nil, errors.New("actions protocol is unregistered")
 	}
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, zeroAddress, skip, first)
+	getQuery := fmt.Sprintf(selectAccountIncome, accounts.AccountIncomeTableName, endEpochNumber, address.ZeroAddress, skip, first)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")

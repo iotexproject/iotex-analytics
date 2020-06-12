@@ -122,6 +122,8 @@ type Chain struct {
 	MostRecentTps          float64           `json:"mostRecentTPS"`
 	NumberOfActions        *NumberOfActions  `json:"numberOfActions"`
 	TotalTransferredTokens string            `json:"totalTransferredTokens"`
+	TotalSupply            string            `json:"totalSupply"`
+	TotalCirculatingSupply string            `json:"totalCirculatingSupply"`
 }
 
 type Delegate struct {
