@@ -8,7 +8,6 @@ package chainmeta
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/big"
 	"strings"
@@ -35,7 +34,7 @@ const (
 	selectBlockHistory     = "SELECT transfer,execution,depositToRewardingFund,claimFromRewardingFund,grantReward,putPollResult,timestamp FROM %s WHERE block_height>=? AND block_height<=?"
 	selectBlockHistorySum  = "SELECT SUM(transfer)+SUM(execution)+SUM(depositToRewardingFund)+SUM(claimFromRewardingFund)+SUM(grantReward)+SUM(putPollResult)+SUM(stakeCreate)+SUM(stakeUnstake)+SUM(stakeWithdraw)+SUM(stakeAddDeposit)+SUM(stakeRestake)+SUM(stakeChangeCandidate)+SUM(stakeTransferOwnership)+SUM(candidateRegister)+SUM(candidateUpdate) FROM %s WHERE epoch_number>=? and epoch_number<=?"
 	selectTotalTransferred = "select IFNULL(SUM(amount),0) from %s where epoch_number>=? and epoch_number<=?"
-	selectBalanceByAddress = "SELECT SUM(income) from %s WHERE address=?"
+	selectBalanceByAddress = "SELECT IFNULL(SUM(income),0) from %s WHERE address=?"
 )
 
 // Protocol defines the protocol of querying tables
@@ -255,15 +254,9 @@ func (p *Protocol) getBalanceSumByAddress(address string) (balance string, err e
 
 	defer stmt.Close()
 
-	var scaner sql.NullString
-	if err = stmt.QueryRow(address).Scan(&scaner); err != nil {
+	if err = stmt.QueryRow(address).Scan(&balance); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
-	}
-	if scaner.Valid {
-		balance = scaner.String
-	} else {
-		balance = "0"
 	}
 	return
 }
