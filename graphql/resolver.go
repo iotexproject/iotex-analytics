@@ -145,7 +145,9 @@ func (r *queryResolver) Chain(ctx context.Context) (*Chain, error) {
 	if containField(requestedFields, "totalTransferredTokens") {
 		g.Go(func() error { return r.gettotalTransferredTokens(ctx, chainResponse) })
 	}
-	if containField(requestedFields, "totalSupply") || containField(requestedFields, "totalCirculatingSupply") {
+	if containField(requestedFields, "totalSupply") ||
+		containField(requestedFields, "totalCirculatingSupply") ||
+		containField(requestedFields, "totalCirculatingSupplyNoRewardPoo") {
 		g.Go(func() error { return r.getTotalAndTotalCirculatingSupply(ctx, chainResponse) })
 	}
 	return chainResponse, g.Wait()
@@ -1195,13 +1197,18 @@ func (r *queryResolver) getTotalAndTotalCirculatingSupply(ctx context.Context, c
 		return err
 	}
 
-	TotalCirculatingSupply, err := r.CP.GetTotalCirculatingSupply(ctx, totalSupply)
+	totalCirculatingSupply, err := r.CP.GetTotalCirculatingSupply(totalSupply)
+	if err != nil {
+		return err
+	}
+	totalCirculatingSupplyNoRewardPool, err := r.CP.GetTotalCirculatingSupplyNoRewardPool(ctx, totalCirculatingSupply)
 	if err != nil {
 		return err
 	}
 
 	chainResponse.TotalSupply = totalSupply
-	chainResponse.TotalCirculatingSupply = TotalCirculatingSupply
+	chainResponse.TotalCirculatingSupply = totalCirculatingSupply
+	chainResponse.TotalCirculatingSupplyNoRewardPool = totalCirculatingSupplyNoRewardPool
 
 	return nil
 }

@@ -154,14 +154,15 @@ type ComplexityRoot struct {
 	}
 
 	Chain struct {
-		MostRecentBlockHeight  func(childComplexity int) int
-		MostRecentEpoch        func(childComplexity int) int
-		MostRecentTps          func(childComplexity int, blockWindow int) int
-		NumberOfActions        func(childComplexity int, pagination *EpochRange) int
-		TotalCirculatingSupply func(childComplexity int) int
-		TotalSupply            func(childComplexity int) int
-		TotalTransferredTokens func(childComplexity int, pagination *EpochRange) int
-		VotingResultMeta       func(childComplexity int) int
+		MostRecentBlockHeight              func(childComplexity int) int
+		MostRecentEpoch                    func(childComplexity int) int
+		MostRecentTps                      func(childComplexity int, blockWindow int) int
+		NumberOfActions                    func(childComplexity int, pagination *EpochRange) int
+		TotalCirculatingSupply             func(childComplexity int) int
+		TotalCirculatingSupplyNoRewardPool func(childComplexity int) int
+		TotalSupply                        func(childComplexity int) int
+		TotalTransferredTokens             func(childComplexity int, pagination *EpochRange) int
+		VotingResultMeta                   func(childComplexity int) int
 	}
 
 	Delegate struct {
@@ -975,6 +976,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Chain.TotalCirculatingSupply(childComplexity), true
+
+	case "Chain.TotalCirculatingSupplyNoRewardPool":
+		if e.complexity.Chain.TotalCirculatingSupplyNoRewardPool == nil {
+			break
+		}
+
+		return e.complexity.Chain.TotalCirculatingSupplyNoRewardPool(childComplexity), true
 
 	case "Chain.TotalSupply":
 		if e.complexity.Chain.TotalSupply == nil {
@@ -2280,6 +2288,7 @@ type Chain {
     totalTransferredTokens(pagination: EpochRange): String!
     totalSupply: String!
     totalCirculatingSupply: String!
+    totalCirculatingSupplyNoRewardPool: String!
 }
 
 type NumberOfActions{
@@ -5213,6 +5222,33 @@ func (ec *executionContext) _Chain_totalCirculatingSupply(ctx context.Context, f
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.TotalCirculatingSupply, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Chain_totalCirculatingSupplyNoRewardPool(ctx context.Context, field graphql.CollectedField, obj *Chain) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Chain",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCirculatingSupplyNoRewardPool, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -10212,6 +10248,11 @@ func (ec *executionContext) _Chain(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "totalCirculatingSupply":
 			out.Values[i] = ec._Chain_totalCirculatingSupply(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "totalCirculatingSupplyNoRewardPool":
+			out.Values[i] = ec._Chain_totalCirculatingSupplyNoRewardPool(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
