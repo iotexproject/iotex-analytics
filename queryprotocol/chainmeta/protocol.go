@@ -217,16 +217,10 @@ func (p *Protocol) GetTotalSupply() (count string, err error) {
 	return new(big.Int).Sub(new(big.Int).Sub(new(big.Int).Sub(totalBalanceInt, zeroAddressBalanceInt), nsv1BalanceInt), bnfxBalanceInt).String(), nil
 }
 
-// GetTotalCirculatingSupply total supply - SUM(lock addresses) - reward pool fund
-func (p *Protocol) GetTotalCirculatingSupply(ctx context.Context, totalSupply string) (count string, err error) {
+// GetTotalCirculatingSupply total supply - SUM(lock addresses)
+func (p *Protocol) GetTotalCirculatingSupply(totalSupply string) (count string, err error) {
 	// Sum lock addresses balances
 	lockAddressesBalanceInt, err := p.getLockAddressesBalance(strings.Split(lockAddresses, ","))
-	if err != nil {
-		return "0", err
-	}
-
-	// AvailableBalance == Rewards in the pool that has not been issued to anyone
-	availableRewardInt, err := p.getAvailableReward(ctx)
 	if err != nil {
 		return "0", err
 	}
@@ -239,8 +233,28 @@ func (p *Protocol) GetTotalCirculatingSupply(ctx context.Context, totalSupply st
 
 	}
 
-	// Compute total supply - SUM(lock addresses) - reward pool fund
-	return new(big.Int).Sub(new(big.Int).Sub(totalSupplyInt, lockAddressesBalanceInt), availableRewardInt).String(), nil
+	// Compute total supply - SUM(lock addresses)
+	return new(big.Int).Sub(totalSupplyInt, lockAddressesBalanceInt).String(), nil
+}
+
+// GetTotalCirculatingSupplyNoRewardPool totalCirculatingSupply - reward pool fund
+func (p *Protocol) GetTotalCirculatingSupplyNoRewardPool(ctx context.Context, totalCirculatingSupply string) (count string, err error) {
+	// AvailableBalance == Rewards in the pool that has not been issued to anyone
+	availableRewardInt, err := p.getAvailableReward(ctx)
+	if err != nil {
+		return "0", err
+	}
+
+	// Convert string format to big.Int format
+	totalCirculatingSupplyInt, ok := new(big.Int).SetString(totalCirculatingSupply, 10)
+	if !ok {
+		err = errors.New("failed to format to big int:" + totalCirculatingSupply)
+		return "0", err
+
+	}
+
+	// Compute totalCirculatingSupply - reward pool fund
+	return new(big.Int).Sub(totalCirculatingSupplyInt, availableRewardInt).String(), nil
 }
 
 func (p *Protocol) getBalanceSumByAddress(address string) (balance string, err error) {

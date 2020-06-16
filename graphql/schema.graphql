@@ -240,6 +240,7 @@ type Chain {
     totalTransferredTokens(pagination: EpochRange): String!
     totalSupply: String!
     totalCirculatingSupply: String!
+    totalCirculatingSupplyNoRewardPool: String!
 }
 
 type NumberOfActions{
