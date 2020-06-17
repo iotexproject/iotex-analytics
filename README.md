@@ -1,4 +1,8 @@
-# iotex-analytics
+<p align="center">
+  <img src="https://github.com/iotexproject/iotex-analytics/blob/master/analytics.png" width="480px">
+</p>
+
+
 The independent service that analyzes data from IoTeX blockchain
 
 ## How it works
