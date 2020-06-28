@@ -72,8 +72,8 @@ type (
 	}
 	// HermesConfig defines hermes addr
 	HermesConfig struct {
-		HermesContractAddress    string `yaml:"hermesContractAddress"`
-		MultiSendContractAddress string `yaml:"multiSendContractAddress"`
+		HermesContractAddress        string   `yaml:"hermesContractAddress"`
+		MultiSendContractAddressList []string `yaml:"multiSendContractAddressList"`
 	}
 	// VoteWeightCalConsts is for staking
 	VoteWeightCalConsts struct {
