@@ -57,8 +57,8 @@ func TestProtocol(t *testing.T) {
 
 	bp := blocks.NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)), indexprotocol.GravityChain{GravityChainStartHeight: 1})
 	p := NewProtocol(store, indexprotocol.HermesConfig{
-		HermesContractAddress:    "testAddr",
-		MultiSendContractAddress: "testAddr",
+		HermesContractAddress:        "testAddr",
+		MultiSendContractAddressList: []string{"testAddr"},
 	}, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)))
 
 	require.NoError(bp.CreateTables(ctx))

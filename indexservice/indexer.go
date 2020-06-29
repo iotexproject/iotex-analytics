@@ -92,8 +92,8 @@ func NewIndexer(store s.Store, cfg Config) *Indexer {
 			epochctx.FairbankHeight(cfg.FairbankHeight),
 		),
 		hermesConfig: indexprotocol.HermesConfig{
-			HermesContractAddress:    cfg.HermesConfig.HermesContractAddress,
-			MultiSendContractAddress: cfg.HermesConfig.MultiSendContractAddress,
+			HermesContractAddress:        cfg.HermesConfig.HermesContractAddress,
+			MultiSendContractAddressList: cfg.HermesConfig.MultiSendContractAddressList,
 		},
 	}
 }

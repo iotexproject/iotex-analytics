@@ -2,6 +2,7 @@ package hermes2
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -19,7 +20,7 @@ const (
 	// SelectCountByVoterAddress selects the count of Hermes distribution by voter address
 	SelectCountByVoterAddress = selectCount + fromJoinedTables + voterFilter
 
-	fromJoinedTables = "FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` = ?) " +
+	fromJoinedTables = "FROM (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND `from` in (%s)) " +
 		"AS t1 INNER JOIN (SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ?) AS t2 ON t1.action_hash = t2.action_hash "
 	timeOrdering                           = "ORDER BY `timestamp` desc limit ?,?"
 	fromTable                              = "FROM %s "
@@ -89,14 +90,14 @@ func NewProtocol(idx *indexservice.Indexer, cfg indexprotocol.HermesConfig) *Pro
 // GetHermes2ByDelegate gets Hermes voter list by delegate name
 func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) ([]*VoterInfo, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectHermesDistributionByDelegateName, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	getQuery := fmt.Sprintf(selectHermesDistributionByDelegateName, accounts.BalanceHistoryTableName, strings.Join(p.hermesConfig.MultiSendContractAddressList, ","), actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
-	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
+	rows, err := stmt.Query(arg.StartEpoch, endEpoch, arg.StartEpoch, endEpoch,
 		delegateName, arg.Offset, arg.Size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
@@ -122,7 +123,7 @@ func (p *Protocol) GetHermes2ByDelegate(arg HermesArg, delegateName string) ([]*
 // GetHermes2ByVoter gets Hermes delegate list by voter name
 func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterAddress string) ([]*DelegateInfo, error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectHermesDistributionByVoterAddress, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	getQuery := fmt.Sprintf(selectHermesDistributionByVoterAddress, accounts.BalanceHistoryTableName, strings.Join(p.hermesConfig.MultiSendContractAddressList, ","), actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
@@ -130,7 +131,7 @@ func (p *Protocol) GetHermes2ByVoter(arg HermesArg, voterAddress string) ([]*Del
 	defer stmt.Close()
 
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
-	rows, err := stmt.Query(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
+	rows, err := stmt.Query(arg.StartEpoch, endEpoch, arg.StartEpoch, endEpoch,
 		voterAddress, arg.Offset, arg.Size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
@@ -188,7 +189,7 @@ func (p *Protocol) GetHermes2Ratio(arg HermesArg, delegateName string) ([]*Ratio
 // GetHermes2Count gets the count of Hermes distributions
 func (p *Protocol) GetHermes2Count(arg HermesArg, selectQuery string, filter string) (count int, total string, err error) {
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectQuery, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	getQuery := fmt.Sprintf(selectQuery, accounts.BalanceHistoryTableName, strings.Join(p.hermesConfig.MultiSendContractAddressList, ","), actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
@@ -197,7 +198,7 @@ func (p *Protocol) GetHermes2Count(arg HermesArg, selectQuery string, filter str
 	defer stmt.Close()
 
 	endEpoch := arg.StartEpoch + arg.EpochCount - 1
-	if err = stmt.QueryRow(arg.StartEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, arg.StartEpoch, endEpoch,
+	if err = stmt.QueryRow(arg.StartEpoch, endEpoch, arg.StartEpoch, endEpoch,
 		filter).Scan(&count, &total); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return
@@ -210,14 +211,14 @@ func (p *Protocol) GetHermes2Meta(startEpoch int, epochCount int) (numberOfDeleg
 	numberOfRecipients int, totalRewardsDistributed string, err error) {
 	endEpoch := startEpoch + epochCount - 1
 	db := p.indexer.Store.GetDB()
-	getQuery := fmt.Sprintf(selectHermesMeta, accounts.BalanceHistoryTableName, actions.HermesContractTableName)
+	getQuery := fmt.Sprintf(selectHermesMeta, accounts.BalanceHistoryTableName, strings.Join(p.hermesConfig.MultiSendContractAddressList, ","), actions.HermesContractTableName)
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		err = errors.Wrap(err, "failed to prepare get query")
 		return
 	}
 	defer stmt.Close()
-	if err = stmt.QueryRow(startEpoch, endEpoch, p.hermesConfig.MultiSendContractAddress, startEpoch, endEpoch).
+	if err = stmt.QueryRow(startEpoch, endEpoch, startEpoch, endEpoch).
 		Scan(&numberOfDelegates, &numberOfRecipients, &totalRewardsDistributed); err != nil {
 		err = errors.Wrap(err, "failed to execute get query")
 		return

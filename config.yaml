@@ -96,7 +96,9 @@ rewarding:
 
 hermesConfig:
   hermesContractAddress: "io1fqulsuv8p820wmr0yd39jzx0m3pnpmuzzcywh8"
-  multiSendContractAddress: "io1lvemm43lz6np0hzcqlpk0kpxxww623z5hs4mwu"
+  multiSendContractAddressList:
+    - "io1lvemm43lz6np0hzcqlpk0kpxxww623z5hs4mwu"
+    - "io16y9wk2xnwurvtgmd2mds2gcdfe2lmzad6dcw29"
 voteWeightCalConsts:
   durationLg: 1.2
   autoStake:  1
