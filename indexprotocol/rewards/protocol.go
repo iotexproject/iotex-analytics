@@ -469,6 +469,12 @@ func (p *Protocol) rebuildAccountRewardTable(tx *sql.Tx, lastEpoch uint64) error
 		}
 	}
 
+	if len(valArgs) == 0 {
+		return nil
+	}
+	if len(valStrs) == 0 {
+		return errors.Wrap(err, "error : valStrs is empty")
+	}
 	insertQuery := fmt.Sprintf(insertAccountReward, AccountRewardTableName, strings.Join(valStrs, ","))
 	if _, err := tx.Exec(insertQuery, valArgs...); err != nil {
 		return err
