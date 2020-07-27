@@ -114,6 +114,9 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byAddress") {
 		g.Go(func() error { return r.getActionsByAddress(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "byAddressAndType") {
+		g.Go(func() error { return r.getActionsByAddressAndType(ctx, actionResponse) })
+	}
 	if containField(requestedFields, "evmTransfersByAddress") {
 		g.Go(func() error { return r.getEvmTransfersByAddress(ctx, actionResponse) })
 	}
@@ -681,6 +684,65 @@ func (r *queryResolver) getActionsByType(ctx context.Context, actionResponse *Ac
 		return errors.Wrap(err, "failed to get actions' count by type")
 	}
 	actionResponse.ByType = &ActionList{Exist: true, Actions: actInfoList, Count: count}
+	return nil
+}
+
+func (r *queryResolver) getActionsByAddressAndType(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byAddressAndType", "actions")
+	addr, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	actionType, err := getStringArg(argsMap, "type")
+	if err != nil {
+		return errors.Wrap(err, "failed to get action type")
+	}
+
+	var offset, size uint64
+
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+	count, err := r.AP.GetActionCountByAddressAndType(addr, actionType)
+	if err != nil {
+		return errors.Wrap(err, "failed to get actions' count by address")
+	}
+	if offset >= uint64(count) {
+		return errors.Wrap(err, "offset cannot be larger than count")
+	}
+	actionInfoList, err := r.AP.GetActionsByAddressAndType(addr, actionType, offset, size)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByAddressAndType = &ActionList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get actions' information")
+	}
+
+	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
+	for _, act := range actionInfoList {
+		actInfoList = append(actInfoList, &ActionInfo{
+			ActHash:   act.ActHash,
+			BlkHash:   act.BlkHash,
+			ActType:   act.ActType,
+			TimeStamp: int(act.TimeStamp),
+			Sender:    act.Sender,
+			Recipient: act.Recipient,
+			Amount:    act.Amount,
+			GasFee:    act.GasFee,
+		})
+	}
+
+	actionResponse.ByAddressAndType = &ActionList{Exist: true, Actions: actInfoList, Count: count}
+
 	return nil
 }
 

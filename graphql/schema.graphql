@@ -54,6 +54,7 @@ type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
+    byAddressAndType(address: String!, type: String!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
 }
