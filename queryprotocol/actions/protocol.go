@@ -26,37 +26,37 @@ import (
 
 const (
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
-		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
-	selectActionHistoryByType = "SELECT action_hash, block_hash, `timestamp`, action_type, `from`, `to`, amount, gas_price*gas_consumed FROM %s AS t1 LEFT JOIN (SELECT block_height,block_hash,`timestamp` FROM %s ORDER BY `timestamp` DESC) t2 ON t1.block_height=t2.block_height WHERE action_type =? limit ?,?"
-	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
-	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
+                "FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
+                "WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
+        selectActionHistoryByType = "SELECT action_hash, block_hash, `timestamp`, action_type, `from`, `to`, amount, gas_price*gas_consumed FROM %s AS t1 LEFT JOIN (SELECT block_height,block_hash,`timestamp` FROM %s ORDER BY `timestamp` DESC) t2 ON t1.block_height=t2.block_height WHERE action_type =? limit ?,?"
+        selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+                "AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
+        selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+                "AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistoryByAddressAndType = "SELECT action_hash, block_hash, timestamp, `action_type`, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE (`from` = ? OR `to` = ?) AND `action_type` = ? ORDER BY `timestamp` desc limit ?,?"
-	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
-	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
-		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
-	selectEvmTransferCount            = "SELECT COUNT(*) FROM %s WHERE action_type='execution' AND (`from` = '%s' OR `to` = '%s')"
-	selectActionHistory               = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
-	selectXrc20History                = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectCount                       = "SELECT COUNT(*) FROM %s"
-	selectXrcHolderCount              = selectCount + " WHERE contract='%s'"
-	selectXrcTransactionCount         = selectCount + " WHERE address='%s'"
-	selectActionCountByDates          = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
-	selectActionCountByAddress        = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
+        selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
+        selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
+                "FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
+                "WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
+        selectEvmTransferCount     = "SELECT COUNT(*) FROM %s WHERE action_type='execution' AND (`from` = '%s' OR `to` = '%s')"
+        selectActionHistory        = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
+        selectXrc20History         = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+        selectCount                = "SELECT COUNT(*) FROM %s"
+        selectXrcHolderCount       = selectCount + " WHERE contract='%s'"
+        selectXrcTransactionCount  = selectCount + " WHERE address='%s'"
+        selectActionCountByDates   = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
+        selectActionCountByAddress = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
 	selectActionCountByAddressAndType = selectCount + " WHERE (`from` = '%s' OR `to` = '%s') AND `action_type` = '%s'"
-	selectActionCountByType           = selectCount + " WHERE action_type = '%s'"
-	selectXrc20Holders                = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByTopics        = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
-	selectXrcHistoryCount             = selectCount + " WHERE topics like %s"
-	selectXrc20AddressesByPage        = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
-	selectXrc20HistoryByPage          = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome               = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
-	selectTotalNumberOfHolders        = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
-	selectTotalAccountSupply          = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
+        selectActionCountByType    = selectCount + " WHERE action_type = '%s'"
+        selectXrc20Holders         = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
+        selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+        selectXrcHistoryCount      = selectCount + " WHERE topics like %s"
+        selectXrc20AddressesByPage = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
+        selectXrc20HistoryByPage   = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
+        selectAccountIncome        = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
+        selectTotalNumberOfHolders = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
+        selectTotalAccountSupply   = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
 )
 
 type activeAccount struct {
