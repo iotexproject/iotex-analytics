@@ -50,6 +50,7 @@ type ComplexityRoot struct {
 
 	Action struct {
 		ByAddress             func(childComplexity int, address string) int
+		ByAddressAndType      func(childComplexity int, address string, typeArg string) int
 		ByDates               func(childComplexity int, startDate int, endDate int) int
 		ByHash                func(childComplexity int, actHash string) int
 		ByType                func(childComplexity int, typeArg string) int
@@ -473,6 +474,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Action.ByAddress(childComplexity, args["address"].(string)), true
+
+	case "Action.ByAddressAndType":
+		if e.complexity.Action.ByAddressAndType == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byAddressAndType_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByAddressAndType(childComplexity, args["address"].(string), args["type"].(string)), true
 
 	case "Action.ByDates":
 		if e.complexity.Action.ByDates == nil {
@@ -2102,6 +2115,7 @@ type Action {
     byDates(startDate: Int!, endDate: Int!): ActionList
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
+    byAddressAndType(address: String!, type: String!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
 }
@@ -2398,7 +2412,8 @@ type HermesMeta{
     numberOfDelegates: Int!
     numberOfRecipients: Int!
     totalRewardsDistributed: String!
-}`},
+}
+`},
 )
 
 // endregion ************************** generated!.gotpl **************************
@@ -2458,6 +2473,28 @@ func (ec *executionContext) field_ActionList_actions_args(ctx context.Context, r
 		}
 	}
 	args["pagination"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Action_byAddressAndType_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["type"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["type"] = arg1
 	return args, nil
 }
 
@@ -3415,6 +3452,37 @@ func (ec *executionContext) _Action_byAddress(ctx context.Context, field graphql
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ByAddress, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Action_byAddressAndType(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byAddressAndType_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByAddressAndType, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -9611,6 +9679,8 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Action_byHash(ctx, field, obj)
 		case "byAddress":
 			out.Values[i] = ec._Action_byAddress(ctx, field, obj)
+		case "byAddressAndType":
+			out.Values[i] = ec._Action_byAddressAndType(ctx, field, obj)
 		case "evmTransfersByAddress":
 			out.Values[i] = ec._Action_evmTransfersByAddress(ctx, field, obj)
 		case "byType":

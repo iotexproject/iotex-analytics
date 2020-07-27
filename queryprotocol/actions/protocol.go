@@ -33,6 +33,8 @@ const (
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
+	selectActionHistoryByAddressAndType = "SELECT action_hash, block_hash, timestamp, `action_type`, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE (`from` = ? OR `to` = ?) AND `action_type` = ? ORDER BY `timestamp` desc limit ?,?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
 	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
@@ -45,6 +47,7 @@ const (
 	selectXrcTransactionCount  = selectCount + " WHERE address='%s'"
 	selectActionCountByDates   = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
 	selectActionCountByAddress = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
+	selectActCntByAddrAndType  = selectCount + " WHERE (`from` = '%s' OR `to` = '%s') AND `action_type` = '%s'"
 	selectActionCountByType    = selectCount + " WHERE action_type = '%s'"
 	selectXrc20Holders         = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
 	selectXrc20HistoryByTopics = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
@@ -132,6 +135,53 @@ func NewProtocol(idx *indexservice.Indexer) *Protocol {
 func (p *Protocol) GetActionCountByDates(startDate, endDate uint64) (count int, err error) {
 	getQuery := fmt.Sprintf(selectActionCountByDates, blocks.BlockHistoryTableName, startDate, endDate)
 	return p.getCount(getQuery)
+}
+
+// GetActionCountByAddressAndType gets action counts by address and type
+func (p *Protocol) GetActionCountByAddressAndType(addr, actionType string) (count int, err error) {
+	getQuery := fmt.Sprintf(selectActCntByAddrAndType, actions.ActionHistoryTableName, addr, addr, actionType)
+	return p.getCount(getQuery)
+}
+
+// GetActionsByAddressAndType gets action information list by address and type
+func (p *Protocol) GetActionsByAddressAndType(address, actionType string, offset, size uint64) ([]*ActionInfo, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf(selectActionHistoryByAddressAndType, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(address, address, actionType, offset, size)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &ActionInfo{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	actionInfoList := make([]*ActionInfo, 0)
+	for _, parsedRow := range parsedRows {
+		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
+	}
+
+	return actionInfoList, nil
 }
 
 // GetActionsByDates gets actions by start date and end date
