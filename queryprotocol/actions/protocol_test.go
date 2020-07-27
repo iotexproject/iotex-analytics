@@ -67,11 +67,11 @@ func TestProtocol(t *testing.T) {
 	t.Run("Testing no table", func(t *testing.T) {
 		_, errA = p.GetActiveAccount(1)
 		require.EqualError(errA, "failed to prepare get query: "+
-			"Error 1146: Table 'heroku_7fed0b046078f80.action_history' doesn't exist")
+			"Error 1146: Table 'heroku_88b589bc76fadbc.action_history' doesn't exist")
 
 		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
-		require.EqualError(errXrc, "failed to prepare get query: Error 1146: Table 'heroku_7fed0b046078f80.xrc20_history' doesn't exist")
+		require.EqualError(errXrc, "failed to prepare get query: Error 1146: Table 'heroku_88b589bc76fadbc.xrc20_history' doesn't exist")
 	})
 
 	// Testing empty tables
