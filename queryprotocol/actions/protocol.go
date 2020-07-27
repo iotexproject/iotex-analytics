@@ -148,9 +148,6 @@ func (p *Protocol) GetActionsByAddressAndType(address, actionType string, offset
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
-	if _, ok := p.indexer.Registry.Find(accounts.ProtocolID); !ok {
-		return nil, errors.New("accounts protocol is unregistered")
-	}
 
 	db := p.indexer.Store.GetDB()
 

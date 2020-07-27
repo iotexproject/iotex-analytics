@@ -715,6 +715,9 @@ func (r *queryResolver) getActionsByAddressAndType(ctx context.Context, actionRe
 	if err != nil {
 		return errors.Wrap(err, "failed to get actions' count by address")
 	}
+	if offset > uint64(count) {
+		return errors.Wrap(err, "offset cannot be larger than count")
+	}
 	actionInfoList, err := r.AP.GetActionsByAddressAndType(addr, actionType, offset, size)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
