@@ -54,6 +54,9 @@ const (
 	//6352211e -> ownerOf(uint256)
 	ownerOfString = "6352211e000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc"
 
+	// if for xrc721: if `from` is 0x0, this is a new mint token
+	zeroAddrString = "0000000000000000000000000000000000000000"
+
 	// Xrc20HistoryTableName is the table name of xrc20 history
 	Xrc20HistoryTableName = "xrc20_history"
 	// Xrc20HoldersTableName is the table name of xrc20 holders
@@ -196,6 +199,11 @@ func (p *Protocol) updateXrc20History(
 
 			rh := hex.EncodeToString(receiptHash[:])
 			if isXrc721 {
+				// field `topics` in db is varchar(192)
+				// if we do not want change table xrc721_history
+				// we can split 64 bytes to field `data` from 'topic'
+				data = topics[192:]
+				topics = topics[:192]
 				xrc721ValStrs = append(xrc721ValStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 				xrc721ValArgs = append(xrc721ValArgs, ah, rh, l.Address, topics, data, l.BlockHeight, l.Index, blk.Timestamp().Unix(), receiptStatus)
 			}
@@ -264,6 +272,16 @@ func (p *Protocol) checkTopics(topics, data string) bool {
 	return true
 }
 
+func (p *Protocol) checkXrc721Topics(topics, data string) bool {
+	if topics == "" || len(topics) != 256 || len(data) != 0 {
+		return false
+	}
+	if !strings.Contains(topics, transferSha3) {
+		return false
+	}
+	return true
+}
+
 func (p *Protocol) checkIsXrc20(ctx context.Context, addr, topics, data string) bool {
 	if !p.checkTopics(topics, data) {
 		return false
@@ -304,7 +322,7 @@ func (p *Protocol) checkIsXrc20(ctx context.Context, addr, topics, data string) 
 }
 
 func (p *Protocol) checkIsXrc721(ctx context.Context, addr, topics, data string) bool {
-	if !p.checkTopics(topics, data) {
+	if !p.checkXrc721Topics(topics, data) {
 		return false
 	}
 	if _, ok := nonXrc721Contract[addr]; ok {
@@ -409,21 +427,28 @@ func ParseContractData(topics, data string) (from, to, amount string, err error)
 		err = errors.New("data's len is wrong")
 		return
 	}
+
+	var ioAddress address.Address
+	var ethAddress common.Address
 	fromEth := all[sha3Len+contractParamsLen-addressLen : sha3Len+contractParamsLen]
-	ethAddress := common.HexToAddress(fromEth)
-	ioAddress, err := address.FromBytes(ethAddress.Bytes())
-	if err != nil {
-		return
+	if strings.Compare(zeroAddrString, fromEth) != 0 {
+		ethAddress = common.HexToAddress(fromEth)
+		ioAddress, err = address.FromBytes(ethAddress.Bytes())
+		if err != nil {
+			return
+		}
+		from = ioAddress.String()
 	}
-	from = ioAddress.String()
 
 	toEth := all[sha3Len+contractParamsLen*2-addressLen : sha3Len+contractParamsLen*2]
-	ethAddress = common.HexToAddress(toEth)
-	ioAddress, err = address.FromBytes(ethAddress.Bytes())
-	if err != nil {
-		return
+	if strings.Compare(zeroAddrString, toEth) != 0 {
+		ethAddress = common.HexToAddress(toEth)
+		ioAddress, err = address.FromBytes(ethAddress.Bytes())
+		if err != nil {
+			return
+		}
+		to = ioAddress.String()
 	}
-	to = ioAddress.String()
 
 	amountBig, ok := new(big.Int).SetString(all[sha3Len+contractParamsLen*2:], 16)
 	if !ok {
