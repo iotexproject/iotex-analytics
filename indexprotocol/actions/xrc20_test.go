@@ -136,7 +136,7 @@ func TestXrc20(t *testing.T) {
 	require.Equal("888", xrc20History[0].Index)
 	require.Equal("failure", xrc20History[0].Status)
 
-	// fro xrc 721
+	// for xrc 721
 	actionHash = blk.Actions[7].Hash()
 	receiptHash = blk.Receipts[7].Hash()
 	xrc20History, err = getXrc721History(p, "io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx")
