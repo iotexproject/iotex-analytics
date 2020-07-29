@@ -147,6 +147,16 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 					},
 					SenderPubKey: PubKey1.Bytes(),
 				},
+				{
+					Core: &iotextypes.ActionCore{
+						Action: &iotextypes.ActionCore_Execution{
+							Execution: &iotextypes.Execution{},
+						},
+						Version: version.ProtocolVersion,
+						Nonce:   108,
+					},
+					SenderPubKey: PubKey1.Bytes(),
+				},
 			},
 		},
 	}); err != nil {
@@ -220,6 +230,28 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 			BlockHeight: 100000,
 			ActionHash:  blk.Actions[6].Hash(),
 			Index:       888,
+		},
+		},
+	})
+
+	// add for xrc721
+	transferHash, _ = hex.DecodeString("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff003f0d751d3a71172f723fbbc4d262dd47adf00000000000000000000000000000000000000000000000000000000000000006")
+	receipts = append(receipts, &action.Receipt{
+		ActionHash:      blk.Actions[7].Hash(),
+		Status:          8,
+		GasConsumed:     8,
+		ContractAddress: "888",
+		Logs: []*action.Log{&action.Log{
+			Address:     "io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx",
+			Topics:      []hash.Hash256{
+					hash.BytesToHash256(transferHash[:32]),
+					hash.BytesToHash256(transferHash[32:64]),
+					hash.BytesToHash256(transferHash[64:96]),
+					hash.BytesToHash256(transferHash[96:128]),
+					},
+			BlockHeight: 100001,
+			ActionHash:  blk.Actions[7].Hash(),
+			Index:       666,
 		},
 		},
 	})

@@ -218,8 +218,11 @@ func (p *Protocol) updateXrc20History(
 				continue
 			}
 			if isXrc721 {
-				xrc721HoldersStrs = append(xrc721HoldersStrs, "(?, ?, ?)")
-				xrc721HoldersArgs = append(xrc721HoldersArgs, l.Address, from, blk.Timestamp().Unix())
+				// for mint token, address `from` is empty
+				if strings.Compare(from, "") != 0 {
+					xrc721HoldersStrs = append(xrc721HoldersStrs, "(?, ?, ?)")
+					xrc721HoldersArgs = append(xrc721HoldersArgs, l.Address, from, blk.Timestamp().Unix())
+				}
 				xrc721HoldersStrs = append(xrc721HoldersStrs, "(?, ?, ?)")
 				xrc721HoldersArgs = append(xrc721HoldersArgs, l.Address, to, blk.Timestamp().Unix())
 			}
