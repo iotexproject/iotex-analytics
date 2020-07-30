@@ -173,7 +173,7 @@ func TestProtocol(t *testing.T) {
 	contract := []*Xrc20Info{
 		{
 			"0037c290ee2a21faa0ea5ebd7975b6b85088a7409715267e359625e60e399da5",
-			"",
+			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",
 			"io12maua56ssks7xxqkzqumhrg9m6r3rlmu2mcgr7",
 			"768472698099944258074",
 			"1565825770",
@@ -181,7 +181,7 @@ func TestProtocol(t *testing.T) {
 		},
 		{
 			"003c40bb33f7bd682ae77d8fdd7f63d719a468f6eabd3163773602f5b5ce683b",
-			"",
+			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",
 			"io1q77yjjytau2t0yrs656djzu6xe63umuj9afq6j",
 			"63615661248503025484915",
 			"1565729760",
@@ -189,7 +189,7 @@ func TestProtocol(t *testing.T) {
 		},
 		{
 			"0029638f5f82b1d23a4bf8f059e2a2bffe5c07733de681afea41b1cf931b1580",
-			"",
+			"io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7",
 			"io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg",
 			"227184383802042044417",
 			"1565391390",

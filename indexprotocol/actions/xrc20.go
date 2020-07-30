@@ -54,9 +54,6 @@ const (
 	//6352211e -> ownerOf(uint256)
 	ownerOfString = "6352211e000000000000000000000000fea7d8ac16886585f1c232f13fefc3cfa26eb4cc"
 
-	// if for xrc721: if `from` is 0x0, this is a new mint token
-	zeroAddrString = "0000000000000000000000000000000000000000"
-
 	// Xrc20HistoryTableName is the table name of xrc20 history
 	Xrc20HistoryTableName = "xrc20_history"
 	// Xrc20HoldersTableName is the table name of xrc20 holders
@@ -430,28 +427,21 @@ func ParseContractData(topics, data string) (from, to, amount string, err error)
 		err = errors.New("data's len is wrong")
 		return
 	}
-
-	var ioAddress address.Address
-	var ethAddress common.Address
 	fromEth := all[sha3Len+contractParamsLen-addressLen : sha3Len+contractParamsLen]
-	if strings.Compare(zeroAddrString, fromEth) != 0 {
-		ethAddress = common.HexToAddress(fromEth)
-		ioAddress, err = address.FromBytes(ethAddress.Bytes())
-		if err != nil {
-			return
-		}
-		from = ioAddress.String()
+	ethAddress := common.HexToAddress(fromEth)
+	ioAddress, err := address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return
 	}
+	from = ioAddress.String()
 
 	toEth := all[sha3Len+contractParamsLen*2-addressLen : sha3Len+contractParamsLen*2]
-	if strings.Compare(zeroAddrString, toEth) != 0 {
-		ethAddress = common.HexToAddress(toEth)
-		ioAddress, err = address.FromBytes(ethAddress.Bytes())
-		if err != nil {
-			return
-		}
-		to = ioAddress.String()
+	ethAddress = common.HexToAddress(toEth)
+	ioAddress, err = address.FromBytes(ethAddress.Bytes())
+	if err != nil {
+		return
 	}
+	to = ioAddress.String()
 
 	amountBig, ok := new(big.Int).SetString(all[sha3Len+contractParamsLen*2:], 16)
 	if !ok {
