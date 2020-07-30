@@ -1481,19 +1481,24 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
 	val := graphql.GetRequestContext(ctx)
-	if val != nil {
+	// if variables are used:
+	// `variables` in request payload will be parsed to map `val.Variables`
+	// the map's key correspond to `arg.Value.Raw` instead of `arg.Name`
+	// if variables are not used:
+	// we have all ready got variables before
+	if len(val.Variables) != 0 {
 		for _, arg := range arguments {
 			if arg == nil {
 				continue
 			}
 			switch arg.Value.ExpectedType.Name() {
 			case "String":
-				value, ok := val.Variables[arg.Name].(string)
+				value, ok := val.Variables[arg.Value.Raw].(string)
 				if ok {
 					argsMap[arg.Name].Raw = value
 				}
 			case "Int":
-				valueJSON, ok := val.Variables[arg.Name].(json.Number)
+				valueJSON, ok := val.Variables[arg.Value.Raw].(json.Number)
 				if ok {
 					value, err := valueJSON.Int64()
 					if err != nil {
@@ -1502,7 +1507,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					argsMap[arg.Name].Raw = fmt.Sprintf("%d", value)
 				}
 			case "Boolean":
-				value, ok := val.Variables[arg.Name].(bool)
+				value, ok := val.Variables[arg.Value.Raw].(bool)
 				if ok {
 					if value {
 						argsMap[arg.Name].Raw = "true"
@@ -1511,7 +1516,15 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					}
 				}
 			case "Pagination":
-				value, ok := val.Variables[arg.Name].(map[string]interface{})
+				value, ok := val.Variables[arg.Value.Raw].(map[string]interface{})
+				// `Pagination` as a whole param
+				// query string:
+				// `actions(pagination:$p)`
+				// query variables:
+				// "p":{
+				//     "first": 2,
+				//     "skip": 4
+				// }
 				if ok {
 					for k, v := range value {
 						valueJSON, ok := v.(json.Number)
@@ -1523,6 +1536,34 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 							child := &ast.ChildValue{Name: k, Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)}}
 							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
 						}
+					}
+				} else {
+					// `Pagination` not a whole param
+					// query string:
+					// `actions(pagination:{first:$f, skip:$s})`
+					// query variables:
+					// {
+					//     "f":2,
+					//     "s":4
+					// }
+					var children ast.ChildValueList
+					for _, child := range arg.Value.Children {
+
+						value, ok := val.Variables[child.Value.Raw].(json.Number)
+						if ok {
+							valueInt64, err := value.Int64()
+							if err != nil {
+								continue
+							}
+							child := &ast.ChildValue{
+								Name:  child.Name,
+								Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)},
+							}
+							children = append(children, child)
+						}
+					}
+					argsMap[arg.Name] = &ast.Value{
+						Children: children,
 					}
 				}
 			default:
