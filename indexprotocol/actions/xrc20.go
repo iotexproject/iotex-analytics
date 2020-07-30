@@ -196,6 +196,11 @@ func (p *Protocol) updateXrc20History(
 
 			rh := hex.EncodeToString(receiptHash[:])
 			if isXrc721 {
+				// field `topics` in db is varchar(192)
+				// if we do not want change table xrc721_history
+				// we can split 64 bytes to field `data` from 'topic'
+				data = topics[192:]
+				topics = topics[:192]
 				xrc721ValStrs = append(xrc721ValStrs, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 				xrc721ValArgs = append(xrc721ValArgs, ah, rh, l.Address, topics, data, l.BlockHeight, l.Index, blk.Timestamp().Unix(), receiptStatus)
 			}
@@ -264,6 +269,16 @@ func (p *Protocol) checkTopics(topics, data string) bool {
 	return true
 }
 
+func (p *Protocol) checkXrc721Topics(topics, data string) bool {
+	if topics == "" || len(topics) != 256 || len(data) != 0 {
+		return false
+	}
+	if !strings.Contains(topics, transferSha3) {
+		return false
+	}
+	return true
+}
+
 func (p *Protocol) checkIsXrc20(ctx context.Context, addr, topics, data string) bool {
 	if !p.checkTopics(topics, data) {
 		return false
@@ -304,7 +319,7 @@ func (p *Protocol) checkIsXrc20(ctx context.Context, addr, topics, data string) 
 }
 
 func (p *Protocol) checkIsXrc721(ctx context.Context, addr, topics, data string) bool {
-	if !p.checkTopics(topics, data) {
+	if !p.checkXrc721Topics(topics, data) {
 		return false
 	}
 	if _, ok := nonXrc721Contract[addr]; ok {

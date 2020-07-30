@@ -20,6 +20,7 @@ const (
 	dbName                 = "heroku_88b589bc76fadbc"
 	ActionHistoryTableName = "action_history"
 	Xrc20HistoryTableName  = "xrc20_history"
+	Xrc721HistoryTableName = "xrc721_history"
 )
 
 func TestProtocol(t *testing.T) {
@@ -88,6 +89,13 @@ func TestProtocol(t *testing.T) {
 			"`topics` VARCHAR(192),`data` VARCHAR(192),block_height DECIMAL(65, 0), `index` DECIMAL(65, 0),"+
 			"`timestamp` DECIMAL(65, 0),status VARCHAR(7) NOT NULL, PRIMARY KEY (action_hash,receipt_hash,topics))",
 			Xrc20HistoryTableName))
+		require.NoError(errXrc)
+
+		_, errXrc = store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s "+
+			"(action_hash VARCHAR(64) NOT NULL, receipt_hash VARCHAR(64) NOT NULL UNIQUE, address VARCHAR(41) NOT NULL,"+
+			"`topics` VARCHAR(192),`data` VARCHAR(192),block_height DECIMAL(65, 0), `index` DECIMAL(65, 0),"+
+			"`timestamp` DECIMAL(65, 0),status VARCHAR(7) NOT NULL, PRIMARY KEY (action_hash,receipt_hash,topics))",
+			Xrc721HistoryTableName))
 		require.NoError(errXrc)
 
 		_, errA = p.GetActiveAccount(1)
@@ -227,6 +235,11 @@ func TestProtocol(t *testing.T) {
 	_, errXrc = store.GetDB().Exec(insertQuery, valArgs...)
 	require.NoError(errXrc)
 
+	_, errXrc = store.GetDB().Exec("SET AUTOCOMMIT = 1")
+	insertQuery = fmt.Sprintf("INSERT IGNORE INTO %s (action_hash, receipt_hash, address,topics,`data`,block_height, `index`,`timestamp`,status) VALUES %s", Xrc721HistoryTableName, strings.Join(valStrs, ","))
+	_, errXrc = store.GetDB().Exec(insertQuery, valArgs...)
+	require.NoError(errXrc)
+
 	t.Run("Testing GetXrc20 by contract address", func(t *testing.T) {
 		test, errXrc := p.GetXrc20(testSituation.inputA, testSituation.inputNPP, testSituation.inputP)
 		require.NoError(errXrc)
@@ -328,4 +341,107 @@ func TestProtocol(t *testing.T) {
 		require.Equal(contract[2].To, *holders[0])
 		require.Equal(contract[1].To, *holders[1])
 	})
+
+	t.Run("Testing GetXrc721 by contract address", func(t *testing.T) {
+		test, errXrc := p.GetXrc721(testSituation.inputA, testSituation.inputNPP, testSituation.inputP)
+		require.NoError(errXrc)
+		for k := 0; k < 3; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
+		}
+	})
+
+	// test case for get xrc20 info by sender or recipient address
+	t.Run("Testing GetXrc721 by sender or recipient address", func(t *testing.T) {
+		test, errXrc := p.GetXrc721ByAddress("io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7", 4, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 3; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
+		}
+	})
+	t.Run("Testing GetXrc721 by sender or recipient address", func(t *testing.T) {
+		test, errXrc := p.GetXrc721ByAddress("io13k7t6k3excy3hkyp60zjakc5le5fvvapqcwfsg", 4, 1)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k+2].Hash)
+			require.Equal(test[k].From, testSituation.output[k+2].From)
+			require.Equal(test[k].To, testSituation.output[k+2].To)
+			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k+2].Contract)
+		}
+	})
+	// test case for get xrc20 info by page
+	t.Run("Testing GetXrc721 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc721ByPage(0, 4)
+		require.NoError(errXrc)
+		for k := 0; k < 4; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
+		}
+	})
+	t.Run("Testing GetXrc721 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc721ByPage(0, 2)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k].Hash)
+			require.Equal(test[k].From, testSituation.output[k].From)
+			require.Equal(test[k].To, testSituation.output[k].To)
+			require.Equal(test[k].Quantity, testSituation.output[k].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k].Contract)
+		}
+	})
+	t.Run("Testing GetXrc721 by page", func(t *testing.T) {
+		test, errXrc := p.GetXrc721ByPage(2, 2)
+		require.NoError(errXrc)
+		for k := 0; k < 2; k++ {
+			require.Equal(test[k].Hash, testSituation.output[k+2].Hash)
+			require.Equal(test[k].From, testSituation.output[k+2].From)
+			require.Equal(test[k].To, testSituation.output[k+2].To)
+			require.Equal(test[k].Quantity, testSituation.output[k+2].Quantity)
+			require.Equal(test[k].Timestamp, testSituation.output[k+2].Timestamp)
+			require.Equal(test[k].Contract, testSituation.output[k+2].Contract)
+		}
+	})
+	t.Run("Testing GetXrc721Holders", func(t *testing.T) {
+		_, errXrc := store.GetDB().Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (contract VARCHAR(41) NOT NULL,holder VARCHAR(41) NOT NULL,`timestamp` DECIMAL(65, 0), PRIMARY KEY (contract,holder))",
+			actions.Xrc721HoldersTableName))
+		require.NoError(errXrc)
+
+		valStrs := make([]string, 0, len(contract))
+		valArgs := make([]interface{}, 0, len(contract)*2)
+		timeStampList := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+		for i, c := range contract {
+			valStrs = append(valStrs, "(?, ?, ?)")
+			valArgs = append(valArgs, c.Contract, c.From, timeStampList[i*2])
+			valStrs = append(valStrs, "(?, ?, ?)")
+			valArgs = append(valArgs, c.Contract, c.To, timeStampList[i*2+1])
+			insertQuery := fmt.Sprintf("INSERT IGNORE INTO %s (contract, holder,`timestamp`) VALUES %s", actions.Xrc721HoldersTableName, strings.Join(valStrs, ","))
+			_, errXrc = store.GetDB().Exec(insertQuery, valArgs...)
+			require.NoError(errXrc)
+		}
+		holders, errXrc := p.GetXrc721Holders(contract[0].Contract, 0, 2)
+		require.NoError(errXrc)
+		count, errXrc := p.GetXrc721HolderCount(contract[0].Contract)
+		require.NoError(errXrc)
+		require.Equal(4, count)
+		//order by timestamp
+		require.Equal(contract[2].To, *holders[0])
+		require.Equal(contract[1].To, *holders[1])
+	})
+
 }

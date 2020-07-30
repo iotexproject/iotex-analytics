@@ -10,11 +10,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"github.com/iotexproject/iotex-core/state"
@@ -118,6 +120,7 @@ func TestXrc20(t *testing.T) {
 		return p.HandleBlock(bpctx, tx, blk)
 	}))
 
+	// for xrc20
 	actionHash := blk.Actions[6].Hash()
 	receiptHash := blk.Receipts[6].Hash()
 	xrc20History, err := p.getXrc20History("xxxxx")
@@ -132,4 +135,55 @@ func TestXrc20(t *testing.T) {
 	require.Equal("100000", xrc20History[0].BlockHeight)
 	require.Equal("888", xrc20History[0].Index)
 	require.Equal("failure", xrc20History[0].Status)
+
+	// for xrc 721
+	actionHash = blk.Actions[7].Hash()
+	receiptHash = blk.Receipts[7].Hash()
+	xrc20History, err = getXrc721History(p, "io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx")
+	require.NoError(err)
+
+	require.Equal(hex.EncodeToString(actionHash[:]), xrc20History[0].ActionHash)
+	require.Equal(hex.EncodeToString(receiptHash[:]), xrc20History[0].ReceiptHash)
+	require.Equal("io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx", xrc20History[0].Address)
+
+	// split 256 `topic` to 192 `topic` & 64 `data`
+	require.Equal("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff003f0d751d3a71172f723fbbc4d262dd47adf0", xrc20History[0].Topics)
+	require.Equal("0000000000000000000000000000000000000000000000000000000000000006", xrc20History[0].Data)
+	require.Equal("100001", xrc20History[0].BlockHeight)
+	require.Equal("666", xrc20History[0].Index)
+	require.Equal("failure", xrc20History[0].Status)
+}
+
+// getActionHistory returns action history by action hash
+func getXrc721History(p *Protocol, address string) ([]*Xrc20History, error) {
+	db := p.Store.GetDB()
+
+	getQuery := fmt.Sprintf(selectXrc20History, "xrc721_history")
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var xrc20History Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &xrc20History)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+
+	if len(parsedRows) == 0 {
+		return nil, indexprotocol.ErrNotExist
+	}
+	ret := make([]*Xrc20History, 0)
+	for _, parsedRow := range parsedRows {
+		r := parsedRow.(*Xrc20History)
+		ret = append(ret, r)
+	}
+
+	return ret, nil
 }
