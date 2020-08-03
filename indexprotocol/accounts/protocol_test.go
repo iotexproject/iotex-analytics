@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/iotexproject/iotex-analytics/indexcontext"
+	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
+
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
@@ -41,7 +44,11 @@ func TestProtocol(t *testing.T) {
 
 	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
-
+	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
+	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient:     chainClient,
+		ConsensusScheme: "ROLLDPOS",
+	})
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
