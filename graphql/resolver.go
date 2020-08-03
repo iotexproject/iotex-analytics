@@ -1528,7 +1528,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 				//     "skip": 4
 				// }
 				if ok {
-					var children ast.ChildValueList
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
 					for k, v := range value {
 						valueJSON, ok := v.(json.Number)
 						if ok {
@@ -1537,10 +1537,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 								continue
 							}
 							child := &ast.ChildValue{Name: k, Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)}}
-							children = append(children, child)
-						}
-						argsMap[arg.Name] = &ast.Value{
-							Children: children,
+							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
 						}
 					}
 				} else {
@@ -1552,7 +1549,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					//     "f":2,
 					//     "s":4
 					// }
-					var children ast.ChildValueList
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
 					for _, child := range arg.Value.Children {
 
 						value, ok := val.Variables[child.Value.Raw].(json.Number)
@@ -1565,11 +1562,8 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 								Name:  child.Name,
 								Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)},
 							}
-							children = append(children, child)
+							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
 						}
-					}
-					argsMap[arg.Name] = &ast.Value{
-						Children: children,
 					}
 				}
 			default:
