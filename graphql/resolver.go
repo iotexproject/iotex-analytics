@@ -1486,6 +1486,8 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 	// the map's key correspond to `arg.Value.Raw` instead of `arg.Name`
 	// if variables are not used:
 	// we have all ready got variables before
+	//
+	// Notice: do not directly chage arguments's *ast.Value in argsMap[arg.Name]
 	if len(val.Variables) != 0 {
 		for _, arg := range arguments {
 			if arg == nil {
@@ -1495,7 +1497,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 			case "String":
 				value, ok := val.Variables[arg.Value.Raw].(string)
 				if ok {
-					argsMap[arg.Name].Raw = value
+					argsMap[arg.Name] = &ast.Value{Raw: value}
 				}
 			case "Int":
 				valueJSON, ok := val.Variables[arg.Value.Raw].(json.Number)
@@ -1504,15 +1506,15 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					if err != nil {
 						return
 					}
-					argsMap[arg.Name].Raw = fmt.Sprintf("%d", value)
+					argsMap[arg.Name] = &ast.Value{Raw: fmt.Sprintf("%d", value)}
 				}
 			case "Boolean":
 				value, ok := val.Variables[arg.Value.Raw].(bool)
 				if ok {
 					if value {
-						argsMap[arg.Name].Raw = "true"
+						argsMap[arg.Name] = &ast.Value{Raw: "true"}
 					} else {
-						argsMap[arg.Name].Raw = "false"
+						argsMap[arg.Name] = &ast.Value{Raw: "false"}
 					}
 				}
 			case "Pagination":
@@ -1526,6 +1528,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 				//     "skip": 4
 				// }
 				if ok {
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
 					for k, v := range value {
 						valueJSON, ok := v.(json.Number)
 						if ok {
@@ -1546,7 +1549,7 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 					//     "f":2,
 					//     "s":4
 					// }
-					var children ast.ChildValueList
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
 					for _, child := range arg.Value.Children {
 
 						value, ok := val.Variables[child.Value.Raw].(json.Number)
@@ -1559,11 +1562,8 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 								Name:  child.Name,
 								Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)},
 							}
-							children = append(children, child)
+							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
 						}
-					}
-					argsMap[arg.Name] = &ast.Value{
-						Children: children,
 					}
 				}
 			default:
