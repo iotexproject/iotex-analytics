@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -163,7 +164,8 @@ func getStakingBuckets(chainClient iotexapi.APIServiceClient, offset, limit uint
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodName,
-		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
+		Arguments:  [][]byte{arg},
+		Height:     fmt.Sprintf("%d", height),
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
@@ -218,7 +220,8 @@ func getStakingCandidates(chainClient iotexapi.APIServiceClient, offset, limit u
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodName,
-		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(height, 10))},
+		Arguments:  [][]byte{arg},
+		Height:     fmt.Sprintf("%d", height),
 	}
 	readStateRes, err := chainClient.ReadState(context.Background(), readStateRequest)
 	if err != nil {
