@@ -305,7 +305,7 @@ func (p *Protocol) updateRewardHistory(tx *sql.Tx, epochNumber uint64, actionHas
 
 func (p *Protocol) getRewardInfoFromReceipt(receipt *action.Receipt) (map[string]*RewardInfo, error) {
 	rewardInfoMap := make(map[string]*RewardInfo)
-	for _, l := range receipt.Logs {
+	for _, l := range receipt.Logs() {
 		rewardLog := &rewardingpb.RewardLog{}
 		if err := proto.Unmarshal(l.Data, rewardLog); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal receipt data into reward log")

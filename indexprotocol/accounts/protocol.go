@@ -9,8 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/go-pkgs/hash"
-	"github.com/iotexproject/iotex-address/address"
-	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -297,15 +295,6 @@ func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx) error {
 	}
 
 	return nil
-}
-
-func getsrcAndDst(selp action.SealedEnvelope) (string, string, error) {
-	callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
-	if err != nil {
-		return "", "", err
-	}
-	dst, _ := selp.Destination()
-	return callerAddr.String(), dst, nil
 }
 
 func getTransactionLog(ctx context.Context, height uint64, client iotexapi.APIServiceClient) (

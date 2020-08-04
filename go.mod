@@ -12,7 +12,7 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/iotexproject/go-pkgs v0.1.2-0.20200523040337-5f1d9ddaa8ee
 	github.com/iotexproject/iotex-address v0.2.2
-	github.com/iotexproject/iotex-core v0.8.1-0.20200802225645-3a1451e9e968 // indirect
+	github.com/iotexproject/iotex-core v0.8.1-0.20200802225645-3a1451e9e968
 	github.com/iotexproject/iotex-election v0.3.2
 	github.com/iotexproject/iotex-proto v0.3.2-0.20200729044038-c22fbb206571
 	github.com/pkg/errors v0.8.1

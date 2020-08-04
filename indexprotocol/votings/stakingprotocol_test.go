@@ -9,7 +9,6 @@ package votings
 import (
 	"context"
 	"encoding/hex"
-	"strconv"
 	"testing"
 	"time"
 
@@ -116,7 +115,7 @@ func TestStaking(t *testing.T) {
 	tx, err := p.Store.GetDB().Begin()
 	require.NoError(err)
 	chainClient.EXPECT().GetLogs(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.GetLogsResponse{Logs: []*iotextypes.Log{&iotextypes.Log{}}}, nil)
-	require.NoError(p.processStaking(tx, chainClient, height, epochNumber, nil))
+	require.NoError(p.processStaking(tx, chainClient, height, height, epochNumber, nil))
 	require.NoError(tx.Commit())
 
 	// case I: checkout bucket if it's written right
@@ -252,7 +251,8 @@ func mock(chainClient *mock_apiserviceclient.MockServiceClient, t *testing.T) {
 	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodNameBytes,
-		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(110000, 10))},
+		Arguments:  [][]byte{arg},
+		Height:     "110000",
 	}
 
 	vbl := &iotextypes.VoteBucketList{Buckets: buckets}
@@ -279,7 +279,8 @@ func mock(chainClient *mock_apiserviceclient.MockServiceClient, t *testing.T) {
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(protocolID),
 		MethodName: methodNameBytes,
-		Arguments:  [][]byte{arg, []byte(strconv.FormatUint(110000, 10))},
+		Arguments:  [][]byte{arg},
+		Height:     "110000",
 	}
 
 	cl := &iotextypes.CandidateListV2{Candidates: candidates}
