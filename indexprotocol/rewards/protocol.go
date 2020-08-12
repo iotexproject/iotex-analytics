@@ -345,7 +345,8 @@ func (p *Protocol) updateCandidateRewardAddress(
 	epochNumber uint64,
 ) (err error) {
 	if height >= p.epochCtx.FairbankEffectiveHeight() {
-		return p.updateStakingCandidateRewardAddress(chainClient, height)
+		preEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+		return p.updateStakingCandidateRewardAddress(chainClient, preEpochHeight)
 	}
 	var gravityChainStartHeight uint64
 	if epochNumber == 1 {
