@@ -8,7 +8,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
+
 	"github.com/iotexproject/iotex-analytics/epochctx"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	s "github.com/iotexproject/iotex-analytics/sql"
 	"github.com/iotexproject/iotex-analytics/testutil"
 )
@@ -41,7 +46,44 @@ func TestProtocol(t *testing.T) {
 
 	blk, err := testutil.BuildCompleteBlock(uint64(1), uint64(2))
 	require.NoError(err)
-
+	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)
+	ctx = indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
+		ChainClient:     chainClient,
+		ConsensusScheme: "ROLLDPOS",
+	})
+	chainClient.EXPECT().GetTransactionLogByBlockHeight(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.GetTransactionLogByBlockHeightResponse{
+		TransactionLogs: &iotextypes.TransactionLogs{
+			Logs: []*iotextypes.TransactionLog{
+				{
+					ActionHash:      []byte("1"),
+					NumTransactions: uint64(1),
+					Transactions: []*iotextypes.TransactionLog_Transaction{{
+						Topic:     []byte(""),
+						Amount:    "1",
+						Sender:    testutil.Addr1,
+						Recipient: testutil.Addr1,
+						Type:      iotextypes.TransactionLogType_NATIVE_TRANSFER,
+					}},
+				},
+				{
+					ActionHash:      []byte("2"),
+					NumTransactions: uint64(1),
+					Transactions: []*iotextypes.TransactionLog_Transaction{{
+						Topic:     []byte(""),
+						Amount:    "2",
+						Sender:    testutil.Addr1,
+						Recipient: testutil.Addr2,
+						Type:      iotextypes.TransactionLogType_NATIVE_TRANSFER,
+					}},
+				},
+			},
+		},
+	}, nil)
+	chainClient.EXPECT().GetTransactionLogByBlockHeight(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.GetTransactionLogByBlockHeightResponse{
+		TransactionLogs: &iotextypes.TransactionLogs{
+			Logs: []*iotextypes.TransactionLog{},
+		},
+	}, nil)
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
@@ -57,7 +99,7 @@ func TestProtocol(t *testing.T) {
 	balanceHistory, err := p.getBalanceHistory(testutil.Addr1)
 	require.NoError(err)
 	require.Equal(2, len(balanceHistory))
-	require.Equal("2", balanceHistory[1].Amount)
+	require.Contains([]string{"1", "2"}, balanceHistory[1].Amount)
 
 	// get account income
 	accountIncome, err := p.getAccountIncome(uint64(1), testutil.Addr1)

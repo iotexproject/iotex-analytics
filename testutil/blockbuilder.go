@@ -169,92 +169,86 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 			Status:          1,
 			GasConsumed:     1,
 			ContractAddress: "1",
-			Logs:            []*action.Log{},
 		},
 		{
 			ActionHash:      blk.Actions[1].Hash(),
 			Status:          1,
 			GasConsumed:     2,
 			ContractAddress: "2",
-			Logs:            []*action.Log{},
 		},
 		{
 			ActionHash:      blk.Actions[2].Hash(),
 			Status:          3,
 			GasConsumed:     3,
 			ContractAddress: "3",
-			Logs:            []*action.Log{},
 		},
 		{
 			ActionHash:  blk.Actions[3].Hash(),
 			Status:      4,
 			GasConsumed: 4,
-			Logs:        []*action.Log{},
 		},
 	}
-	receipts = append(receipts, &action.Receipt{
+	testReceipt := &action.Receipt{
 		ActionHash:      blk.Actions[4].Hash(),
 		Status:          5,
 		GasConsumed:     5,
-		ContractAddress: "5",
-		Logs: []*action.Log{
-			createRewardLog(uint64(1), blk.Actions[4].Hash(), rewardingpb.RewardLog_BLOCK_REWARD, RewardAddr1, "16"),
-		},
-	})
-	receipts = append(receipts, &action.Receipt{
+		ContractAddress: "5"}
+	testReceipt.AddLogs(
+		createRewardLog(uint64(1), blk.Actions[4].Hash(), rewardingpb.RewardLog_BLOCK_REWARD, RewardAddr1, "16"))
+	receipts = append(receipts, testReceipt)
+	testReceipt2 := &action.Receipt{
 		ActionHash:      blk.Actions[5].Hash(),
 		Status:          6,
 		GasConsumed:     6,
 		ContractAddress: "6",
-		Logs: []*action.Log{
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr1, "10"),
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr2, "20"),
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr3, "30"),
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr1, "100"),
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr2, "100"),
-			createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr3, "100"),
-		},
-	})
+	}
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr1, "10"))
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr2, "20"))
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_EPOCH_REWARD, RewardAddr3, "30"))
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr1, "100"))
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr2, "100"))
+	testReceipt2.AddLogs(createRewardLog(height, blk.Actions[5].Hash(), rewardingpb.RewardLog_FOUNDATION_BONUS, RewardAddr3, "100"))
+	receipts = append(receipts, testReceipt2)
 	// add for xrc20
 	transferHash, _ := hex.DecodeString("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
 	data, _ := hex.DecodeString("0000000000000000000000006356908ace09268130dee2b7de643314bbeb3683000000000000000000000000da7e12ef57c236a06117c5e0d04a228e7181cf360000000000000000000000000000000000000000000000000de0b6b3a7640000")
-	receipts = append(receipts, &action.Receipt{
+	testReceipt3 := &action.Receipt{
 		ActionHash:      blk.Actions[6].Hash(),
 		Status:          7,
 		GasConsumed:     7,
 		ContractAddress: "7",
-		Logs: []*action.Log{&action.Log{
-			Address:     "xxxxx",
-			Topics:      []hash.Hash256{hash.BytesToHash256(transferHash)},
-			Data:        data,
-			BlockHeight: 100000,
-			ActionHash:  blk.Actions[6].Hash(),
-			Index:       888,
-		},
-		},
+	}
+	testReceipt3.AddLogs(&action.Log{
+		Address:     "xxxxx",
+		Topics:      []hash.Hash256{hash.BytesToHash256(transferHash)},
+		Data:        data,
+		BlockHeight: 100000,
+		ActionHash:  blk.Actions[6].Hash(),
+		Index:       888,
 	})
+	receipts = append(receipts, testReceipt3)
 
 	// add for xrc721
 	transferHash, _ = hex.DecodeString("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff003f0d751d3a71172f723fbbc4d262dd47adf00000000000000000000000000000000000000000000000000000000000000006")
-	receipts = append(receipts, &action.Receipt{
+	testReceipt4 := &action.Receipt{
 		ActionHash:      blk.Actions[7].Hash(),
 		Status:          8,
 		GasConsumed:     8,
 		ContractAddress: "888",
-		Logs: []*action.Log{&action.Log{
-			Address:     "io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx",
-			Topics:      []hash.Hash256{
-					hash.BytesToHash256(transferHash[:32]),
-					hash.BytesToHash256(transferHash[32:64]),
-					hash.BytesToHash256(transferHash[64:96]),
-					hash.BytesToHash256(transferHash[96:128]),
-					},
-			BlockHeight: 100001,
-			ActionHash:  blk.Actions[7].Hash(),
-			Index:       666,
+	}
+	testReceipt4.AddLogs(&action.Log{
+		Address: "io1xpvzahnl4h46f9ea6u03ec2hkusrzu020th8xx",
+		Topics: []hash.Hash256{
+			hash.BytesToHash256(transferHash[:32]),
+			hash.BytesToHash256(transferHash[32:64]),
+			hash.BytesToHash256(transferHash[64:96]),
+			hash.BytesToHash256(transferHash[96:128]),
 		},
-		},
+		BlockHeight: 100001,
+		ActionHash:  blk.Actions[7].Hash(),
+		Index:       666,
 	})
+	receipts = append(receipts, testReceipt4)
 
 	blk.Receipts = make([]*action.Receipt, 0)
 	/*for _, receipt := range receipts {

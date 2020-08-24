@@ -61,7 +61,7 @@ func (p *Protocol) CreateHermesTables(ctx context.Context) error {
 func (p *Protocol) updateHermesContract(tx *sql.Tx, receipts []*action.Receipt, epochNumber uint64, timestamp string) error {
 	contractList := make([]HermesContractInfo, 0)
 	for _, receipt := range receipts {
-		fromEpoch, toEpoch, delegateName, exist, err := getDistributeEventFromLog(receipt.Logs)
+		fromEpoch, toEpoch, delegateName, exist, err := getDistributeEventFromLog(receipt.Logs())
 		if err != nil {
 			return errors.Wrap(err, "failed to get distribute event information from log")
 		}

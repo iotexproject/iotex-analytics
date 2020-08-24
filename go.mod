@@ -10,12 +10,11 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/mock v1.4.0
 	github.com/golang/protobuf v1.3.2
-	github.com/iotexproject/go-pkgs v0.1.2-0.20200212033110-8fa5cf96fc1b
-	github.com/iotexproject/iotex-address v0.2.1
-	github.com/iotexproject/iotex-antenna-go/v2 v2.3.2
-	github.com/iotexproject/iotex-core v0.11.1
-	github.com/iotexproject/iotex-election v0.2.11
-	github.com/iotexproject/iotex-proto v0.2.6-0.20200327040553-157f35632918
+	github.com/iotexproject/go-pkgs v0.1.2-0.20200523040337-5f1d9ddaa8ee
+	github.com/iotexproject/iotex-address v0.2.2
+	github.com/iotexproject/iotex-core v0.8.1-0.20200802225645-3a1451e9e968
+	github.com/iotexproject/iotex-election v0.3.2
+	github.com/iotexproject/iotex-proto v0.3.2-0.20200729044038-c22fbb206571
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
 	github.com/rs/zerolog v1.14.3

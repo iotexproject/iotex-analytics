@@ -285,7 +285,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 
 		// process staking
 		if blkheight >= p.epochCtx.FairbankEffectiveHeight() {
-			return p.processStaking(tx, chainClient, blkheight, epochNumber, probationList)
+			prevEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
+			return p.processStaking(tx, chainClient, blkheight, prevEpochHeight, epochNumber, probationList)
 		}
 
 		var gravityHeight uint64

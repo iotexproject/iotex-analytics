@@ -179,7 +179,7 @@ func (p *Protocol) updateXrc20History(
 		if receipt.Status == successStatus {
 			receiptStatus = "success"
 		}
-		for _, l := range receipt.Logs {
+		for _, l := range receipt.Logs() {
 			data := hex.EncodeToString(l.Data)
 			var topics string
 			for _, t := range l.Topics {
