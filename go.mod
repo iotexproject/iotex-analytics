@@ -20,13 +20,14 @@ require (
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/testify v1.4.0
 	github.com/vektah/gqlparser v1.1.2
+	github.com/vektah/gqlparser/v2 v2.0.1
 	go.opencensus.io v0.22.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/tools v0.0.0-20200318150045-ba25ddc85566 // indirect
 	google.golang.org/appengine v1.6.0 // indirect
 	google.golang.org/grpc v1.21.0
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.4
 )
 
 replace github.com/ethereum/go-ethereum => github.com/iotexproject/go-ethereum v0.3.0
