@@ -1,0 +1,17 @@
+# .gqlgen.yml example
+#
+# Refer to https://gqlgen.com/config/
+# for detailed .gqlgen.yml documentation.
+
+schema:
+- services/mimo/schema.graphql
+exec:
+  filename: services/mimo/generated.go
+  package: mimo
+model:
+  filename: services/mimo/model/models_gen.go
+  package: model
+resolver:
+  filename: services/mimo/resolver.go
+  type: Resolver
+  package: mimo
