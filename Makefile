@@ -13,6 +13,7 @@ GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 BUILD_TARGET_SERVER=server
+BUILD_MIMO_TARGET_SERVER=mimo
 
 # Pkgs
 ALL_PKGS := $(shell go list ./... )
@@ -50,6 +51,10 @@ clean:
 run:
 	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
 	./bin/$(BUILD_TARGET_SERVER)
+
+.PHONY: mimo
+mimo:
+	$(GOBUILD) -o ./bin/$(BUILD_MIMO_TARGET_SERVER) -v ./services/mimo/cmd
 
 .PHONY: docker
 docker:

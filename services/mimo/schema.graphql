@@ -1,0 +1,15 @@
+type Query {
+    exchanges(height: String!, pagination: Pagination!): [Exchange]!
+}
+
+type Exchange {
+    token: String!
+    liquidity: String!
+    balanceOfToken: String!
+    balanceOfIOTX: String!
+}
+
+input Pagination{
+    skip: Int!
+    first: Int!
+}

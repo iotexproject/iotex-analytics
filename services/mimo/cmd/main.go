@@ -11,29 +11,21 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/99designs/gqlgen/handler"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/pkg/log"
-	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"gopkg.in/yaml.v2"
 
-	"github.com/iotexproject/iotex-analytics/graphql"
-	"github.com/iotexproject/iotex-analytics/indexcontext"
-	"github.com/iotexproject/iotex-analytics/indexservice"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/hermes2"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/productivity"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/rewards"
-	"github.com/iotexproject/iotex-analytics/queryprotocol/votings"
+	"github.com/iotexproject/iotex-analytics/services/mimo"
+	"github.com/iotexproject/iotex-analytics/services/mimo/generated"
 	"github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -45,56 +37,43 @@ func main() {
 		port = defaultPort
 	}
 
-	configPath := os.Getenv("CONFIG")
-	if configPath == "" {
-		configPath = "config.yaml"
-	}
-
 	chainEndpoint := os.Getenv("CHAIN_ENDPOINT")
 	if chainEndpoint == "" {
-		chainEndpoint = "127.0.0.1:14014"
+		chainEndpoint = "api.testnet.iotex.one:80"
 	}
 
-	electionEndpoint := os.Getenv("ELECTION_ENDPOINT")
-	if electionEndpoint == "" {
-		electionEndpoint = "127.0.0.1:8090"
+	mimoFactoryAddrStr := os.Getenv("MIMO_FACTORY_ADDRESS")
+	if mimoFactoryAddrStr == "" {
+		// TODO: delete the following line
+		mimoFactoryAddrStr = "io1vu0tq2v6ph5xhwrrpx0vzvg5wt8adfk3ygnxfj"
 	}
-
+	mimoFactoryAddr, err := address.FromString(mimoFactoryAddrStr)
+	if err != nil {
+		log.L().Panic("failed to parse mimo factory address", zap.Error(err))
+	}
+	mimoFactoryCreationHeight, err := strconv.ParseUint(os.Getenv("MIMO_FACTORY_CREATION_HEIGHT"), 10, 64)
+	if err != nil {
+		log.L().Panic("failed to parse mimo factory creation height", zap.Error(err))
+	}
 	connectionStr := os.Getenv("CONNECTION_STRING")
 	if connectionStr == "" {
-		connectionStr = "root:rootuser@tcp(127.0.0.1:3306)/"
+		log.L().Panic("failed to get db connection string")
 	}
 
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
-		dbName = "analytics"
+		dbName = "mimo_testnet"
 	}
-
-	data, err := ioutil.ReadFile(configPath)
+	grpcCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(grpcCtx, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
-		log.L().Fatal("Failed to load config file", zap.Error(err))
+		log.L().Error("Failed to connect to chain's API server.")
 	}
-	var cfg indexservice.Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		log.L().Fatal("failed to unmarshal config", zap.Error(err))
-	}
-
-	store := sql.NewMySQL(connectionStr, dbName)
-
-	idx := indexservice.NewIndexer(store, cfg)
-	if err := idx.RegisterDefaultProtocols(); err != nil {
-		log.L().Fatal("Failed to register default protocols", zap.Error(err))
-	}
+	service := mimo.NewService(iotexapi.NewAPIServiceClient(conn), sql.NewMySQL(connectionStr, dbName), mimoFactoryAddr, mimoFactoryCreationHeight, nil, 100)
 
 	http.Handle("/", graphqlHandler(handler.Playground("GraphQL playground", "/query")))
-	http.Handle("/query", graphqlHandler(handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{Resolvers: &graphql.Resolver{
-		PP: productivity.NewProtocol(idx),
-		RP: rewards.NewProtocol(idx),
-		VP: votings.NewProtocol(idx),
-		AP: actions.NewProtocol(idx),
-		CP: chainmeta.NewProtocol(idx),
-		HP: hermes2.NewProtocol(idx, cfg.HermesConfig),
-	}}))))
+	http.Handle("/query", graphqlHandler(handler.GraphQL(generated.NewExecutableSchema(generated.Config{Resolvers: &mimo.Resolver{}}))))
 	http.Handle("/metrics", promhttp.Handler())
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
 
@@ -105,34 +84,12 @@ func main() {
 		}
 	}()
 
-	grpcCtx1, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	conn1, err := grpc.DialContext(grpcCtx1, chainEndpoint, grpc.WithBlock(), grpc.WithInsecure())
-	if err != nil {
-		log.L().Error("Failed to connect to chain's API server.")
-	}
-	chainClient := iotexapi.NewAPIServiceClient(conn1)
-
-	grpcCtx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	conn2, err := grpc.DialContext(grpcCtx2, electionEndpoint, grpc.WithBlock(), grpc.WithInsecure())
-	if err != nil {
-		log.L().Error("Failed to connect to election's API server.")
-	}
-	electionClient := api.NewAPIServiceClient(conn2)
-
-	ctx := indexcontext.WithIndexCtx(context.Background(), indexcontext.IndexCtx{
-		ChainClient:     chainClient,
-		ElectionClient:  electionClient,
-		ConsensusScheme: idx.Config.ConsensusScheme,
-	})
-
-	if err := idx.Start(ctx); err != nil {
+	if err := service.Start(context.Background()); err != nil {
 		log.L().Fatal("Failed to start the indexer", zap.Error(err))
 	}
 
 	defer func() {
-		if err := idx.Stop(ctx); err != nil {
+		if err := service.Stop(context.Background()); err != nil {
 			log.L().Fatal("Failed to stop the indexer", zap.Error(err))
 		}
 	}()
@@ -147,3 +104,40 @@ func graphqlHandler(playgroundHandler http.Handler) http.Handler {
 		playgroundHandler.ServeHTTP(w, r)
 	})
 }
+
+/*
+
+	lookupLatestBalance = "SELECT income - outcome as balance FROM `" + balanceTableName + "` WHERE address = '%s' ORDER BY block_height DESC LIMIT 1"
+
+// BalanceOf return the balance of a given account
+func (p *Protocol) BalanceOf(account address.Address) (*big.Int, error) {
+	var n *big.Int
+	var s sql.NullString
+	err := p.store.GetDB().QueryRow(fmt.Sprintf(lookupLatestBalance, account.String())).Scan(&s)
+	if err != nil {
+		return nil, err
+	}
+	if s.Valid {
+		n, _ = new(big.Int).SetString(s.String, 10)
+		return n, nil
+	}
+	return big.NewInt(0), nil
+}
+
+
+// BalanceOf return the balance of a given account
+func (p *Protocol) BalanceOf(xrc20 address.Address, account address.Address) (*big.Int, error) {
+	var n *big.Int
+	var s sql.NullString
+	err := p.store.GetDB().QueryRow(fmt.Sprintf(lookupLatestBalance, xrc20.String(), account.String())).Scan(&s)
+	if err != nil {
+		return nil, err
+	}
+	if s.Valid {
+		n, _ = new(big.Int).SetString(s.String, 10)
+		return n, nil
+	}
+	return big.NewInt(0), nil
+}
+
+*/

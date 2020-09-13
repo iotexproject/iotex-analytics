@@ -17,6 +17,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/go-pkgs/hash"
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -86,6 +88,12 @@ type (
 	RewardPortionCfg struct {
 		RewardPortionContract             string `yaml:"rewardPortionContract"`
 		RewardPortionContractDeployHeight uint64 `yaml:"rewardportionContractDeployHeight"`
+	}
+
+	// BlockData defines the block data of a specific height
+	BlockData struct {
+		Block           *block.Block
+		TransactionLogs []*iotextypes.TransactionLog
 	}
 )
 
@@ -268,4 +276,9 @@ func DecodeDelegateName(name string) (string, error) {
 	}
 	aliasString := string(aliasBytes) + suffix
 	return aliasString, nil
+}
+
+// ConvertTopicToAddress converts topic in log to address
+func ConvertTopicToAddress(topic hash.Hash256) (address.Address, error) {
+	return address.FromBytes(topic[12:])
 }
