@@ -59,7 +59,6 @@ func main() {
 	if connectionStr == "" {
 		log.L().Panic("failed to get db connection string")
 	}
-
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
 		dbName = "mimo_testnet"
