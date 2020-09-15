@@ -1,8 +1,10 @@
 type Query {
     exchanges(height: String!, pagination: Pagination!): [Exchange]!
+    tipHeight: String!
 }
 
 type Exchange {
+    address: String!
     token: String!
     liquidity: String!
     balanceOfToken: String!

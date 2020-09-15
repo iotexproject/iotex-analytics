@@ -6,7 +6,11 @@
 
 package services
 
-import "context"
+import (
+	"context"
+
+	"github.com/99designs/gqlgen/graphql"
+)
 
 // Service defines a service interface
 type Service interface {
@@ -14,4 +18,6 @@ type Service interface {
 	Start(context.Context) error
 	// Stop stops the service
 	Stop(context.Context) error
+	// ExecutableSchema returns an executable schema
+	ExecutableSchema() graphql.ExecutableSchema
 }

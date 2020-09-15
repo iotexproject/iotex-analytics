@@ -11,8 +11,10 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -43,18 +45,22 @@ var (
 	)
 )
 
-// mimoService defines a service for mimo
-type mimoService struct {
-	store                 s.Store
-	protocols             []indexprotocol.ProtocolV2
-	chainClient           iotexapi.APIServiceClient
-	lastHeight            uint64
-	batchSize             uint64
-	terminate             chan bool
-	factoryCreationHeight *big.Int
-
-	exchanges map[string]bool
-}
+type (
+	mimoService struct {
+		store                 s.Store
+		protocols             []indexprotocol.ProtocolV2
+		chainClient           iotexapi.APIServiceClient
+		lastHeight            uint64
+		batchSize             uint64
+		terminate             chan bool
+		factoryCreationHeight *big.Int
+	}
+	// AddressPair defines a struct storing a pair of addresses
+	AddressPair struct {
+		Address1 string
+		Address2 string
+	}
+)
 
 // NewService creates a new mimo service
 func NewService(chainClient iotexapi.APIServiceClient, store s.Store, mimoFactoryAddr address.Address, factoryCreationHeight uint64, initBalances map[string]*big.Int, batchSize uint8) services.Service {
@@ -72,7 +78,6 @@ func NewService(chainClient iotexapi.APIServiceClient, store s.Store, mimoFactor
 	}
 }
 
-// Start starts the service
 func (service *mimoService) Start(ctx context.Context) error {
 	prometheus.MustRegister(blockHeightMtc)
 	if err := service.store.Start(ctx); err != nil {
@@ -127,10 +132,17 @@ func (service *mimoService) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the service
 func (service *mimoService) Stop(ctx context.Context) error {
 	service.terminate <- true
 	return service.store.Stop(ctx)
+}
+
+func (service *mimoService) ExecutableSchema() graphql.ExecutableSchema {
+	return NewExecutableSchema(Config{Resolvers: service})
+}
+
+func (service *mimoService) Query() QueryResolver {
+	return &queryResolver{service}
 }
 
 func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) error {
@@ -142,7 +154,7 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 		if service.batchSize > tipHeight-startHeight+1 {
 			count = tipHeight - startHeight + 1
 		}
-		fmt.Printf("%d -> %d\n", startHeight, startHeight+count)
+		fmt.Printf("indexing blocks %d -> %d\n", startHeight, startHeight+count)
 		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
 			StartHeight:  startHeight,
 			Count:        count,
@@ -226,8 +238,7 @@ func (service *mimoService) buildIndex(ctx context.Context, data *indexprotocol.
 func (service *mimoService) latestHeight() (*big.Int, error) {
 	var n *big.Int
 	var s sql.NullString
-	err := service.store.GetDB().QueryRow("SELECT coalesce(MAX(block_height)) FROM `" + blockinfo.TableName + "`").Scan(&s)
-	if err != nil {
+	if err := service.store.GetDB().QueryRow("SELECT coalesce(MAX(block_height)) FROM `" + blockinfo.TableName + "`").Scan(&s); err != nil {
 		return nil, err
 	}
 	if s.Valid {
@@ -235,4 +246,139 @@ func (service *mimoService) latestHeight() (*big.Int, error) {
 		return n, nil
 	}
 	return service.factoryCreationHeight, nil
+}
+
+func (service *mimoService) exchanges(height uint64, offset uint32, count uint8) ([]AddressPair, error) {
+	rows, err := service.store.GetDB().Query(
+		"SELECT `exchange`, `token` FROM `"+mimoprotocol.ExchangeCreationTableName+"` WHERE `block_height` <= ? AND `id` > ? ORDER BY `id` LIMIT ?",
+		height,
+		offset,
+		count,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query exchanges")
+	}
+	pairs := []AddressPair{}
+	for rows.Next() {
+		var exchange, token string
+		if err := rows.Scan(&exchange, &token); err != nil {
+			return nil, errors.Wrap(err, "failed to parse exchange record")
+		}
+		pairs = append(pairs, AddressPair{
+			Address1: exchange,
+			Address2: token,
+		})
+	}
+	return pairs, nil
+}
+
+func (service *mimoService) balances(height uint64, addrs []string) (map[string]*big.Int, error) {
+	args := make([]interface{}, len(addrs)+1)
+	args[0] = height
+	questionMarks := make([]string, len(addrs))
+	for i, addr := range addrs {
+		args[i+1] = addr
+		questionMarks[i] = "?"
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT b1.account, b1.balance "+
+			"FROM `"+accountbalance.BalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT account, MAX(block_height) max_height "+
+			"    FROM `"+accountbalance.BalanceTableName+"` "+
+			"    WHERE `block_height` <= ? AND account in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY account"+
+			") h1 ON b1.account = h1.account and b1.block_height = h1.max_height",
+		args...)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string]*big.Int{}
+	for rows.Next() {
+		var account string
+		var balance string
+		if err := rows.Scan(&account, &balance); err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance")
+		}
+		bb, ok := new(big.Int).SetString(balance, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse balance %s", balance)
+		}
+		ret[account] = bb
+	}
+	return ret, nil
+}
+
+func (service *mimoService) tokenBalances(height uint64, tokenAndAddrPairs []AddressPair) (map[AddressPair]*big.Int, error) {
+	args := make([]interface{}, len(tokenAndAddrPairs)*2+1)
+	args[0] = height
+	questionMarks := make([]string, len(tokenAndAddrPairs))
+	for i, pair := range tokenAndAddrPairs {
+		args[2*i+1] = pair.Address1
+		args[2*i+2] = pair.Address2
+		questionMarks[i] = "(?,?)"
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT h1.token,h1.account,b1.balance "+
+			"FROM `"+xrc20.BalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT token,account,MAX(block_height) max_height "+
+			"    FROM `"+xrc20.BalanceTableName+"` "+
+			"    WHERE `block_height` <= ? AND (`token`,`account`) in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY token,account"+
+			") h1 ON b1.token = h1.token AND b1.account = h1.account AND b1.block_height = h1.max_height",
+		args...)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[AddressPair]*big.Int{}
+	for rows.Next() {
+		var token string
+		var account string
+		var balance string
+		if err := rows.Scan(&token, &account, &balance); err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance")
+		}
+		bb, ok := new(big.Int).SetString(balance, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse balance %s", balance)
+		}
+		ret[AddressPair{token, account}] = bb
+	}
+	return ret, nil
+}
+func (service *mimoService) supplies(height uint64, tokens []string) (map[string]*big.Int, error) {
+	args := make([]interface{}, len(tokens)+1)
+	args[0] = height
+	questionMarks := make([]string, len(tokens))
+	for i, token := range tokens {
+		args[i+1] = token
+		questionMarks[i] = "?"
+	}
+
+	rows, err := service.store.GetDB().Query(
+		"SELECT b1.token, b1.supply "+
+			"FROM `"+xrc20.SupplyTableName+"` b1 "+
+			"INNER JOIN ("+
+			"    SELECT token, MAX(block_height) max_height "+
+			"    FROM `"+xrc20.SupplyTableName+"` "+
+			"    WHERE block_height <= ? AND token in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY token"+
+			") h1 ON b1.token = h1.token AND b1.block_height = h1.max_height",
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string]*big.Int{}
+	for rows.Next() {
+		var token, supply string
+		if err := rows.Scan(&token, &supply); err != nil {
+			return nil, errors.Wrap(err, "failed to parse supply query result")
+		}
+		s, ok := new(big.Int).SetString(supply, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse balance %s", supply)
+		}
+		ret[token] = s
+	}
+	return ret, nil
 }

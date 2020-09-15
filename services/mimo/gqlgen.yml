@@ -4,13 +4,13 @@
 # for detailed .gqlgen.yml documentation.
 
 schema:
-- services/mimo/schema.graphql
+  - services/mimo/schema.graphql
 exec:
   filename: services/mimo/generated.go
   package: mimo
 model:
-  filename: services/mimo/model/models_gen.go
-  package: model
+  filename: services/mimo/models_gen.go
+  package: mimo
 resolver:
   filename: services/mimo/resolver.go
   type: Resolver

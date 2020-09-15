@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/iotexproject/iotex-analytics/services/mimo"
-	"github.com/iotexproject/iotex-analytics/services/mimo/generated"
 	"github.com/iotexproject/iotex-analytics/sql"
 )
 
@@ -72,7 +71,7 @@ func main() {
 	service := mimo.NewService(iotexapi.NewAPIServiceClient(conn), sql.NewMySQL(connectionStr, dbName), mimoFactoryAddr, mimoFactoryCreationHeight, nil, 100)
 
 	http.Handle("/", graphqlHandler(handler.Playground("GraphQL playground", "/query")))
-	http.Handle("/query", graphqlHandler(handler.GraphQL(generated.NewExecutableSchema(generated.Config{Resolvers: &mimo.Resolver{}}))))
+	http.Handle("/query", graphqlHandler(handler.GraphQL(service.ExecutableSchema())))
 	http.Handle("/metrics", promhttp.Handler())
 	log.S().Infof("connect to http://localhost:%s/ for GraphQL playground", port)
 

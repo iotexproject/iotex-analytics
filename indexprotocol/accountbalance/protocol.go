@@ -21,8 +21,9 @@ import (
 )
 
 const (
+	// BalanceTableName is the name of balance table
+	BalanceTableName     = "balances"
 	transactionTableName = "transactions"
-	balanceTableName     = "balances"
 )
 
 var (
@@ -37,7 +38,7 @@ var (
 		"KEY `i_block_height` (`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 		/*
-			createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + balanceTableName + "` (" +
+			createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + BalanceTableName + "` (" +
 				"`account` varchar(41) NOT NULL," +
 				"`block_height` decimal(65,0) unsigned NOT NULL," +
 				"`income` decimal(65,0) unsigned DEFAULT NULL," +
@@ -45,7 +46,7 @@ var (
 				"PRIMARY KEY (`address`,`block_height`)" +
 				") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 		*/
-	createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + balanceTableName + "` (" +
+	createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + BalanceTableName + "` (" +
 		"`account` varchar(41) NOT NULL," +
 		"`block_height` decimal(65,0) unsigned NOT NULL," +
 		"`balance` decimal(65,0) unsigned DEFAULT NULL," +
@@ -55,20 +56,20 @@ var (
 	insertTransactionQuery = "INSERT IGNORE INTO `" + transactionTableName + "` (`action_hash`, `idx`, `sender`, `recipient`, `block_height`, `amount`) SELECT ?,?,?,?,?,? FROM %s m WHERE m.account = ? OR m.account = ? LIMIT 1"
 
 	/*
-		updateBalances = "INSERT INTO `" + balanceTableName + "` (address, block_height, income, expense) " +
+		updateBalances = "INSERT INTO `" + BalanceTableName + "` (address, block_height, income, expense) " +
 			"SELECT t1.address, %d, coalesce(SUM(t2.amount), 0), coalesce(SUM(t3.amount), 0) " +
 			"FROM (SELECT `sender` address FROM `" + transactionTableName + "` WHERE block_height = %d UNION SELECT `recipient` address FROM `" + transactionTableName + "` WHERE block_height = %d) t1 " +
 			"LEFT JOIN `" + transactionTableName + "` t2 ON t1.address = t2.recipient " +
 			"LEFT JOIN `" + transactionTableName + "` t3 ON t1.address = t3.sender " +
 			"GROUP BY t1.address"
 	*/
-	updateBalancesQuery = "INSERT INTO `" + balanceTableName + "` (`account`, `block_height`, `balance`) " +
+	updateBalancesQuery = "INSERT INTO `" + BalanceTableName + "` (`account`, `block_height`, `balance`) " +
 		"SELECT delta_balances.account, ?, coalesce(current_balances.balance, 0) + coalesce(SUM(delta_balances.balance), 0) " +
 		"FROM (" +
 		"    SELECT b1.account, b1.balance " +
-		"    FROM `" + balanceTableName + "` b1 INNER JOIN (" +
+		"    FROM `" + BalanceTableName + "` b1 INNER JOIN (" +
 		"	     SELECT t.account, MAX(t.block_height) max_height " +
-		"        FROM `" + balanceTableName + "` t INNER JOIN %s m ON t.account = m.account " +
+		"        FROM `" + BalanceTableName + "` t INNER JOIN %s m ON t.account = m.account " +
 		"        GROUP BY t.account" +
 		"    ) h1 ON b1.account = h1.account and b1.block_height = h1.max_height" +
 		") AS current_balances RIGHT JOIN (" +

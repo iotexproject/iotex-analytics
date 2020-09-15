@@ -23,7 +23,8 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "mino"
 
-	exchangeCreationTableName = "mimo_exchange_creations"
+	// ExchangeCreationTableName is the table storing exchange creation records
+	ExchangeCreationTableName = "mimo_exchange_creations"
 
 	// ExchangeMonitorViewName is the table storing all the exchange addresses
 	ExchangeMonitorViewName = "mimo_exchange_to_monitor"
@@ -31,19 +32,22 @@ const (
 	// TokenMonitorViewName is the table storing all the <token,account> to monitor
 	TokenMonitorViewName = "mimo_token_to_monitor"
 
-	createTableQuery = "CREATE TABLE IF NOT EXISTS `" + exchangeCreationTableName + "` (" +
+	createTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeCreationTableName + "` (" +
+		"`id` int(11) NOT NULL AUTO_INCREMENT," +
 		"`exchange` varchar(41) NOT NULL," +
 		"`token` varchar(41) NOT NULL," +
 		"`block_height` decimal(65, 0) NOT NULL," +
 		"`action_hash` varchar(40) NOT NULL," +
-		"PRIMARY KEY (`exchange`)," +
-		"UNIQUE KEY `token_UNIQUE` (`token`)" +
+		"PRIMARY KEY (`id`)," +
+		"UNIQUE KEY `exchange_UNIQUE` (`exchange`)," +
+		"UNIQUE KEY `token_UNIQUE` (`token`)," +
+		"KEY `i_block_height` (`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + exchangeCreationTableName + "`"
-	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + exchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + exchangeCreationTableName + "`"
+	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + ExchangeCreationTableName + "`"
+	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + ExchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + ExchangeCreationTableName + "`"
 
-	insertExchangeQuery = "INSERT INTO `" + exchangeCreationTableName + "` (`exchange`, `token`, `block_height`, `action_hash`) VALUES %s"
+	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`, `token`, `block_height`, `action_hash`) VALUES %s"
 )
 
 // Protocol defines the protocol of indexing blocks

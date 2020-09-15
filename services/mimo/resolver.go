@@ -8,19 +8,17 @@ package mimo
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/pkg/errors"
-
-	"github.com/iotexproject/iotex-analytics/services/mimo/generated"
-	"github.com/iotexproject/iotex-analytics/services/mimo/model"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 const (
 	// HexPrefix is the prefix of ERC20 address in hex string
 	HexPrefix = "0x"
 	// DefaultPageSize is the size of page when pagination parameters are not set
-	DefaultPageSize = 200
+	DefaultPageSize = 20
 	// MaximumPageSize is the maximum size of page
-	MaximumPageSize = 500
+	MaximumPageSize = 256
 )
 
 var (
@@ -34,38 +32,80 @@ var (
 	ErrInvalidParameter = errors.New("invalid parameter number")
 )
 
-// Resolver is hte resolver that handles GraphQL request
-type Resolver struct {
+type queryResolver struct {
+	service *mimoService
 }
-
-// Query returns a query resolver
-func (r *Resolver) Query() generated.QueryResolver {
-	return &queryResolver{r}
-}
-
-type queryResolver struct{ *Resolver }
 
 // Exchanges returns all exchanges
-func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination model.Pagination) ([]*model.Exchange, error) {
-	/*if pagination.Skip < 0 {
+func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error) {
+	if pagination.Skip < 0 {
 		return nil, ErrPaginationInvalidOffset
 	}
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
 		return nil, ErrPaginationInvalidSize
 	}
-	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(pagination.Skip), uint64(pagination.First))
+	h, ok := new(big.Int).SetString(height, 10)
+	if !ok {
+		return nil, errors.Errorf("failed to parse height %s", height)
+	}
+	pairs, err := r.service.exchanges(h.Uint64(), uint32(pagination.Skip), uint8(pagination.First))
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]*model.Exchange, 0)
-	for _, h := range holders {
-		t := &model.Exchange{
-			Address: h.Address,
-			Balance: h.Balance,
+	exchanges := make([]string, len(pairs))
+	tokens := make([]string, len(pairs))
+	reversePairs := make([]AddressPair, len(pairs))
+	for i, pair := range pairs {
+		exchanges[i] = pair.Address1
+		tokens[i] = pair.Address2
+		reversePairs[i] = AddressPair{
+			Address1: pair.Address2,
+			Address2: pair.Address1,
 		}
-		ret = append(ret, t)
+	}
+	balances, err := r.service.balances(h.Uint64(), exchanges)
+	if err != nil {
+		return nil, err
+	}
+	supplies, err := r.service.supplies(h.Uint64(), exchanges)
+	if err != nil {
+		return nil, err
+	}
+	tokenBalances, err := r.service.tokenBalances(h.Uint64(), reversePairs)
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]*Exchange, 0, len(exchanges))
+	for _, pair := range reversePairs {
+		token := pair.Address1
+		exchange := pair.Address2
+		balance, ok := balances[exchange]
+		if !ok {
+			balance = big.NewInt(0)
+		}
+		tokenBalance, ok := tokenBalances[pair]
+		if !ok {
+			tokenBalance = big.NewInt(0)
+		}
+		supply, ok := supplies[exchange]
+		if !ok {
+			supply = big.NewInt(0)
+		}
+		ret = append(ret, &Exchange{
+			Address:        exchange,
+			Token:          token,
+			Liquidity:      supply.String(),
+			BalanceOfIotx:  balance.String(),
+			BalanceOfToken: tokenBalance.String(),
+		})
 	}
 	return ret, nil
-	*/
-	return nil, nil
+}
+
+func (r *queryResolver) TipHeight(ctx context.Context) (string, error) {
+	tip, err := r.service.latestHeight()
+	if err != nil {
+		return "", err
+	}
+	return tip.String(), nil
 }

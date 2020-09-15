@@ -21,12 +21,18 @@ const (
 	// transferSha3 is sha3 of xrc20's transfer event,keccak('Transfer(address,address,uint256)')
 	transferSha3 = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
-	xrc20TransactionTableName = "xrc20_transactions"
-	xrc20BalanceTableName     = "xrc20_balances"
+	// TransactionTableName is the name of xrc20 transaction table
+	TransactionTableName = "xrc20_transactions"
+	// BalanceTableName is the name of xrc20 balance table
+	BalanceTableName = "xrc20_balances"
+	// SupplyTableName is the name of xrc20 supply table
+	SupplyTableName = "xrc20_supplies"
+
+	zeroAddr = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7"
 )
 
 var (
-	createTransactionTable = "CREATE TABLE IF NOT EXISTS `" + xrc20TransactionTableName + "` (" +
+	createTransactionTable = "CREATE TABLE IF NOT EXISTS `" + TransactionTableName + "` (" +
 		"`block_height` DECIMAL(65) UNSIGNED NULL," +
 		"`action_hash` VARCHAR(40) NOT NULL," +
 		"`idx` INT(5) UNSIGNED NOT NULL," +
@@ -41,7 +47,7 @@ var (
 		"KEY `i_token` (`token`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + xrc20BalanceTableName + "` (" +
+	createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + BalanceTableName + "` (" +
 		"`token` varchar(41) NOT NULL," +
 		"`account` varchar(41) NOT NULL," +
 		"`block_height` decimal(65,0) NOT NULL," +
@@ -52,56 +58,90 @@ var (
 		"KEY `i_token` (`token`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	insertTransactionQuery = "INSERT IGNORE INTO `" + xrc20TransactionTableName + "` (block_height, action_hash, idx, token, sender, recipient, amount) SELECT ?,?,?,?,?,?,? FROM %s m WHERE m.token = ? AND m.account in ('*',?,?) LIMIT 1"
+	createSupplyTable = "CREATE TABLE IF NOT EXISTS `" + SupplyTableName + "` (" +
+		"`token` varchar(41) NOT NULL," +
+		"`block_height` decimal(65,0) NOT NULL," +
+		"`supply` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`token`,`block_height`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_token` (`token`)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	insertTransactionQuery = "INSERT IGNORE INTO `" + TransactionTableName + "` (block_height, action_hash, idx, token, sender, recipient, amount) SELECT ?,?,?,?,?,?,? FROM %s m WHERE m.token = ? AND m.account in ('*',?,?) LIMIT 1"
 	/*
-		updateBalances = "INSERT INTO `" + xrc20BalanceTableName + "` (token, address, block_height, income, expense) " +
+		updateBalances = "INSERT INTO `" + BalanceTableName + "` (token, address, block_height, income, expense) " +
 			"SELECT t1.token, t1.address, %d, coalesce(SUM(t2.amount), 0), coalesce(SUM(t3.amount), 0) " +
-			"FROM (SELECT `token`, `sender` address FROM `" + xrc20TransactionTableName + "` WHERE block_height = %d UNION SELECT `token`, `recipient` address FROM `" + xrc20TransactionTableName + "` WHERE block_height = %d) t1 " +
-			"LEFT JOIN `" + xrc20TransactionTableName + "` t2 ON t1.address = t2.recipient AND t1.token = t2.token " +
-			"LEFT JOIN `" + xrc20TransactionTableName + "` t3 ON t1.address = t3.sender AND t1.token = t3.token " +
+			"FROM (SELECT `token`, `sender` address FROM `" + TransactionTableName + "` WHERE block_height = %d UNION SELECT `token`, `recipient` address FROM `" + TransactionTableName + "` WHERE block_height = %d) t1 " +
+			"LEFT JOIN `" + TransactionTableName + "` t2 ON t1.address = t2.recipient AND t1.token = t2.token " +
+			"LEFT JOIN `" + TransactionTableName + "` t3 ON t1.address = t3.sender AND t1.token = t3.token " +
 			"GROUP BY t1.token, t1.address"
 	*/
 
-	updateBalancesQuery = "INSERT INTO `" + xrc20BalanceTableName + "` (`token`, `account`, `block_height`, `balance`) " +
+	updateBalancesQuery = "INSERT INTO `" + BalanceTableName + "` (`token`, `account`, `block_height`, `balance`) " +
 		"SELECT delta.token, delta.account, ?, coalesce(curr.balance, 0) + coalesce(SUM(delta.balance), 0) " +
 		"FROM (" +
 		"    SELECT b1.token, b1.account, b1.balance " +
-		"    FROM `" + xrc20BalanceTableName + "` b1 " +
+		"    FROM `" + BalanceTableName + "` b1 " +
 		"    INNER JOIN ((" +
 		"        SELECT t.token, t.account, MAX(t.block_height) max_height " +
-		"        FROM `" + xrc20BalanceTableName + "` t " +
+		"        FROM `" + BalanceTableName + "` t " +
 		"        INNER JOIN %s m ON t.token = m.token AND t.account = m.account " +
 		"        GROUP BY t.token, t.account " +
 		"    ) UNION (" +
 		"        SELECT t.token, t.account, MAX(t.block_height) max_height " +
-		"        FROM `" + xrc20BalanceTableName + "` t " +
+		"        FROM `" + BalanceTableName + "` t " +
 		"        INNER JOIN %s m ON t.token = m.token WHERE m.account = '*' " +
 		"        GROUP BY t.token, t.account " +
 		"    )) h1 ON b1.token = h1.token AND b1.account = h1.account AND b1.block_height = h1.max_height" +
 		") AS curr RIGHT JOIN ((" +
 		"    SELECT t.token, t.sender account, SUM(-t.amount) balance " +
-		"    FROM `" + xrc20TransactionTableName + "` t " +
+		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = t.sender AND t.block_height = ? " +
 		"    GROUP BY t.token, t.sender " +
 		") UNION (" +
 		"    SELECT t.token, t.sender account, SUM(-t.amount) balance " +
-		"    FROM `" + xrc20TransactionTableName + "` t " +
+		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = '*' AND t.block_height = ? " +
+		"    WHERE t.sender != '" + zeroAddr + "'" +
 		"    GROUP BY t.token, t.sender " +
 		") UNION (" +
 		"    SELECT t.token, t.recipient account, SUM(t.amount) balance " +
-		"    FROM `" + xrc20TransactionTableName + "` t " +
+		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = t.recipient AND t.block_height = ? " +
 		"    GROUP BY t.token, t.recipient " +
 		") UNION (" +
 		"    SELECT t.token, t.recipient account, SUM(t.amount) balance " +
-		"    FROM `" + xrc20TransactionTableName + "` t " +
+		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = '*' AND t.block_height = ? " +
+		"    WHERE t.recipient != '" + zeroAddr + "'" +
 		"    GROUP BY t.token, t.recipient " +
 		")) AS `delta` ON delta.token = curr.token and delta.account = curr.account " +
 		"GROUP BY delta.token, delta.account"
 
-	// lookupLatestBalance = "SELECT balance FROM `" + xrc20BalanceTableName + "` WHERE token = ? AND account = ? ORDER BY block_height DESC LIMIT 1"
+	updateSuppliesQuery = "INSERT INTO `" + SupplyTableName + "` (`token`, `block_height`, `supply`) " +
+		"SELECT delta.token, ?, coalesce(curr.supply, 0) + coalesce(delta.supply, 0) " +
+		"FROM (" +
+		"    SELECT b1.token, b1.supply " +
+		"    FROM `" + SupplyTableName + "` b1 " +
+		"    INNER JOIN (" +
+		"        SELECT t.token, MAX(t.block_height) max_height " +
+		"        FROM `" + SupplyTableName + "` t " +
+		"        GROUP BY t.token" +
+		"    ) h1 ON b1.token = h1.token AND b1.block_height = h1.max_height" +
+		") AS curr " +
+		"RIGHT JOIN ((" +
+		"    SELECT token, sum(amount) supply " +
+		"    FROM `" + TransactionTableName + "` " +
+		"    WHERE `block_height` = ? AND `sender` = '" + zeroAddr + "'" +
+		"    GROUP BY token" +
+		") UNION (" +
+		"    SELECT token, sum(-amount) supply " +
+		"    FROM `" + TransactionTableName + "` " +
+		"    WHERE `block_height` = ? AND `recipient` = '" + zeroAddr + "'" +
+		"    GROUP BY token" +
+		")) AS `delta` ON delta.token = curr.token " +
+		"GROUP BY delta.token"
+	// lookupLatestBalance = "SELECT balance FROM `" + BalanceTableName + "` WHERE token = ? AND account = ? ORDER BY block_height DESC LIMIT 1"
 )
 
 type (
@@ -139,6 +179,9 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx) error {
 	if _, err := tx.Exec(createBalanceTable); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(createSupplyTable); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -154,7 +197,7 @@ func (p *Protocol) HandleBlockData(
 			// TODO: handle the legacy status
 			continue
 		}
-		for _, l := range receipt.Logs() {
+		for i, l := range receipt.Logs() {
 			if len(l.Topics) != 3 {
 				continue
 			}
@@ -177,7 +220,7 @@ func (p *Protocol) HandleBlockData(
 				p.insertTransactionQuery,
 				l.BlockHeight,
 				hex.EncodeToString(l.ActionHash[:]),
-				l.Index,
+				i,
 				l.Address,
 				sender.String(),
 				recipient.String(),
@@ -197,6 +240,9 @@ func (p *Protocol) HandleBlockData(
 	height := data.Block.Height()
 	if _, err := tx.Exec(p.updateBalancesQuery, height, height, height, height, height); err != nil {
 		return errors.Wrap(err, "failed to update xrc20 balances")
+	}
+	if _, err := tx.Exec(updateSuppliesQuery, height, height, height); err != nil {
+		return errors.Wrap(err, "failed to update xrc20 supplies")
 	}
 
 	return nil
