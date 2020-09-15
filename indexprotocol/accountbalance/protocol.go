@@ -37,15 +37,7 @@ var (
 		"PRIMARY KEY (`action_hash`,`idx`)," +
 		"KEY `i_block_height` (`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
-		/*
-			createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + BalanceTableName + "` (" +
-				"`account` varchar(41) NOT NULL," +
-				"`block_height` decimal(65,0) unsigned NOT NULL," +
-				"`income` decimal(65,0) unsigned DEFAULT NULL," +
-				"`expense` decimal(65,0) unsigned DEFAULT NULL," +
-				"PRIMARY KEY (`address`,`block_height`)" +
-				") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
-		*/
+
 	createBalanceTable = "CREATE TABLE IF NOT EXISTS `" + BalanceTableName + "` (" +
 		"`account` varchar(41) NOT NULL," +
 		"`block_height` decimal(65,0) unsigned NOT NULL," +
@@ -55,14 +47,6 @@ var (
 
 	insertTransactionQuery = "INSERT IGNORE INTO `" + transactionTableName + "` (`action_hash`, `idx`, `sender`, `recipient`, `block_height`, `amount`) SELECT ?,?,?,?,?,? FROM %s m WHERE m.account = ? OR m.account = ? LIMIT 1"
 
-	/*
-		updateBalances = "INSERT INTO `" + BalanceTableName + "` (address, block_height, income, expense) " +
-			"SELECT t1.address, %d, coalesce(SUM(t2.amount), 0), coalesce(SUM(t3.amount), 0) " +
-			"FROM (SELECT `sender` address FROM `" + transactionTableName + "` WHERE block_height = %d UNION SELECT `recipient` address FROM `" + transactionTableName + "` WHERE block_height = %d) t1 " +
-			"LEFT JOIN `" + transactionTableName + "` t2 ON t1.address = t2.recipient " +
-			"LEFT JOIN `" + transactionTableName + "` t3 ON t1.address = t3.sender " +
-			"GROUP BY t1.address"
-	*/
 	updateBalancesQuery = "INSERT INTO `" + BalanceTableName + "` (`account`, `block_height`, `balance`) " +
 		"SELECT delta_balances.account, ?, coalesce(current_balances.balance, 0) + coalesce(SUM(delta_balances.balance), 0) " +
 		"FROM (" +

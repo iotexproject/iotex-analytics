@@ -43,20 +43,23 @@ func main() {
 
 	mimoFactoryAddrStr := os.Getenv("MIMO_FACTORY_ADDRESS")
 	if mimoFactoryAddrStr == "" {
-		// TODO: delete the following line
 		mimoFactoryAddrStr = "io1vu0tq2v6ph5xhwrrpx0vzvg5wt8adfk3ygnxfj"
 	}
 	mimoFactoryAddr, err := address.FromString(mimoFactoryAddrStr)
 	if err != nil {
 		log.L().Panic("failed to parse mimo factory address", zap.Error(err))
 	}
-	mimoFactoryCreationHeight, err := strconv.ParseUint(os.Getenv("MIMO_FACTORY_CREATION_HEIGHT"), 10, 64)
+	mimoFactoryCreationHeightStr := os.Getenv("MIMO_FACTORY_CREATION_HEIGHT")
+	if mimoFactoryCreationHeightStr == "" {
+		mimoFactoryCreationHeightStr = "5383914"
+	}
+	mimoFactoryCreationHeight, err := strconv.ParseUint(mimoFactoryCreationHeightStr, 10, 64)
 	if err != nil {
 		log.L().Panic("failed to parse mimo factory creation height", zap.Error(err))
 	}
 	connectionStr := os.Getenv("CONNECTION_STRING")
 	if connectionStr == "" {
-		log.L().Panic("failed to get db connection string")
+		log.L().Panic("failed to get db connection config")
 	}
 	dbName := os.Getenv("DB_NAME")
 	if dbName == "" {
@@ -102,40 +105,3 @@ func graphqlHandler(playgroundHandler http.Handler) http.Handler {
 		playgroundHandler.ServeHTTP(w, r)
 	})
 }
-
-/*
-
-	lookupLatestBalance = "SELECT income - outcome as balance FROM `" + balanceTableName + "` WHERE address = '%s' ORDER BY block_height DESC LIMIT 1"
-
-// BalanceOf return the balance of a given account
-func (p *Protocol) BalanceOf(account address.Address) (*big.Int, error) {
-	var n *big.Int
-	var s sql.NullString
-	err := p.store.GetDB().QueryRow(fmt.Sprintf(lookupLatestBalance, account.String())).Scan(&s)
-	if err != nil {
-		return nil, err
-	}
-	if s.Valid {
-		n, _ = new(big.Int).SetString(s.String, 10)
-		return n, nil
-	}
-	return big.NewInt(0), nil
-}
-
-
-// BalanceOf return the balance of a given account
-func (p *Protocol) BalanceOf(xrc20 address.Address, account address.Address) (*big.Int, error) {
-	var n *big.Int
-	var s sql.NullString
-	err := p.store.GetDB().QueryRow(fmt.Sprintf(lookupLatestBalance, xrc20.String(), account.String())).Scan(&s)
-	if err != nil {
-		return nil, err
-	}
-	if s.Valid {
-		n, _ = new(big.Int).SetString(s.String, 10)
-		return n, nil
-	}
-	return big.NewInt(0), nil
-}
-
-*/
