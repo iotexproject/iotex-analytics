@@ -8,13 +8,13 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/go-sql-driver/mysql v1.4.1
-	github.com/golang/mock v1.4.0
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/mock v1.4.4
+	github.com/golang/protobuf v1.4.2
 	github.com/iotexproject/go-pkgs v0.1.2-0.20200523040337-5f1d9ddaa8ee
 	github.com/iotexproject/iotex-address v0.2.2
 	github.com/iotexproject/iotex-core v0.8.1-0.20200802225645-3a1451e9e968
 	github.com/iotexproject/iotex-election v0.3.2
-	github.com/iotexproject/iotex-proto v0.3.2-0.20200729044038-c22fbb206571
+	github.com/iotexproject/iotex-proto v0.4.4-0.20200911203240-cd4805ad9b45
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
 	github.com/rs/zerolog v1.14.3
@@ -26,7 +26,7 @@ require (
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/tools v0.0.0-20200318150045-ba25ddc85566 // indirect
 	google.golang.org/appengine v1.6.0 // indirect
-	google.golang.org/grpc v1.21.0
+	google.golang.org/grpc v1.27.0
 	gopkg.in/yaml.v2 v2.2.4
 )
 

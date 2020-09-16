@@ -159,6 +159,7 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 			StartHeight:  startHeight,
 			Count:        count,
 			WithReceipts: true,
+			// WithTransactionLogs: true,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to get raw blocks from the chain")
@@ -175,16 +176,19 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 				blk.Receipts = append(blk.Receipts, receipt)
 			}
 			var transactionLogs []*iotextypes.TransactionLog
-			// TODO: add transaction log via GetRawBlocks
-			if blk.Height() >= 5383954 {
-				transactionLogResponse, err := chainClient.GetTransactionLogByBlockHeight(ctx, &iotexapi.GetTransactionLogByBlockHeightRequest{
-					BlockHeight: blk.Height(),
-				})
-				if err != nil {
-					return errors.Wrapf(err, "failed to fetch transaction log of block %d", blk.Height())
+			/*
+				if tls := blkInfo.GetTransactionLogs(); tls != nil {
+					transactionLogs = tls.Logs
 				}
-				transactionLogs = transactionLogResponse.GetTransactionLogs().GetLogs()
+			*/
+			// TODO: add transaction log via GetRawBlocks
+			transactionLogResponse, err := chainClient.GetTransactionLogByBlockHeight(ctx, &iotexapi.GetTransactionLogByBlockHeightRequest{
+				BlockHeight: blk.Height(),
+			})
+			if err != nil {
+				return errors.Wrapf(err, "failed to fetch transaction log of block %d", blk.Height())
 			}
+			transactionLogs = transactionLogResponse.GetTransactionLogs().GetLogs()
 			if err := service.buildIndex(ctx, &indexprotocol.BlockData{
 				Block:           blk,
 				TransactionLogs: transactionLogs,
