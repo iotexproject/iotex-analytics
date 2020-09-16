@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -281,4 +283,25 @@ func DecodeDelegateName(name string) (string, error) {
 // ConvertTopicToAddress converts topic in log to address
 func ConvertTopicToAddress(topic hash.Hash256) (address.Address, error) {
 	return address.FromBytes(topic[12:])
+}
+
+// ReadContract reads contract
+func ReadContract(cli iotexapi.APIServiceClient, addr string, callData []byte) ([]byte, error) {
+	execution, err := action.NewExecution(addr, uint64(1), big.NewInt(0), uint64(3000000), big.NewInt(1), callData)
+	if err != nil {
+		return nil, err
+	}
+	request := &iotexapi.ReadContractRequest{
+		Execution:     execution.Proto(),
+		CallerAddress: address.ZeroAddress,
+	}
+
+	res, err := cli.ReadContract(context.Background(), request)
+	if err != nil {
+		return nil, err
+	}
+	if res.Receipt.Status != uint64(1) {
+		return nil, errors.New("failed to read contract")
+	}
+	return hex.DecodeString(res.Data)
 }

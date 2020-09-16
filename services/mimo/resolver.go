@@ -71,7 +71,15 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 	if err != nil {
 		return nil, err
 	}
+	tokenInfos, err := r.service.tokens(h.Uint64(), tokens)
+	if err != nil {
+		return nil, err
+	}
 	tokenBalances, err := r.service.tokenBalances(h.Uint64(), reversePairs)
+	if err != nil {
+		return nil, err
+	}
+	volumes, err := r.service.volumesInPast24Hours(exchanges)
 	if err != nil {
 		return nil, err
 	}
@@ -91,12 +99,21 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 		if !ok {
 			supply = big.NewInt(0)
 		}
+		volume, ok := volumes[exchange]
+		if !ok {
+			volume = big.NewInt(0)
+		}
+		info, ok := tokenInfos[token]
+		if !ok {
+			info = Token{Address: token}
+		}
 		ret = append(ret, &Exchange{
-			Address:        exchange,
-			Token:          token,
-			Liquidity:      supply.String(),
-			BalanceOfIotx:  balance.String(),
-			BalanceOfToken: tokenBalance.String(),
+			Address:             exchange,
+			Token:               info,
+			VolumeInPast24Hours: volume.String(),
+			Liquidity:           supply.String(),
+			BalanceOfIotx:       balance.String(),
+			BalanceOfToken:      tokenBalance.String(),
 		})
 	}
 	return ret, nil
@@ -108,4 +125,25 @@ func (r *queryResolver) TipHeight(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return tip.String(), nil
+}
+
+func (r *queryResolver) TotalVolumes(ctx context.Context, days int) ([]*Volume, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	volumes, err := r.service.totalVolumes(uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*Volume{}
+	for date, volume := range volumes {
+		ret = append(ret, &Volume{
+			Amount: volume.String(),
+			Date:   date,
+		})
+	}
+	return ret, nil
 }

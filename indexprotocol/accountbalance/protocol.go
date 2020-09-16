@@ -22,12 +22,13 @@ import (
 
 const (
 	// BalanceTableName is the name of balance table
-	BalanceTableName     = "balances"
-	transactionTableName = "transactions"
+	BalanceTableName = "balances"
+	// TransactionTableName is the name of transaction table
+	TransactionTableName = "transactions"
 )
 
 var (
-	createTransactionTable = "CREATE TABLE IF NOT EXISTS `" + transactionTableName + "` (" +
+	createTransactionTable = "CREATE TABLE IF NOT EXISTS `" + TransactionTableName + "` (" +
 		"`block_height` decimal(65,0) NOT NULL," +
 		"`action_hash` varchar(64) NOT NULL," +
 		"`idx` INT(5) unsigned NOT NULL," +
@@ -45,7 +46,7 @@ var (
 		"PRIMARY KEY (`account`,`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	insertTransactionQuery = "INSERT IGNORE INTO `" + transactionTableName + "` (`action_hash`, `idx`, `sender`, `recipient`, `block_height`, `amount`) SELECT ?,?,?,?,?,? FROM %s m WHERE m.account = ? OR m.account = ? LIMIT 1"
+	insertTransactionQuery = "INSERT IGNORE INTO `" + TransactionTableName + "` (`action_hash`, `idx`, `sender`, `recipient`, `block_height`, `amount`) SELECT ?,?,?,?,?,? FROM %s m WHERE m.account = ? OR m.account = ? LIMIT 1"
 
 	updateBalancesQuery = "INSERT INTO `" + BalanceTableName + "` (`account`, `block_height`, `balance`) " +
 		"SELECT delta_balances.account, ?, coalesce(current_balances.balance, 0) + coalesce(SUM(delta_balances.balance), 0) " +
@@ -58,10 +59,10 @@ var (
 		"    ) h1 ON b1.account = h1.account and b1.block_height = h1.max_height" +
 		") AS current_balances RIGHT JOIN (" +
 		"    SELECT t.sender account, SUM(-t.amount) balance " +
-		"    FROM `" + transactionTableName + "` t INNER JOIN %s m ON m.account = t.sender AND t.block_height = ? " +
+		"    FROM `" + TransactionTableName + "` t INNER JOIN %s m ON m.account = t.sender AND t.block_height = ? " +
 		"    GROUP BY t.sender UNION ALL " +
 		"    SELECT t.recipient account, SUM(t.amount) balance " +
-		"    FROM `" + transactionTableName + "` t INNER JOIN %s m ON m.account = t.recipient AND t.block_height = ? " +
+		"    FROM `" + TransactionTableName + "` t INNER JOIN %s m ON m.account = t.recipient AND t.block_height = ? " +
 		"    GROUP BY t.recipient" +
 		") AS delta_balances ON current_balances.account = delta_balances.account GROUP BY delta_balances.account"
 )

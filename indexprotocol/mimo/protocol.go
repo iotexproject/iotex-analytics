@@ -11,12 +11,14 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	"github.com/iotexproject/iotex-analytics/services"
 )
 
 const (
@@ -38,6 +40,8 @@ const (
 		"`token` varchar(41) NOT NULL," +
 		"`block_height` decimal(65, 0) NOT NULL," +
 		"`action_hash` varchar(40) NOT NULL," +
+		"`token_name` varchar(140) NOT NULL," +
+		"`token_symbol` varchar(140) NOT NULL," +
 		"PRIMARY KEY (`id`)," +
 		"UNIQUE KEY `exchange_UNIQUE` (`exchange`)," +
 		"UNIQUE KEY `token_UNIQUE` (`token`)," +
@@ -47,7 +51,12 @@ const (
 	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + ExchangeCreationTableName + "`"
 	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + ExchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + ExchangeCreationTableName + "`"
 
-	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`, `token`, `block_height`, `action_hash`) VALUES %s"
+	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`) VALUES %s"
+)
+
+var (
+	tokenSymbol, _ = hex.DecodeString("95d89b41")
+	tokenName, _   = hex.DecodeString("06fdde03")
 )
 
 // Protocol defines the protocol of indexing blocks
@@ -84,6 +93,10 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 	if p.factoryAddr == nil {
 		return nil
 	}
+	client, ok := services.ServiceClient(ctx)
+	if !ok {
+		return errors.New("failed to service client from context")
+	}
 	for _, receipt := range data.Block.Receipts {
 		if receipt.Status != uint64(1) {
 			continue
@@ -102,17 +115,27 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 			if err != nil {
 				return err
 			}
+			name, err := indexprotocol.ReadContract(client, token.String(), tokenName)
+			if err != nil {
+				return err
+			}
+			symbol, err := indexprotocol.ReadContract(client, token.String(), tokenSymbol)
+			if err != nil {
+				return err
+			}
 			exchange, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
 			if err != nil {
 				return err
 			}
-			valStrs = append(valStrs, "(?, ?, ?, ?)")
+			valStrs = append(valStrs, "(?,?,?,?,?,?)")
 			valArgs = append(
 				valArgs,
 				exchange.String(),
 				token.String(),
 				l.BlockHeight,
 				hex.EncodeToString(l.ActionHash[:]),
+				string(decodeString(name)),
+				string(decodeString(symbol)),
 			)
 		}
 	}
@@ -122,4 +145,8 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 	_, err := tx.Exec(fmt.Sprintf(insertExchangeQuery, strings.Join(valStrs, ",")), valArgs...)
 
 	return err
+}
+
+func decodeString(output []byte) string {
+	return string(output[64 : 64+new(big.Int).SetBytes(output[32:64]).Uint64()])
 }

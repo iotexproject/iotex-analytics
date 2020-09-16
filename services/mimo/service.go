@@ -147,7 +147,7 @@ func (service *mimoService) Query() QueryResolver {
 
 func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) error {
 	chainClient := service.chainClient
-
+	ctx = services.WithServiceClient(ctx, chainClient)
 	startHeight := service.lastHeight + 1
 	for startHeight <= tipHeight {
 		count := service.batchSize
@@ -155,7 +155,7 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 			count = tipHeight - startHeight + 1
 		}
 		fmt.Printf("indexing blocks %d -> %d\n", startHeight, startHeight+count)
-		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
+		getRawBlocksRes, err := chainClient.GetRawBlocks(ctx, &iotexapi.GetRawBlocksRequest{
 			StartHeight:  startHeight,
 			Count:        count,
 			WithReceipts: true,
@@ -177,7 +177,7 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 			var transactionLogs []*iotextypes.TransactionLog
 			// TODO: add transaction log via GetRawBlocks
 			if blk.Height() >= 5383954 {
-				transactionLogResponse, err := chainClient.GetTransactionLogByBlockHeight(context.Background(), &iotexapi.GetTransactionLogByBlockHeightRequest{
+				transactionLogResponse, err := chainClient.GetTransactionLogByBlockHeight(ctx, &iotexapi.GetTransactionLogByBlockHeightRequest{
 					BlockHeight: blk.Height(),
 				})
 				if err != nil {
@@ -270,6 +270,110 @@ func (service *mimoService) exchanges(height uint64, offset uint32, count uint8)
 		})
 	}
 	return pairs, nil
+}
+
+func (service *mimoService) totalVolumes(days uint8) (map[string]*big.Int, error) {
+	if days == 0 {
+		days = 1
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT DATE(bi.timestamp) d, SUM(t.amount) v "+
+			"FROM `"+accountbalance.TransactionTableName+"` t "+
+			"INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"ON bi.block_height = t.block_height "+
+			"INNER JOIN `"+mimoprotocol.ExchangeMonitorViewName+"` e "+
+			"ON e.account = t.sender OR e.account = t.recipient "+
+			"WHERE bi.timestamp >= ? "+
+			"GROUP BY d "+
+			"ORDER BY d",
+		time.Now().UTC().Add(-time.Duration((days-1)*24)*time.Hour).Truncate(24*time.Hour).String(),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query volumes")
+	}
+	ret := map[string]*big.Int{}
+	for rows.Next() {
+		var date time.Time
+		var volumeStr string
+		if err := rows.Scan(&date, &volumeStr); err != nil {
+			return nil, errors.Wrap(err, "failed to parse volume information")
+		}
+		volume, ok := new(big.Int).SetString(volumeStr, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse volume %s", volumeStr)
+		}
+		ret[date.UTC().String()] = volume
+	}
+	return ret, nil
+}
+
+func (service *mimoService) volumesInPast24Hours(exchanges []string) (map[string]*big.Int, error) {
+	if len(exchanges) == 0 {
+		return nil, nil
+	}
+	tempTable := "SELECT '" + exchanges[0] + "' AS `account`"
+	for i := 1; i < len(exchanges); i++ {
+		tempTable += " UNION SELECT '" + exchanges[i] + "'"
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT e.account, SUM(t.amount) v "+
+			"FROM `"+accountbalance.TransactionTableName+"` t "+
+			"INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"ON bi.block_height = t.block_height "+
+			"INNER JOIN ("+tempTable+") AS e "+
+			"ON CONVERT(e.account USING latin1) = t.sender OR CONVERT(e.account USING latin1) = t.recipient "+
+			"WHERE bi.timestamp >= ? "+
+			"GROUP BY e.account",
+		time.Now().UTC().Add(-24*time.Hour).Unix(),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query volumes")
+	}
+	ret := map[string]*big.Int{}
+	for rows.Next() {
+		var exchange, volumeStr string
+		if err := rows.Scan(&exchange, &volumeStr); err != nil {
+			return nil, errors.Wrap(err, "failed to parse volume information")
+		}
+		volume, ok := new(big.Int).SetString(volumeStr, 10)
+		if !ok {
+			return nil, errors.Errorf("failed to parse volume %s", volumeStr)
+		}
+		ret[exchange] = volume
+	}
+	return ret, nil
+}
+
+func (service *mimoService) tokens(height uint64, addrs []string) (map[string]Token, error) {
+	args := make([]interface{}, len(addrs)+1)
+	args[0] = height
+	questionMarks := make([]string, len(addrs))
+	for i, addr := range addrs {
+		args[i+1] = addr
+		questionMarks[i] = "?"
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT `token`, `token_name`, `token_symbol` "+
+			"FROM `"+mimoprotocol.ExchangeCreationTableName+"` "+
+			"WHERE `block_height` < ? AND `token` in ("+strings.Join(questionMarks, ",")+")",
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	ret := map[string]Token{}
+	for rows.Next() {
+		var token, name, symbol string
+		if err := rows.Scan(&token, &name, &symbol); err != nil {
+			return nil, err
+		}
+		ret[token] = Token{
+			Address: token,
+			Name:    name,
+			Symbol:  symbol,
+		}
+	}
+	return ret, nil
 }
 
 func (service *mimoService) balances(height uint64, addrs []string) (map[string]*big.Int, error) {

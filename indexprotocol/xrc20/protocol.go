@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/pkg/errors"
 )
@@ -27,8 +28,6 @@ const (
 	BalanceTableName = "xrc20_balances"
 	// SupplyTableName is the name of xrc20 supply table
 	SupplyTableName = "xrc20_supplies"
-
-	zeroAddr = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd39ym7"
 )
 
 var (
@@ -94,7 +93,7 @@ var (
 		"    SELECT t.token, t.sender account, SUM(-t.amount) balance " +
 		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = '*' AND t.block_height = ? " +
-		"    WHERE t.sender != '" + zeroAddr + "'" +
+		"    WHERE t.sender != '" + address.ZeroAddress + "'" +
 		"    GROUP BY t.token, t.sender " +
 		") UNION (" +
 		"    SELECT t.token, t.recipient account, SUM(t.amount) balance " +
@@ -105,7 +104,7 @@ var (
 		"    SELECT t.token, t.recipient account, SUM(t.amount) balance " +
 		"    FROM `" + TransactionTableName + "` t " +
 		"    INNER JOIN %s m ON m.token = t.token AND m.account = '*' AND t.block_height = ? " +
-		"    WHERE t.recipient != '" + zeroAddr + "'" +
+		"    WHERE t.recipient != '" + address.ZeroAddress + "'" +
 		"    GROUP BY t.token, t.recipient " +
 		")) AS `delta` ON delta.token = curr.token and delta.account = curr.account " +
 		"GROUP BY delta.token, delta.account"
@@ -124,12 +123,12 @@ var (
 		"RIGHT JOIN ((" +
 		"    SELECT token, sum(amount) supply " +
 		"    FROM `" + TransactionTableName + "` " +
-		"    WHERE `block_height` = ? AND `sender` = '" + zeroAddr + "'" +
+		"    WHERE `block_height` = ? AND `sender` = '" + address.ZeroAddress + "'" +
 		"    GROUP BY token" +
 		") UNION (" +
 		"    SELECT token, sum(-amount) supply " +
 		"    FROM `" + TransactionTableName + "` " +
-		"    WHERE `block_height` = ? AND `recipient` = '" + zeroAddr + "'" +
+		"    WHERE `block_height` = ? AND `recipient` = '" + address.ZeroAddress + "'" +
 		"    GROUP BY token" +
 		")) AS `delta` ON delta.token = curr.token " +
 		"GROUP BY delta.token"

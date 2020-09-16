@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 )
 
 // Service defines a service interface
@@ -20,4 +21,17 @@ type Service interface {
 	Stop(context.Context) error
 	// ExecutableSchema returns an executable schema
 	ExecutableSchema() graphql.ExecutableSchema
+}
+
+type serviceClientContextKey struct{}
+
+// WithServiceClient adds service client to context
+func WithServiceClient(ctx context.Context, client iotexapi.APIServiceClient) context.Context {
+	return context.WithValue(ctx, serviceClientContextKey{}, client)
+}
+
+// ServiceClient returns the service client
+func ServiceClient(ctx context.Context) (iotexapi.APIServiceClient, bool) {
+	client, ok := ctx.Value(serviceClientContextKey{}).(iotexapi.APIServiceClient)
+	return client, ok
 }

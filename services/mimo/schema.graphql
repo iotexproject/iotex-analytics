@@ -1,14 +1,27 @@
 type Query {
     exchanges(height: String!, pagination: Pagination!): [Exchange]!
     tipHeight: String!
+    totalVolumes(days: Int!): [Volume]!
 }
 
 type Exchange {
     address: String!
-    token: String!
+    token: Token!
     liquidity: String!
+    volumeInPast24Hours: String!
     balanceOfToken: String!
     balanceOfIOTX: String!
+}
+
+type Volume {
+    amount: String!
+    date: String!
+}
+
+type Token {
+    address: String!
+    name: String!
+    symbol: String!
 }
 
 input Pagination{
