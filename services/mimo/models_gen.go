@@ -7,6 +7,7 @@ type Exchange struct {
 	Token               Token  `json:"token"`
 	Liquidity           string `json:"liquidity"`
 	VolumeInPast24Hours string `json:"volumeInPast24Hours"`
+	VolumeInPast7Days   string `json:"volumeInPast7Days"`
 	BalanceOfToken      string `json:"balanceOfToken"`
 	BalanceOfIotx       string `json:"balanceOfIOTX"`
 }
@@ -16,13 +17,18 @@ type Pagination struct {
 	First int `json:"first"`
 }
 
+type Stats struct {
+	NumOfTransations int    `json:"numOfTransations"`
+	Volume           string `json:"volume"`
+}
+
 type Token struct {
 	Address string `json:"address"`
 	Name    string `json:"name"`
 	Symbol  string `json:"symbol"`
 }
 
-type Volume struct {
+type VolumeInOneDay struct {
 	Amount string `json:"amount"`
 	Date   string `json:"date"`
 }

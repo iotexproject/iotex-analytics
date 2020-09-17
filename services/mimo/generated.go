@@ -47,12 +47,20 @@ type ComplexityRoot struct {
 		Liquidity           func(childComplexity int) int
 		Token               func(childComplexity int) int
 		VolumeInPast24Hours func(childComplexity int) int
+		VolumeInPast7Days   func(childComplexity int) int
 	}
 
 	Query struct {
-		Exchanges    func(childComplexity int, height string, pagination Pagination) int
-		TipHeight    func(childComplexity int) int
-		TotalVolumes func(childComplexity int, days int) int
+		Exchanges  func(childComplexity int, height string, pagination Pagination) int
+		NumOfPairs func(childComplexity int) int
+		Stats      func(childComplexity int, hours int) int
+		TipHeight  func(childComplexity int) int
+		Volumes    func(childComplexity int, days int) int
+	}
+
+	Stats struct {
+		NumOfTransations func(childComplexity int) int
+		Volume           func(childComplexity int) int
 	}
 
 	Token struct {
@@ -61,7 +69,7 @@ type ComplexityRoot struct {
 		Symbol  func(childComplexity int) int
 	}
 
-	Volume struct {
+	VolumeInOneDay struct {
 		Amount func(childComplexity int) int
 		Date   func(childComplexity int) int
 	}
@@ -70,7 +78,9 @@ type ComplexityRoot struct {
 type QueryResolver interface {
 	Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error)
 	TipHeight(ctx context.Context) (string, error)
-	TotalVolumes(ctx context.Context, days int) ([]*Volume, error)
+	Volumes(ctx context.Context, days int) ([]*VolumeInOneDay, error)
+	NumOfPairs(ctx context.Context) (int, error)
+	Stats(ctx context.Context, hours int) (*Stats, error)
 }
 
 type executableSchema struct {
@@ -130,6 +140,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Exchange.VolumeInPast24Hours(childComplexity), true
 
+	case "Exchange.VolumeInPast7Days":
+		if e.complexity.Exchange.VolumeInPast7Days == nil {
+			break
+		}
+
+		return e.complexity.Exchange.VolumeInPast7Days(childComplexity), true
+
 	case "Query.Exchanges":
 		if e.complexity.Query.Exchanges == nil {
 			break
@@ -142,6 +159,25 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Exchanges(childComplexity, args["height"].(string), args["pagination"].(Pagination)), true
 
+	case "Query.NumOfPairs":
+		if e.complexity.Query.NumOfPairs == nil {
+			break
+		}
+
+		return e.complexity.Query.NumOfPairs(childComplexity), true
+
+	case "Query.Stats":
+		if e.complexity.Query.Stats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_stats_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Stats(childComplexity, args["hours"].(int)), true
+
 	case "Query.TipHeight":
 		if e.complexity.Query.TipHeight == nil {
 			break
@@ -149,17 +185,31 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.TipHeight(childComplexity), true
 
-	case "Query.TotalVolumes":
-		if e.complexity.Query.TotalVolumes == nil {
+	case "Query.Volumes":
+		if e.complexity.Query.Volumes == nil {
 			break
 		}
 
-		args, err := ec.field_Query_totalVolumes_args(context.TODO(), rawArgs)
+		args, err := ec.field_Query_volumes_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.TotalVolumes(childComplexity, args["days"].(int)), true
+		return e.complexity.Query.Volumes(childComplexity, args["days"].(int)), true
+
+	case "Stats.NumOfTransations":
+		if e.complexity.Stats.NumOfTransations == nil {
+			break
+		}
+
+		return e.complexity.Stats.NumOfTransations(childComplexity), true
+
+	case "Stats.Volume":
+		if e.complexity.Stats.Volume == nil {
+			break
+		}
+
+		return e.complexity.Stats.Volume(childComplexity), true
 
 	case "Token.Address":
 		if e.complexity.Token.Address == nil {
@@ -182,19 +232,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Token.Symbol(childComplexity), true
 
-	case "Volume.Amount":
-		if e.complexity.Volume.Amount == nil {
+	case "VolumeInOneDay.Amount":
+		if e.complexity.VolumeInOneDay.Amount == nil {
 			break
 		}
 
-		return e.complexity.Volume.Amount(childComplexity), true
+		return e.complexity.VolumeInOneDay.Amount(childComplexity), true
 
-	case "Volume.Date":
-		if e.complexity.Volume.Date == nil {
+	case "VolumeInOneDay.Date":
+		if e.complexity.VolumeInOneDay.Date == nil {
 			break
 		}
 
-		return e.complexity.Volume.Date(childComplexity), true
+		return e.complexity.VolumeInOneDay.Date(childComplexity), true
 
 	}
 	return 0, false
@@ -263,7 +313,9 @@ var parsedSchema = gqlparser.MustLoadSchema(
 	&ast.Source{Name: "services/mimo/schema.graphql", Input: `type Query {
     exchanges(height: String!, pagination: Pagination!): [Exchange]!
     tipHeight: String!
-    totalVolumes(days: Int!): [Volume]!
+    volumes(days: Int!): [VolumeInOneDay]!
+    numOfPairs: Int!
+    stats(hours: Int!): Stats!
 }
 
 type Exchange {
@@ -271,11 +323,17 @@ type Exchange {
     token: Token!
     liquidity: String!
     volumeInPast24Hours: String!
+    volumeInPast7Days: String!
     balanceOfToken: String!
     balanceOfIOTX: String!
 }
 
-type Volume {
+type Stats {
+    numOfTransations: Int!
+    volume: String!
+}
+
+type VolumeInOneDay {
     amount: String!
     date: String!
 }
@@ -332,7 +390,21 @@ func (ec *executionContext) field_Query_exchanges_args(ctx context.Context, rawA
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_totalVolumes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_stats_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["hours"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["hours"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_volumes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
@@ -486,6 +558,33 @@ func (ec *executionContext) _Exchange_volumeInPast24Hours(ctx context.Context, f
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Exchange_volumeInPast7Days(ctx context.Context, field graphql.CollectedField, obj *Exchange) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Exchange",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VolumeInPast7Days, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Exchange_balanceOfToken(ctx context.Context, field graphql.CollectedField, obj *Exchange) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -601,7 +700,7 @@ func (ec *executionContext) _Query_tipHeight(ctx context.Context, field graphql.
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_totalVolumes(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+func (ec *executionContext) _Query_volumes(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
@@ -612,7 +711,7 @@ func (ec *executionContext) _Query_totalVolumes(ctx context.Context, field graph
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_totalVolumes_args(ctx, rawArgs)
+	args, err := ec.field_Query_volumes_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -621,7 +720,7 @@ func (ec *executionContext) _Query_totalVolumes(ctx context.Context, field graph
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().TotalVolumes(rctx, args["days"].(int))
+		return ec.resolvers.Query().Volumes(rctx, args["days"].(int))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -629,10 +728,71 @@ func (ec *executionContext) _Query_totalVolumes(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*Volume)
+	res := resTmp.([]*VolumeInOneDay)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNVolume2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolume(ctx, field.Selections, res)
+	return ec.marshalNVolumeInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_numOfPairs(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().NumOfPairs(rctx)
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_stats(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_stats_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Stats(rctx, args["hours"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*Stats)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNStats2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐStats(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -688,6 +848,60 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_numOfTransations(ctx context.Context, field graphql.CollectedField, obj *Stats) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NumOfTransations, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_volume(ctx context.Context, field graphql.CollectedField, obj *Stats) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Volume, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Token_address(ctx context.Context, field graphql.CollectedField, obj *Token) graphql.Marshaler {
@@ -771,11 +985,11 @@ func (ec *executionContext) _Token_symbol(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Volume_amount(ctx context.Context, field graphql.CollectedField, obj *Volume) graphql.Marshaler {
+func (ec *executionContext) _VolumeInOneDay_amount(ctx context.Context, field graphql.CollectedField, obj *VolumeInOneDay) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "Volume",
+		Object:   "VolumeInOneDay",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -798,11 +1012,11 @@ func (ec *executionContext) _Volume_amount(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Volume_date(ctx context.Context, field graphql.CollectedField, obj *Volume) graphql.Marshaler {
+func (ec *executionContext) _VolumeInOneDay_date(ctx context.Context, field graphql.CollectedField, obj *VolumeInOneDay) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
 	rctx := &graphql.ResolverContext{
-		Object:   "Volume",
+		Object:   "VolumeInOneDay",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -1719,6 +1933,11 @@ func (ec *executionContext) _Exchange(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
+		case "volumeInPast7Days":
+			out.Values[i] = ec._Exchange_volumeInPast7Days(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "balanceOfToken":
 			out.Values[i] = ec._Exchange_balanceOfToken(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -1783,7 +2002,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
-		case "totalVolumes":
+		case "volumes":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -1791,7 +2010,35 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_totalVolumes(ctx, field)
+				res = ec._Query_volumes(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "numOfPairs":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_numOfPairs(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "stats":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_stats(ctx, field)
 				if res == graphql.Null {
 					invalid = true
 				}
@@ -1801,6 +2048,38 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
 			out.Values[i] = ec._Query___schema(ctx, field)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
+var statsImplementors = []string{"Stats"}
+
+func (ec *executionContext) _Stats(ctx context.Context, sel ast.SelectionSet, obj *Stats) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, statsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Stats")
+		case "numOfTransations":
+			out.Values[i] = ec._Stats_numOfTransations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "volume":
+			out.Values[i] = ec._Stats_volume(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1849,24 +2128,24 @@ func (ec *executionContext) _Token(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var volumeImplementors = []string{"Volume"}
+var volumeInOneDayImplementors = []string{"VolumeInOneDay"}
 
-func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, obj *Volume) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, volumeImplementors)
+func (ec *executionContext) _VolumeInOneDay(ctx context.Context, sel ast.SelectionSet, obj *VolumeInOneDay) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, volumeInOneDayImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	invalid := false
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Volume")
+			out.Values[i] = graphql.MarshalString("VolumeInOneDay")
 		case "amount":
-			out.Values[i] = ec._Volume_amount(ctx, field, obj)
+			out.Values[i] = ec._VolumeInOneDay_amount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
 		case "date":
-			out.Values[i] = ec._Volume_date(ctx, field, obj)
+			out.Values[i] = ec._VolumeInOneDay_date(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -2183,6 +2462,20 @@ func (ec *executionContext) unmarshalNPagination2githubᚗcomᚋiotexprojectᚋi
 	return ec.unmarshalInputPagination(ctx, v)
 }
 
+func (ec *executionContext) marshalNStats2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐStats(ctx context.Context, sel ast.SelectionSet, v Stats) graphql.Marshaler {
+	return ec._Stats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNStats2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐStats(ctx context.Context, sel ast.SelectionSet, v *Stats) graphql.Marshaler {
+	if v == nil {
+		if !ec.HasError(graphql.GetResolverContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Stats(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -2195,7 +2488,7 @@ func (ec *executionContext) marshalNToken2githubᚗcomᚋiotexprojectᚋiotexᚑ
 	return ec._Token(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNVolume2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolume(ctx context.Context, sel ast.SelectionSet, v []*Volume) graphql.Marshaler {
+func (ec *executionContext) marshalNVolumeInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v []*VolumeInOneDay) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -2219,7 +2512,7 @@ func (ec *executionContext) marshalNVolume2ᚕᚖgithubᚗcomᚋiotexprojectᚋi
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOVolume2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolume(ctx, sel, v[i])
+			ret[i] = ec.marshalOVolumeInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2503,15 +2796,15 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return ec.marshalOString2string(ctx, sel, *v)
 }
 
-func (ec *executionContext) marshalOVolume2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolume(ctx context.Context, sel ast.SelectionSet, v Volume) graphql.Marshaler {
-	return ec._Volume(ctx, sel, &v)
+func (ec *executionContext) marshalOVolumeInOneDay2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v VolumeInOneDay) graphql.Marshaler {
+	return ec._VolumeInOneDay(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalOVolume2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolume(ctx context.Context, sel ast.SelectionSet, v *Volume) graphql.Marshaler {
+func (ec *executionContext) marshalOVolumeInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v *VolumeInOneDay) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return ec._Volume(ctx, sel, v)
+	return ec._VolumeInOneDay(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

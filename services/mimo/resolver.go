@@ -9,6 +9,7 @@ package mimo
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/pkg/errors"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
@@ -79,7 +80,11 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 	if err != nil {
 		return nil, err
 	}
-	volumes, err := r.service.volumesInPast24Hours(exchanges)
+	volumesInPast24Hours, err := r.service.volumes(exchanges, 24*time.Hour)
+	if err != nil {
+		return nil, err
+	}
+	volumesInPast7Days, err := r.service.volumes(exchanges, 7*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +104,13 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 		if !ok {
 			supply = big.NewInt(0)
 		}
-		volume, ok := volumes[exchange]
+		volumeInPast24Hours, ok := volumesInPast24Hours[exchange]
 		if !ok {
-			volume = big.NewInt(0)
+			volumeInPast24Hours = big.NewInt(0)
+		}
+		volumeInPast7Days, ok := volumesInPast7Days[exchange]
+		if !ok {
+			volumeInPast24Hours = big.NewInt(0)
 		}
 		info, ok := tokenInfos[token]
 		if !ok {
@@ -110,7 +119,8 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 		ret = append(ret, &Exchange{
 			Address:             exchange,
 			Token:               info,
-			VolumeInPast24Hours: volume.String(),
+			VolumeInPast24Hours: volumeInPast24Hours.String(),
+			VolumeInPast7Days:   volumeInPast7Days.String(),
 			Liquidity:           supply.String(),
 			BalanceOfIotx:       balance.String(),
 			BalanceOfToken:      tokenBalance.String(),
@@ -127,7 +137,30 @@ func (r *queryResolver) TipHeight(ctx context.Context) (string, error) {
 	return tip.String(), nil
 }
 
-func (r *queryResolver) TotalVolumes(ctx context.Context, days int) ([]*Volume, error) {
+func (r *queryResolver) NumOfPairs(ctx context.Context) (int, error) {
+	return r.service.numOfPairs()
+}
+
+func (r *queryResolver) Stats(ctx context.Context, hours int) (*Stats, error) {
+	if hours < 0 {
+		hours = 24
+	}
+	duration := time.Duration(hours) * time.Hour
+	numOfTransactions, err := r.service.numOfTransactions(duration)
+	if err != nil {
+		return nil, err
+	}
+	volume, err := r.service.volumeOfAll(duration)
+	if err != nil {
+		return nil, err
+	}
+	return &Stats{
+		NumOfTransations: numOfTransactions,
+		Volume:           volume.String(),
+	}, nil
+}
+
+func (r *queryResolver) Volumes(ctx context.Context, days int) ([]*VolumeInOneDay, error) {
 	if days < 0 {
 		days = 30
 	}
@@ -138,9 +171,9 @@ func (r *queryResolver) TotalVolumes(ctx context.Context, days int) ([]*Volume, 
 	if err != nil {
 		return nil, err
 	}
-	ret := []*Volume{}
+	ret := []*VolumeInOneDay{}
 	for date, volume := range volumes {
-		ret = append(ret, &Volume{
+		ret = append(ret, &VolumeInOneDay{
 			Amount: volume.String(),
 			Date:   date,
 		})

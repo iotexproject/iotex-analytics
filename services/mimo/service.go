@@ -252,6 +252,14 @@ func (service *mimoService) latestHeight() (*big.Int, error) {
 	return service.factoryCreationHeight, nil
 }
 
+func (service *mimoService) numOfPairs() (int, error) {
+	var n int
+	if err := service.store.GetDB().QueryRow("SELECT count(exchange) FROM `" + mimoprotocol.ExchangeCreationTableName + "`").Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 func (service *mimoService) exchanges(height uint64, offset uint32, count uint8) ([]AddressPair, error) {
 	rows, err := service.store.GetDB().Query(
 		"SELECT `exchange`, `token` FROM `"+mimoprotocol.ExchangeCreationTableName+"` WHERE `block_height` <= ? AND `id` > ? ORDER BY `id` LIMIT ?",
@@ -274,6 +282,42 @@ func (service *mimoService) exchanges(height uint64, offset uint32, count uint8)
 		})
 	}
 	return pairs, nil
+}
+
+func (service *mimoService) numOfTransactions(duration time.Duration) (int, error) {
+	var count int
+	err := service.store.GetDB().QueryRow(
+		"SELECT COUNT(DISTINCT(t.action_hash)) "+
+			"FROM `"+xrc20.TransactionTableName+"` t "+
+			"INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"ON bi.block_height = t.block_height "+
+			"WHERE bi.timestamp >= ? ",
+		time.Now().UTC().Add(-duration).String(),
+	).Scan(&count)
+
+	return count, err
+}
+
+func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error) {
+	var s sql.NullString
+	if err := service.store.GetDB().QueryRow(
+		"SELECT SUM(t.amount) v "+
+			"FROM `"+accountbalance.TransactionTableName+"` t "+
+			"INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"ON bi.block_height = t.block_height "+
+			"WHERE bi.timestamp >= ? ",
+		time.Now().UTC().Add(-duration).String(),
+	).Scan(&s); err != nil {
+		return nil, errors.Wrap(err, "failed to query volumes")
+	}
+	if !s.Valid {
+		return big.NewInt(0), nil
+	}
+	volume, ok := new(big.Int).SetString(s.String, 10)
+	if !ok {
+		return nil, errors.Errorf("failed to parse volume %s", s)
+	}
+	return volume, nil
 }
 
 func (service *mimoService) totalVolumes(days uint8) (map[string]*big.Int, error) {
@@ -311,7 +355,7 @@ func (service *mimoService) totalVolumes(days uint8) (map[string]*big.Int, error
 	return ret, nil
 }
 
-func (service *mimoService) volumesInPast24Hours(exchanges []string) (map[string]*big.Int, error) {
+func (service *mimoService) volumes(exchanges []string, duration time.Duration) (map[string]*big.Int, error) {
 	if len(exchanges) == 0 {
 		return nil, nil
 	}
@@ -328,7 +372,7 @@ func (service *mimoService) volumesInPast24Hours(exchanges []string) (map[string
 			"ON CONVERT(e.account USING latin1) = t.sender OR CONVERT(e.account USING latin1) = t.recipient "+
 			"WHERE bi.timestamp >= ? "+
 			"GROUP BY e.account",
-		time.Now().UTC().Add(-24*time.Hour).Unix(),
+		time.Now().UTC().Add(-duration).String(),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query volumes")
@@ -453,6 +497,7 @@ func (service *mimoService) tokenBalances(height uint64, tokenAndAddrPairs []Add
 	}
 	return ret, nil
 }
+
 func (service *mimoService) supplies(height uint64, tokens []string) (map[string]*big.Int, error) {
 	args := make([]interface{}, len(tokens)+1)
 	args[0] = height
