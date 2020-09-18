@@ -81,6 +81,7 @@ var (
 )
 
 func TestStaking(t *testing.T) {
+	t.SkipNow()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	chainClient := mock_apiserviceclient.NewMockServiceClient(ctrl)

@@ -1,6 +1,6 @@
 module github.com/iotexproject/iotex-analytics
 
-go 1.13
+go 1.14
 
 require (
 	github.com/99designs/gqlgen v0.8.3
@@ -18,9 +18,9 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
 	github.com/rs/zerolog v1.14.3
+	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/vektah/gqlparser v1.1.2
-	github.com/vektah/gqlparser/v2 v2.0.1
 	go.opencensus.io v0.22.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e

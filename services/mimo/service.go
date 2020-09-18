@@ -315,7 +315,7 @@ func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error
 	}
 	volume, ok := new(big.Int).SetString(s.String, 10)
 	if !ok {
-		return nil, errors.Errorf("failed to parse volume %s", s)
+		return nil, errors.Errorf("failed to parse volume %+v", s)
 	}
 	return volume, nil
 }

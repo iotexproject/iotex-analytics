@@ -26,7 +26,7 @@ DOCKERCMD=docker
 all: clean build test
 
 .PHONY: build
-build:
+build: mimo
 	$(GOBUILD) -o ./bin/$(BUILD_TARGET_SERVER) -v .
 
 .PHONY: fmt
