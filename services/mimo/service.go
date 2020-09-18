@@ -401,7 +401,7 @@ func (service *mimoService) tokens(height uint64, addrs []string) (map[string]To
 		questionMarks[i] = "?"
 	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT `token`, `token_name`, `token_symbol` "+
+		"SELECT `token`,`token_name`,`token_symbol`,`token_decimals` "+
 			"FROM `"+mimoprotocol.ExchangeCreationTableName+"` "+
 			"WHERE `block_height` < ? AND `token` in ("+strings.Join(questionMarks, ",")+")",
 		args...,
@@ -412,13 +412,15 @@ func (service *mimoService) tokens(height uint64, addrs []string) (map[string]To
 	ret := map[string]Token{}
 	for rows.Next() {
 		var token, name, symbol string
-		if err := rows.Scan(&token, &name, &symbol); err != nil {
+		var decimals int
+		if err := rows.Scan(&token, &name, &symbol, &decimals); err != nil {
 			return nil, err
 		}
 		ret[token] = Token{
-			Address: token,
-			Name:    name,
-			Symbol:  symbol,
+			Address:  token,
+			Decimals: decimals,
+			Name:     name,
+			Symbol:   symbol,
 		}
 	}
 	return ret, nil

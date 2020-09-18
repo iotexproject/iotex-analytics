@@ -23,9 +23,10 @@ type Stats struct {
 }
 
 type Token struct {
-	Address string `json:"address"`
-	Name    string `json:"name"`
-	Symbol  string `json:"symbol"`
+	Address  string `json:"address"`
+	Decimals int    `json:"decimals"`
+	Name     string `json:"name"`
+	Symbol   string `json:"symbol"`
 }
 
 type VolumeInOneDay struct {

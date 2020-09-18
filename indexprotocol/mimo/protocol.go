@@ -42,6 +42,7 @@ const (
 		"`action_hash` varchar(40) NOT NULL," +
 		"`token_name` varchar(140) NOT NULL," +
 		"`token_symbol` varchar(140) NOT NULL," +
+		"`token_decimals` int NOT NULL DEFAULT 18," +
 		"PRIMARY KEY (`id`)," +
 		"UNIQUE KEY `exchange_UNIQUE` (`exchange`)," +
 		"UNIQUE KEY `token_UNIQUE` (`token`)," +
@@ -51,12 +52,13 @@ const (
 	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + ExchangeCreationTableName + "`"
 	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + ExchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + ExchangeCreationTableName + "`"
 
-	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`) VALUES %s"
+	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`,`token_decimals`) VALUES %s"
 )
 
 var (
-	tokenSymbol, _ = hex.DecodeString("95d89b41")
-	tokenName, _   = hex.DecodeString("06fdde03")
+	tokenSymbol, _   = hex.DecodeString("95d89b41")
+	tokenName, _     = hex.DecodeString("06fdde03")
+	tokenDecimals, _ = hex.DecodeString("313ce567")
 )
 
 // Protocol defines the protocol of indexing blocks
@@ -123,11 +125,15 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 			if err != nil {
 				return err
 			}
+			decimals, err := indexprotocol.ReadContract(client, token.String(), tokenDecimals)
+			if err != nil {
+				return err
+			}
 			exchange, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
 			if err != nil {
 				return err
 			}
-			valStrs = append(valStrs, "(?,?,?,?,?,?)")
+			valStrs = append(valStrs, "(?,?,?,?,?,?,?)")
 			valArgs = append(
 				valArgs,
 				exchange.String(),
@@ -136,6 +142,7 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 				hex.EncodeToString(l.ActionHash[:]),
 				string(decodeString(name)),
 				string(decodeString(symbol)),
+				new(big.Int).SetBytes(decimals).Uint64(),
 			)
 		}
 	}

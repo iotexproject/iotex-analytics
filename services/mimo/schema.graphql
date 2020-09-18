@@ -28,6 +28,7 @@ type VolumeInOneDay {
 
 type Token {
     address: String!
+    decimals: Int!
     name: String!
     symbol: String!
 }

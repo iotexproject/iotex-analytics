@@ -64,9 +64,10 @@ type ComplexityRoot struct {
 	}
 
 	Token struct {
-		Address func(childComplexity int) int
-		Name    func(childComplexity int) int
-		Symbol  func(childComplexity int) int
+		Address  func(childComplexity int) int
+		Decimals func(childComplexity int) int
+		Name     func(childComplexity int) int
+		Symbol   func(childComplexity int) int
 	}
 
 	VolumeInOneDay struct {
@@ -218,6 +219,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Token.Address(childComplexity), true
 
+	case "Token.Decimals":
+		if e.complexity.Token.Decimals == nil {
+			break
+		}
+
+		return e.complexity.Token.Decimals(childComplexity), true
+
 	case "Token.Name":
 		if e.complexity.Token.Name == nil {
 			break
@@ -340,6 +348,7 @@ type VolumeInOneDay {
 
 type Token {
     address: String!
+    decimals: Int!
     name: String!
     symbol: String!
 }
@@ -929,6 +938,33 @@ func (ec *executionContext) _Token_address(ctx context.Context, field graphql.Co
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Token_decimals(ctx context.Context, field graphql.CollectedField, obj *Token) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Token",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Decimals, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Token_name(ctx context.Context, field graphql.CollectedField, obj *Token) graphql.Marshaler {
@@ -2104,6 +2140,11 @@ func (ec *executionContext) _Token(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = graphql.MarshalString("Token")
 		case "address":
 			out.Values[i] = ec._Token_address(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "decimals":
+			out.Values[i] = ec._Token_decimals(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
