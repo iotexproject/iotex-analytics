@@ -1,1 +1,1 @@
-web: bin/iotex-analytics
+web: bin/mimo

@@ -54,7 +54,7 @@ run:
 
 .PHONY: mimo
 mimo:
-	$(GOBUILD) -o ./bin/$(BUILD_MIMO_TARGET_SERVER) -v ./services/mimo/cmd
+	$(GOBUILD) -o ./bin/cmd/$(BUILD_MIMO_TARGET_SERVER) -v ./services/mimo/cmd
 
 .PHONY: docker
 docker:
