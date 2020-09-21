@@ -320,7 +320,7 @@ func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error
 	return volume, nil
 }
 
-func (service *mimoService) totalVolumes(days uint8) (map[string]*big.Int, error) {
+func (service *mimoService) totalVolumes(days uint8) ([]time.Time, []*big.Int, error) {
 	if days == 0 {
 		days = 1
 	}
@@ -337,22 +337,24 @@ func (service *mimoService) totalVolumes(days uint8) (map[string]*big.Int, error
 		time.Now().UTC().Add(-time.Duration((days-1)*24)*time.Hour).Truncate(24*time.Hour).String(),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to query volumes")
+		return nil, nil, errors.Wrap(err, "failed to query volumes")
 	}
-	ret := map[string]*big.Int{}
+	dates := []time.Time{}
+	volumes := []*big.Int{}
 	for rows.Next() {
 		var date time.Time
 		var volumeStr string
 		if err := rows.Scan(&date, &volumeStr); err != nil {
-			return nil, errors.Wrap(err, "failed to parse volume information")
+			return nil, nil, errors.Wrap(err, "failed to parse volume information")
 		}
 		volume, ok := new(big.Int).SetString(volumeStr, 10)
 		if !ok {
-			return nil, errors.Errorf("failed to parse volume %s", volumeStr)
+			return nil, nil, errors.Errorf("failed to parse volume %s", volumeStr)
 		}
-		ret[date.UTC().String()] = volume
+		dates = append(dates, date)
+		volumes = append(volumes, volume)
 	}
-	return ret, nil
+	return dates, volumes, nil
 }
 
 func (service *mimoService) volumes(exchanges []string, duration time.Duration) (map[string]*big.Int, error) {

@@ -167,15 +167,15 @@ func (r *queryResolver) Volumes(ctx context.Context, days int) ([]*VolumeInOneDa
 	if days > 256 {
 		days = 256
 	}
-	volumes, err := r.service.totalVolumes(uint8(days))
+	dates, volumes, err := r.service.totalVolumes(uint8(days))
 	if err != nil {
 		return nil, err
 	}
 	ret := []*VolumeInOneDay{}
-	for date, volume := range volumes {
+	for i, date := range dates {
 		ret = append(ret, &VolumeInOneDay{
-			Amount: volume.String(),
-			Date:   date,
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
 		})
 	}
 	return ret, nil
