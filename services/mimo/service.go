@@ -340,7 +340,7 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 		return nil, nil, errors.Wrap(err, "failed to query volumes")
 	}
 	dates := []time.Time{}
-	volumes := []*big.Int{}
+	totals := map[string]*big.Int{}
 	for rows.Next() {
 		var date time.Time
 		var volumeStr string
@@ -352,7 +352,41 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 			return nil, nil, errors.Errorf("failed to parse volume %s", volumeStr)
 		}
 		dates = append(dates, date)
-		volumes = append(volumes, volume)
+		totals[date.String()] = volume
+	}
+	rows, err = service.store.GetDB().Query(
+		"SELECT DATE(bi.timestamp) d, SUM(t.iotx_amount) v "+
+			"FROM `"+mimoprotocol.ExchangeProviderActionTableName+"` t "+
+			"INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"ON bi.block_height = t.block_height "+
+			"INNER JOIN `"+mimoprotocol.ExchangeMonitorViewName+"` e "+
+			"ON e.account = t.provider "+
+			"WHERE bi.timestamp >= ? "+
+			"GROUP BY d",
+		time.Now().UTC().Add(-time.Duration((days-1)*24)*time.Hour).Truncate(24*time.Hour).String(),
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to query volumes")
+	}
+	for rows.Next() {
+		var date time.Time
+		var volumeStr string
+		if err := rows.Scan(&date, &volumeStr); err != nil {
+			return nil, nil, errors.Wrap(err, "failed to parse volume information")
+		}
+		volume, ok := new(big.Int).SetString(volumeStr, 10)
+		if !ok {
+			return nil, nil, errors.Errorf("failed to parse volume %s", volumeStr)
+		}
+		if total, ok := totals[date.String()]; ok {
+			totals[date.String()].Sub(total, volume)
+		} else {
+			return nil, nil, errors.New("volume cannot be negative")
+		}
+	}
+	volumes := make([]*big.Int, len(dates))
+	for i, date := range dates {
+		volumes[i] = totals[date.String()]
 	}
 	return dates, volumes, nil
 }

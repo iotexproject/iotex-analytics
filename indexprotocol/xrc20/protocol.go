@@ -76,6 +76,7 @@ var (
 		"    INNER JOIN ((" +
 		"        SELECT t.token, t.account, MAX(t.block_height) max_height " +
 		"        FROM `" + BalanceTableName + "` t " +
+		"        WHERE t.block_height < ? " +
 		"        INNER JOIN %s m ON t.token = m.token AND t.account = m.account " +
 		"        GROUP BY t.token, t.account " +
 		"    ) UNION (" +
@@ -117,6 +118,7 @@ var (
 		"    INNER JOIN (" +
 		"        SELECT t.token, MAX(t.block_height) max_height " +
 		"        FROM `" + SupplyTableName + "` t " +
+		"        WHERE t.height < ? " +
 		"        GROUP BY t.token" +
 		"    ) h1 ON b1.token = h1.token AND b1.block_height = h1.max_height" +
 		") AS curr " +
@@ -228,10 +230,10 @@ func (p *Protocol) HandleBlockData(
 		return nil
 	}
 	height := data.Block.Height()
-	if _, err := tx.Exec(p.updateBalancesQuery, height, height, height, height, height); err != nil {
+	if _, err := tx.Exec(p.updateBalancesQuery, height, height, height, height, height, height); err != nil {
 		return errors.Wrap(err, "failed to update xrc20 balances")
 	}
-	if _, err := tx.Exec(updateSuppliesQuery, height, height, height); err != nil {
+	if _, err := tx.Exec(updateSuppliesQuery, height, height, height, height); err != nil {
 		return errors.Wrap(err, "failed to update xrc20 supplies")
 	}
 
