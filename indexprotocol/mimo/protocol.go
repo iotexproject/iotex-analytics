@@ -172,7 +172,6 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 					new(big.Int).Neg(tokenAmount).String(),
 				)
 			case "9d42cb017eb05bd8944ab536a8b35bc68085931dd5f4356489801453923953f9":
-				continue
 				token, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
 				if err != nil {
 					return err

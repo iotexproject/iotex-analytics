@@ -110,7 +110,7 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 		}
 		volumeInPast7Days, ok := volumesInPast7Days[exchange]
 		if !ok {
-			volumeInPast24Hours = big.NewInt(0)
+			volumeInPast7Days = big.NewInt(0)
 		}
 		info, ok := tokenInfos[token]
 		if !ok {

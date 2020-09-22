@@ -334,7 +334,7 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 			"WHERE bi.timestamp >= ? "+
 			"GROUP BY d "+
 			"ORDER BY d",
-		time.Now().UTC().Add(-time.Duration((days-1)*24)*time.Hour).Truncate(24*time.Hour).String(),
+		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
 	)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to query volumes")
@@ -363,7 +363,7 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 			"ON e.account = t.provider "+
 			"WHERE bi.timestamp >= ? "+
 			"GROUP BY d",
-		time.Now().UTC().Add(-time.Duration((days-1)*24)*time.Hour).Truncate(24*time.Hour).String(),
+		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
 	)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to query volumes")
@@ -400,7 +400,7 @@ func (service *mimoService) liquiditiesInPastNDays(days uint8) ([]time.Time, []*
 	now := time.Now().UTC()
 	tempTable := "SELECT '" + now.Format(layoutISO) + "' AS `date`"
 	for i := uint8(1); i < days; i++ {
-		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i*24)*time.Hour).Format(layoutISO) + "'"
+		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i)*24*time.Hour).Format(layoutISO) + "'"
 	}
 	fmt.Println("SELECT h1.date, SUM(b1.balance) * 2 " +
 		"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +

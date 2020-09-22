@@ -51,7 +51,7 @@ func main() {
 	}
 	mimoFactoryCreationHeightStr := os.Getenv("MIMO_FACTORY_CREATION_HEIGHT")
 	if mimoFactoryCreationHeightStr == "" {
-		mimoFactoryCreationHeightStr = "5383914"
+		mimoFactoryCreationHeightStr = "5383913"
 	}
 	mimoFactoryCreationHeight, err := strconv.ParseUint(mimoFactoryCreationHeightStr, 10, 64)
 	if err != nil {
