@@ -160,20 +160,41 @@ func (r *queryResolver) Stats(ctx context.Context, hours int) (*Stats, error) {
 	}, nil
 }
 
-func (r *queryResolver) Volumes(ctx context.Context, days int) ([]*VolumeInOneDay, error) {
+func (r *queryResolver) Volumes(ctx context.Context, days int) ([]*AmountInOneDay, error) {
 	if days < 0 {
 		days = 30
 	}
 	if days > 256 {
 		days = 256
 	}
-	dates, volumes, err := r.service.totalVolumes(uint8(days))
+	dates, volumes, err := r.service.volumesInPastNDays(uint8(days))
 	if err != nil {
 		return nil, err
 	}
-	ret := []*VolumeInOneDay{}
+	ret := []*AmountInOneDay{}
 	for i, date := range dates {
-		ret = append(ret, &VolumeInOneDay{
+		ret = append(ret, &AmountInOneDay{
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
+		})
+	}
+	return ret, nil
+}
+
+func (r *queryResolver) Liquidities(ctx context.Context, days int) ([]*AmountInOneDay, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	dates, volumes, err := r.service.liquiditiesInPastNDays(uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*AmountInOneDay{}
+	for i, date := range dates {
+		ret = append(ret, &AmountInOneDay{
 			Amount: volumes[i].String(),
 			Date:   date.UTC().String(),
 		})

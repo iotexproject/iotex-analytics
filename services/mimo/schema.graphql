@@ -1,7 +1,8 @@
 type Query {
     exchanges(height: String!, pagination: Pagination!): [Exchange]!
     tipHeight: String!
-    volumes(days: Int!): [VolumeInOneDay]!
+    volumes(days: Int!): [AmountInOneDay]!
+    liquidities(days: Int!): [AmountInOneDay]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
 }
@@ -21,7 +22,7 @@ type Stats {
     volume: String!
 }
 
-type VolumeInOneDay {
+type AmountInOneDay {
     amount: String!
     date: String!
 }

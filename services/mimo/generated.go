@@ -40,6 +40,11 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AmountInOneDay struct {
+		Amount func(childComplexity int) int
+		Date   func(childComplexity int) int
+	}
+
 	Exchange struct {
 		Address             func(childComplexity int) int
 		BalanceOfIotx       func(childComplexity int) int
@@ -51,11 +56,12 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Exchanges  func(childComplexity int, height string, pagination Pagination) int
-		NumOfPairs func(childComplexity int) int
-		Stats      func(childComplexity int, hours int) int
-		TipHeight  func(childComplexity int) int
-		Volumes    func(childComplexity int, days int) int
+		Exchanges   func(childComplexity int, height string, pagination Pagination) int
+		Liquidities func(childComplexity int, days int) int
+		NumOfPairs  func(childComplexity int) int
+		Stats       func(childComplexity int, hours int) int
+		TipHeight   func(childComplexity int) int
+		Volumes     func(childComplexity int, days int) int
 	}
 
 	Stats struct {
@@ -69,17 +75,13 @@ type ComplexityRoot struct {
 		Name     func(childComplexity int) int
 		Symbol   func(childComplexity int) int
 	}
-
-	VolumeInOneDay struct {
-		Amount func(childComplexity int) int
-		Date   func(childComplexity int) int
-	}
 }
 
 type QueryResolver interface {
 	Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error)
 	TipHeight(ctx context.Context) (string, error)
-	Volumes(ctx context.Context, days int) ([]*VolumeInOneDay, error)
+	Volumes(ctx context.Context, days int) ([]*AmountInOneDay, error)
+	Liquidities(ctx context.Context, days int) ([]*AmountInOneDay, error)
 	NumOfPairs(ctx context.Context) (int, error)
 	Stats(ctx context.Context, hours int) (*Stats, error)
 }
@@ -98,6 +100,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "AmountInOneDay.Amount":
+		if e.complexity.AmountInOneDay.Amount == nil {
+			break
+		}
+
+		return e.complexity.AmountInOneDay.Amount(childComplexity), true
+
+	case "AmountInOneDay.Date":
+		if e.complexity.AmountInOneDay.Date == nil {
+			break
+		}
+
+		return e.complexity.AmountInOneDay.Date(childComplexity), true
 
 	case "Exchange.Address":
 		if e.complexity.Exchange.Address == nil {
@@ -159,6 +175,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.Exchanges(childComplexity, args["height"].(string), args["pagination"].(Pagination)), true
+
+	case "Query.Liquidities":
+		if e.complexity.Query.Liquidities == nil {
+			break
+		}
+
+		args, err := ec.field_Query_liquidities_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Liquidities(childComplexity, args["days"].(int)), true
 
 	case "Query.NumOfPairs":
 		if e.complexity.Query.NumOfPairs == nil {
@@ -240,20 +268,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Token.Symbol(childComplexity), true
 
-	case "VolumeInOneDay.Amount":
-		if e.complexity.VolumeInOneDay.Amount == nil {
-			break
-		}
-
-		return e.complexity.VolumeInOneDay.Amount(childComplexity), true
-
-	case "VolumeInOneDay.Date":
-		if e.complexity.VolumeInOneDay.Date == nil {
-			break
-		}
-
-		return e.complexity.VolumeInOneDay.Date(childComplexity), true
-
 	}
 	return 0, false
 }
@@ -321,7 +335,8 @@ var parsedSchema = gqlparser.MustLoadSchema(
 	&ast.Source{Name: "services/mimo/schema.graphql", Input: `type Query {
     exchanges(height: String!, pagination: Pagination!): [Exchange]!
     tipHeight: String!
-    volumes(days: Int!): [VolumeInOneDay]!
+    volumes(days: Int!): [AmountInOneDay]!
+    liquidities(days: Int!): [AmountInOneDay]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
 }
@@ -341,7 +356,7 @@ type Stats {
     volume: String!
 }
 
-type VolumeInOneDay {
+type AmountInOneDay {
     amount: String!
     date: String!
 }
@@ -396,6 +411,20 @@ func (ec *executionContext) field_Query_exchanges_args(ctx context.Context, rawA
 		}
 	}
 	args["pagination"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_liquidities_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["days"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["days"] = arg0
 	return args, nil
 }
 
@@ -458,6 +487,60 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _AmountInOneDay_amount(ctx context.Context, field graphql.CollectedField, obj *AmountInOneDay) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "AmountInOneDay",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Amount, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _AmountInOneDay_date(ctx context.Context, field graphql.CollectedField, obj *AmountInOneDay) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "AmountInOneDay",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Date, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Exchange_address(ctx context.Context, field graphql.CollectedField, obj *Exchange) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
@@ -737,10 +820,44 @@ func (ec *executionContext) _Query_volumes(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*VolumeInOneDay)
+	res := resTmp.([]*AmountInOneDay)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNVolumeInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx, field.Selections, res)
+	return ec.marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_liquidities(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_liquidities_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Liquidities(rctx, args["days"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*AmountInOneDay)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_numOfPairs(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
@@ -1008,60 +1125,6 @@ func (ec *executionContext) _Token_symbol(ctx context.Context, field graphql.Col
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Symbol, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _VolumeInOneDay_amount(ctx context.Context, field graphql.CollectedField, obj *VolumeInOneDay) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "VolumeInOneDay",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Amount, nil
-	})
-	if resTmp == nil {
-		if !ec.HasError(rctx) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	rctx.Result = res
-	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _VolumeInOneDay_date(ctx context.Context, field graphql.CollectedField, obj *VolumeInOneDay) graphql.Marshaler {
-	ctx = ec.Tracer.StartFieldExecution(ctx, field)
-	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
-	rctx := &graphql.ResolverContext{
-		Object:   "VolumeInOneDay",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-	ctx = graphql.WithResolverContext(ctx, rctx)
-	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
-	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Date, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -1938,6 +2001,38 @@ func (ec *executionContext) unmarshalInputPagination(ctx context.Context, v inte
 
 // region    **************************** object.gotpl ****************************
 
+var amountInOneDayImplementors = []string{"AmountInOneDay"}
+
+func (ec *executionContext) _AmountInOneDay(ctx context.Context, sel ast.SelectionSet, obj *AmountInOneDay) graphql.Marshaler {
+	fields := graphql.CollectFields(ctx, sel, amountInOneDayImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	invalid := false
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AmountInOneDay")
+		case "amount":
+			out.Values[i] = ec._AmountInOneDay_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "date":
+			out.Values[i] = ec._AmountInOneDay_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalid {
+		return graphql.Null
+	}
+	return out
+}
+
 var exchangeImplementors = []string{"Exchange"}
 
 func (ec *executionContext) _Exchange(ctx context.Context, sel ast.SelectionSet, obj *Exchange) graphql.Marshaler {
@@ -2052,6 +2147,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "liquidities":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_liquidities(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
 		case "numOfPairs":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -2155,38 +2264,6 @@ func (ec *executionContext) _Token(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "symbol":
 			out.Values[i] = ec._Token_symbol(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalid {
-		return graphql.Null
-	}
-	return out
-}
-
-var volumeInOneDayImplementors = []string{"VolumeInOneDay"}
-
-func (ec *executionContext) _VolumeInOneDay(ctx context.Context, sel ast.SelectionSet, obj *VolumeInOneDay) graphql.Marshaler {
-	fields := graphql.CollectFields(ctx, sel, volumeInOneDayImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	invalid := false
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("VolumeInOneDay")
-		case "amount":
-			out.Values[i] = ec._VolumeInOneDay_amount(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalid = true
-			}
-		case "date":
-			out.Values[i] = ec._VolumeInOneDay_date(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
@@ -2446,6 +2523,43 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx context.Context, sel ast.SelectionSet, v []*AmountInOneDay) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOAmountInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	return graphql.UnmarshalBoolean(v)
 }
@@ -2527,43 +2641,6 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 
 func (ec *executionContext) marshalNToken2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐToken(ctx context.Context, sel ast.SelectionSet, v Token) graphql.Marshaler {
 	return ec._Token(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNVolumeInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v []*VolumeInOneDay) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		rctx := &graphql.ResolverContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithResolverContext(ctx, rctx)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalOVolumeInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -2780,6 +2857,17 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return graphql.MarshalString(v)
 }
 
+func (ec *executionContext) marshalOAmountInOneDay2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx context.Context, sel ast.SelectionSet, v AmountInOneDay) graphql.Marshaler {
+	return ec._AmountInOneDay(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOAmountInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx context.Context, sel ast.SelectionSet, v *AmountInOneDay) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AmountInOneDay(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	return graphql.UnmarshalBoolean(v)
 }
@@ -2835,17 +2923,6 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 		return graphql.Null
 	}
 	return ec.marshalOString2string(ctx, sel, *v)
-}
-
-func (ec *executionContext) marshalOVolumeInOneDay2githubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v VolumeInOneDay) graphql.Marshaler {
-	return ec._VolumeInOneDay(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalOVolumeInOneDay2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐVolumeInOneDay(ctx context.Context, sel ast.SelectionSet, v *VolumeInOneDay) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._VolumeInOneDay(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

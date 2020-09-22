@@ -2,6 +2,11 @@
 
 package mimo
 
+type AmountInOneDay struct {
+	Amount string `json:"amount"`
+	Date   string `json:"date"`
+}
+
 type Exchange struct {
 	Address             string `json:"address"`
 	Token               Token  `json:"token"`
@@ -27,9 +32,4 @@ type Token struct {
 	Decimals int    `json:"decimals"`
 	Name     string `json:"name"`
 	Symbol   string `json:"symbol"`
-}
-
-type VolumeInOneDay struct {
-	Amount string `json:"amount"`
-	Date   string `json:"date"`
 }

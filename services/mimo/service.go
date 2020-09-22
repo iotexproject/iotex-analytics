@@ -320,7 +320,7 @@ func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error
 	return volume, nil
 }
 
-func (service *mimoService) totalVolumes(days uint8) ([]time.Time, []*big.Int, error) {
+func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.Int, error) {
 	if days == 0 {
 		days = 1
 	}
@@ -355,6 +355,71 @@ func (service *mimoService) totalVolumes(days uint8) ([]time.Time, []*big.Int, e
 		volumes = append(volumes, volume)
 	}
 	return dates, volumes, nil
+}
+
+const layoutISO = "2006-01-02"
+
+func (service *mimoService) liquiditiesInPastNDays(days uint8) ([]time.Time, []*big.Int, error) {
+	if days == 0 {
+		days = 1
+	}
+	now := time.Now().UTC()
+	tempTable := "SELECT '" + now.Format(layoutISO) + "' AS `date`"
+	for i := uint8(1); i < days; i++ {
+		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i*24)*time.Hour).Format(layoutISO) + "'"
+	}
+	fmt.Println("SELECT h1.date, SUM(b1.balance) * 2 " +
+		"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +
+		"    SELECT e.account, t.date, MAX(bi.block_height) max_height " +
+		"    FROM `" + accountbalance.BalanceTableName + "` ab " +
+		"    INNER JOIN `" + blockinfo.TableName + "` bi " +
+		"    ON bi.block_height = ab.block_height " +
+		"    INNER JOIN `" + mimoprotocol.ExchangeMonitorViewName + "` e " +
+		"    ON e.account = ab.account " +
+		"    INNER JOIN (" + tempTable + ") AS t " +
+		"    ON Date(bi.timestamp) <= t.date " +
+		"    GROUP BY e.account, t.date" +
+		") h1 ON b1.account = h1.account and b1.block_height = h1.max_height " +
+		"GROUP BY h1.date " +
+		"ORDER BY h1.date")
+	rows, err := service.store.GetDB().Query(
+		"SELECT h1.date, SUM(b1.balance) * 2 " +
+			"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +
+			"    SELECT e.account, t.date, MAX(bi.block_height) max_height " +
+			"    FROM `" + accountbalance.BalanceTableName + "` ab " +
+			"    INNER JOIN `" + blockinfo.TableName + "` bi " +
+			"    ON bi.block_height = ab.block_height " +
+			"    INNER JOIN `" + mimoprotocol.ExchangeMonitorViewName + "` e " +
+			"    ON e.account = ab.account " +
+			"    INNER JOIN (" + tempTable + ") AS t " +
+			"    ON Date(bi.timestamp) <= t.date " +
+			"    GROUP BY e.account, t.date" +
+			") h1 ON b1.account = h1.account and b1.block_height = h1.max_height " +
+			"GROUP BY h1.date " +
+			"ORDER BY h1.date",
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to query balances")
+	}
+	dates := []time.Time{}
+	liquidities := []*big.Int{}
+	for rows.Next() {
+		var date, liquidity string
+		if err := rows.Scan(&date, &liquidity); err != nil {
+			return nil, nil, errors.Wrap(err, "failed to scan result")
+		}
+		d, err := time.ParseInLocation(layoutISO, date, time.UTC)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to parse date %s", d)
+		}
+		l, ok := new(big.Int).SetString(liquidity, 10)
+		if !ok {
+			return nil, nil, errors.Errorf("failed to parse liquidity %s", liquidity)
+		}
+		dates = append(dates, d)
+		liquidities = append(liquidities, l)
+	}
+	return dates, liquidities, nil
 }
 
 func (service *mimoService) volumes(exchanges []string, duration time.Duration) (map[string]*big.Int, error) {
