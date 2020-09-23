@@ -5,6 +5,7 @@ type Query {
     liquidities(days: Int!): [AmountInOneDay]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
+    actions(type: ActionType!, pagination: Pagination!): [Action]!
 }
 
 type Exchange {
@@ -15,6 +16,22 @@ type Exchange {
     volumeInPast7Days: String!
     balanceOfToken: String!
     balanceOfIOTX: String!
+}
+
+enum ActionType {
+    ALL
+    SWAP
+    ADD
+    REMOVE
+}
+
+type Action {
+    type: ActionType!
+    exchange: String!
+    account: String!
+    iotxAmount: String!
+    tokenAmount: String!
+    time: String!
 }
 
 type Stats {

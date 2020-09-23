@@ -356,17 +356,17 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 	}
 	rows, err = service.store.GetDB().Query(
 		"SELECT DATE(bi.timestamp) d, SUM(t.iotx_amount) v "+
-			"FROM `"+mimoprotocol.ExchangeProviderActionTableName+"` t "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
 			"INNER JOIN `"+blockinfo.TableName+"` bi "+
 			"ON bi.block_height = t.block_height "+
 			"INNER JOIN `"+mimoprotocol.ExchangeMonitorViewName+"` e "+
-			"ON e.account = t.provider "+
-			"WHERE bi.timestamp >= ? "+
+			"ON e.account = t.actor "+
+			"WHERE bi.timestamp >= ? AND t.type in ('"+mimoprotocol.AddLiquidity+"','"+mimoprotocol.RemoveLiquidity+"') "+
 			"GROUP BY d",
 		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
 	)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to query volumes")
+		return nil, nil, errors.Wrap(err, "failed to query liquidity change")
 	}
 	for rows.Next() {
 		var date time.Time
@@ -402,20 +402,6 @@ func (service *mimoService) liquiditiesInPastNDays(days uint8) ([]time.Time, []*
 	for i := uint8(1); i < days; i++ {
 		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i)*24*time.Hour).Format(layoutISO) + "'"
 	}
-	fmt.Println("SELECT h1.date, SUM(b1.balance) * 2 " +
-		"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +
-		"    SELECT e.account, t.date, MAX(bi.block_height) max_height " +
-		"    FROM `" + accountbalance.BalanceTableName + "` ab " +
-		"    INNER JOIN `" + blockinfo.TableName + "` bi " +
-		"    ON bi.block_height = ab.block_height " +
-		"    INNER JOIN `" + mimoprotocol.ExchangeMonitorViewName + "` e " +
-		"    ON e.account = ab.account " +
-		"    INNER JOIN (" + tempTable + ") AS t " +
-		"    ON Date(bi.timestamp) <= t.date " +
-		"    GROUP BY e.account, t.date" +
-		") h1 ON b1.account = h1.account and b1.block_height = h1.max_height " +
-		"GROUP BY h1.date " +
-		"ORDER BY h1.date")
 	rows, err := service.store.GetDB().Query(
 		"SELECT h1.date, SUM(b1.balance) * 2 " +
 			"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +
@@ -637,4 +623,57 @@ func (service *mimoService) supplies(height uint64, tokens []string) (map[string
 		ret[token] = s
 	}
 	return ret, nil
+}
+
+func (service *mimoService) actions(types []string, skip, first int) ([]*Action, error) {
+	if first > 512 {
+		return nil, errors.New("page size cannot be more than 512")
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT a.action_hash,a.type,a.exchange,a.actor,a.iotx_amount,a.token_amount,b.timestamp "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` a "+
+			"LEFT JOIN `"+blockinfo.TableName+"` b "+
+			"ON a.block_height = b.block_height "+
+			"WHERE a.type in ('"+strings.Join(types, "','")+"') "+
+			"ORDER BY a.block_height DESC "+
+			"LIMIT ?,?",
+		skip,
+		first,
+	)
+	if err != nil {
+		return nil, err
+	}
+	actions := []*Action{}
+	for rows.Next() {
+		var actionHash, actionType, exchangeAddr, actor, iotxAmount, tokenAmount string
+		var date time.Time
+		if err := rows.Scan(&actionHash, &actionType, &exchangeAddr, &actor, &iotxAmount, &tokenAmount, &date); err != nil {
+			return nil, errors.Wrap(err, "failed to parse supply query result")
+		}
+		actions = append(actions, &Action{
+			Type:        convertActionType(actionType),
+			Exchange:    exchangeAddr,
+			Account:     actor,
+			IotxAmount:  iotxAmount,
+			TokenAmount: tokenAmount,
+			Time:        date.String(),
+		})
+	}
+	return actions, nil
+}
+
+func convertActionType(at string) ActionType {
+	switch at {
+	case mimoprotocol.AddLiquidity:
+		return ActionTypeAdd
+	case mimoprotocol.RemoveLiquidity:
+		return ActionTypeRemove
+	case mimoprotocol.CoinPurchase:
+		fallthrough
+	case mimoprotocol.TokenPurchase:
+		return ActionTypeSwap
+	default:
+		log.L().Panic("failed to convert action type", zap.String("action type", at))
+	}
+	return ActionTypeAll
 }

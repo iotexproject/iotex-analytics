@@ -2,6 +2,21 @@
 
 package mimo
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
+type Action struct {
+	Type        ActionType `json:"type"`
+	Exchange    string     `json:"exchange"`
+	Account     string     `json:"account"`
+	IotxAmount  string     `json:"iotxAmount"`
+	TokenAmount string     `json:"tokenAmount"`
+	Time        string     `json:"time"`
+}
+
 type AmountInOneDay struct {
 	Amount string `json:"amount"`
 	Date   string `json:"date"`
@@ -32,4 +47,49 @@ type Token struct {
 	Decimals int    `json:"decimals"`
 	Name     string `json:"name"`
 	Symbol   string `json:"symbol"`
+}
+
+type ActionType string
+
+const (
+	ActionTypeAll    ActionType = "ALL"
+	ActionTypeSwap   ActionType = "SWAP"
+	ActionTypeAdd    ActionType = "ADD"
+	ActionTypeRemove ActionType = "REMOVE"
+)
+
+var AllActionType = []ActionType{
+	ActionTypeAll,
+	ActionTypeSwap,
+	ActionTypeAdd,
+	ActionTypeRemove,
+}
+
+func (e ActionType) IsValid() bool {
+	switch e {
+	case ActionTypeAll, ActionTypeSwap, ActionTypeAdd, ActionTypeRemove:
+		return true
+	}
+	return false
+}
+
+func (e ActionType) String() string {
+	return string(e)
+}
+
+func (e *ActionType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ActionType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ActionType", str)
+	}
+	return nil
+}
+
+func (e ActionType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

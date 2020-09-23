@@ -25,6 +25,18 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "mino"
 
+	// AddLiquidity is an event of adding liquidity
+	AddLiquidity = "AddLiquidity"
+
+	// RemoveLiquidity is an event of removing liquidity
+	RemoveLiquidity = "RemoveLiquidity"
+
+	// TokenPurchase is an event of purchasing token
+	TokenPurchase = "TokenPurchase"
+
+	// CoinPurchase is an event of purchasing coin
+	CoinPurchase = "CoinPurchase"
+
 	// ExchangeCreationTableName is the table storing exchange creation records
 	ExchangeCreationTableName = "mimo_exchange_creations"
 
@@ -34,8 +46,8 @@ const (
 	// TokenMonitorViewName is the table storing all the <token,account> to monitor
 	TokenMonitorViewName = "mimo_token_to_monitor"
 
-	// ExchangeProviderActionTableName is the table storing the liquidity providers' actions
-	ExchangeProviderActionTableName = "mimo_exchange_provider_actions"
+	// ExchangeActionTableName is the table storing the exchange actions
+	ExchangeActionTableName = "mimo_exchange_actions"
 
 	createTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeCreationTableName + "` (" +
 		"`id` int(11) NOT NULL AUTO_INCREMENT," +
@@ -52,26 +64,27 @@ const (
 		"KEY `i_block_height` (`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	createProviderActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeProviderActionTableName + "` (" +
+	createActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeActionTableName + "` (" +
 		"`action_hash` varchar(40) NOT NULL," +
 		"`idx` int(10) NOT NULL," +
+		"`type` enum('" + AddLiquidity + "','" + RemoveLiquidity + "','" + TokenPurchase + "','" + CoinPurchase + "') NOT NULL," +
 		"`exchange` varchar(41) NOT NULL," +
 		"`block_height` decimal(65,0) unsigned NOT NULL," +
-		"`provider` varchar(41) NOT NULL," +
+		"`actor` varchar(41) NOT NULL," +
 		"`iotx_amount` decimal(65,0) NOT NULL," +
 		"`token_amount` decimal(65,0) NOT NULL," +
 		"PRIMARY KEY (`action_hash`,`idx`)," +
 		"KEY `i_action_hash` (`action_hash`)," +
 		"KEY `i_block_height` (`block_height`)," +
 		"KEY `i_exchange` (`exchange`)," +
-		"KEY `i_provider` (`provider`)" +
+		"KEY `i_actor` (`actor`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
 	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + ExchangeCreationTableName + "`"
 	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + ExchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + ExchangeCreationTableName + "`"
 
-	insertExchangeQuery        = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`,`token_decimals`) VALUES %s"
-	insertProviderActionsQuery = "INSERT INTO `" + ExchangeProviderActionTableName + "` (`action_hash`,`idx`,`exchange`,`block_height`,`provider`,`iotx_amount`,`token_amount`) VALUES %s"
+	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`,`token_decimals`) VALUES %s"
+	insertActionsQuery  = "INSERT INTO `" + ExchangeActionTableName + "` (`action_hash`,`idx`,`type`,`exchange`,`block_height`,`actor`,`iotx_amount`,`token_amount`) VALUES %s"
 )
 
 var (
@@ -103,8 +116,8 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx) error {
 	if _, err := tx.Exec(createTokenViewQuery); err != nil {
 		return errors.Wrap(err, "failed to create token view")
 	}
-	if _, err := tx.Exec(createProviderActionTableQuery); err != nil {
-		return errors.Wrap(err, "failed to create provider action table")
+	if _, err := tx.Exec(createActionTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange action table")
 	}
 
 	return nil
@@ -128,91 +141,134 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 			continue
 		}
 		for i, l := range receipt.Logs() {
-			if l.Address != p.factoryAddr.String() {
-				continue
-			}
 			if len(l.Topics) == 0 {
 				continue
 			}
-			switch hex.EncodeToString(l.Topics[0][:]) {
-			case "06239653922ac7bea6aa2b19dc486b9361821d37712eb796adfd38d81de278ca":
+			topic := hex.EncodeToString(l.Topics[0][:])
+			if l.Address == p.factoryAddr.String() {
+				if topic == "9d42cb017eb05bd8944ab536a8b35bc68085931dd5f4356489801453923953f9" { // create exchange
+					token, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
+					if err != nil {
+						return err
+					}
+					name, err := indexprotocol.ReadContract(client, token.String(), tokenName)
+					if err != nil {
+						return err
+					}
+					symbol, err := indexprotocol.ReadContract(client, token.String(), tokenSymbol)
+					if err != nil {
+						return err
+					}
+					decimals, err := indexprotocol.ReadContract(client, token.String(), tokenDecimals)
+					if err != nil {
+						return err
+					}
+					exchange, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
+					if err != nil {
+						return err
+					}
+					valStrs = append(valStrs, "(?,?,?,?,?,?,?)")
+					valArgs = append(
+						valArgs,
+						exchange.String(),
+						token.String(),
+						l.BlockHeight,
+						hex.EncodeToString(l.ActionHash[:]),
+						string(decodeString(name)),
+						string(decodeString(symbol)),
+						new(big.Int).SetBytes(decimals).Uint64(),
+					)
+				}
+				continue
+			}
+			switch topic {
+			case "06239653922ac7bea6aa2b19dc486b9361821d37712eb796adfd38d81de278ca": // add liquidity
 				provider, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
 				if err != nil {
 					return err
 				}
 				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
 				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
-				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?)")
+				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
 				actionValArgs = append(
 					actionValArgs,
-					receipt.ActionHash,
+					hex.EncodeToString(l.ActionHash[:]),
 					i,
-					receipt.BlockHeight,
-					receipt.ContractAddress,
+					AddLiquidity,
+					l.Address,
+					l.BlockHeight,
 					provider.String(),
 					iotxAmount.String(),
 					tokenAmount.String(),
 				)
-			case "0fbf06c058b90cb038a618f8c2acbf6145f8b3570fd1fa56abb8f0f3f05b36e8":
+			case "0fbf06c058b90cb038a618f8c2acbf6145f8b3570fd1fa56abb8f0f3f05b36e8": // remove liquidity
 				provider, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
 				if err != nil {
 					return err
 				}
 				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
 				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
-				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?)")
+				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
 				actionValArgs = append(
 					actionValArgs,
-					receipt.ActionHash,
-					i,
-					receipt.BlockHeight,
-					receipt.ContractAddress,
-					provider.String(),
-					new(big.Int).Neg(iotxAmount).String(),
-					new(big.Int).Neg(tokenAmount).String(),
-				)
-			case "9d42cb017eb05bd8944ab536a8b35bc68085931dd5f4356489801453923953f9":
-				token, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
-				if err != nil {
-					return err
-				}
-				name, err := indexprotocol.ReadContract(client, token.String(), tokenName)
-				if err != nil {
-					return err
-				}
-				symbol, err := indexprotocol.ReadContract(client, token.String(), tokenSymbol)
-				if err != nil {
-					return err
-				}
-				decimals, err := indexprotocol.ReadContract(client, token.String(), tokenDecimals)
-				if err != nil {
-					return err
-				}
-				exchange, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
-				if err != nil {
-					return err
-				}
-				valStrs = append(valStrs, "(?,?,?,?,?,?,?)")
-				valArgs = append(
-					valArgs,
-					exchange.String(),
-					token.String(),
-					l.BlockHeight,
 					hex.EncodeToString(l.ActionHash[:]),
-					string(decodeString(name)),
-					string(decodeString(symbol)),
-					new(big.Int).SetBytes(decimals).Uint64(),
+					i,
+					RemoveLiquidity,
+					l.Address,
+					l.BlockHeight,
+					provider.String(),
+					iotxAmount.String(),
+					tokenAmount.String(),
+				)
+			case "cd60aa75dea3072fbc07ae6d7d856b5dc5f4eee88854f5b4abf7b680ef8bc50f": // token purchase
+				buyer, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
+				if err != nil {
+					return err
+				}
+				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
+				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
+				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
+				actionValArgs = append(
+					actionValArgs,
+					hex.EncodeToString(l.ActionHash[:]),
+					i,
+					TokenPurchase,
+					l.Address,
+					l.BlockHeight,
+					buyer.String(),
+					iotxAmount.String(),
+					tokenAmount.String(),
+				)
+			case "bd5084afcc95a37b2846c5adaf2918caab943ad011b8830b1eb3f7ff81a8b24f": // iotx purchase
+				buyer, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
+				if err != nil {
+					return err
+				}
+				tokenAmount := new(big.Int).SetBytes(l.Topics[2][:])
+				iotxAmount := new(big.Int).SetBytes(l.Topics[3][:])
+				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
+				actionValArgs = append(
+					actionValArgs,
+					hex.EncodeToString(l.ActionHash[:]),
+					i,
+					CoinPurchase,
+					l.Address,
+					l.BlockHeight,
+					buyer.String(),
+					iotxAmount.String(),
+					tokenAmount.String(),
 				)
 			}
 		}
 	}
 	if len(valStrs) != 0 {
+		fmt.Println(fmt.Sprintf(insertExchangeQuery, strings.Join(valStrs, ",")), valArgs)
 		if _, err := tx.Exec(fmt.Sprintf(insertExchangeQuery, strings.Join(valStrs, ",")), valArgs...); err != nil {
 			return err
 		}
 	}
 	if len(actionValStrs) != 0 {
-		if _, err := tx.Exec(fmt.Sprintf(insertProviderActionsQuery, strings.Join(actionValStrs, ",")), actionValArgs...); err != nil {
+		if _, err := tx.Exec(fmt.Sprintf(insertActionsQuery, strings.Join(actionValStrs, ",")), actionValArgs...); err != nil {
 			return err
 		}
 	}

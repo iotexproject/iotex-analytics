@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"time"
 
+	mimoprotocol "github.com/iotexproject/iotex-analytics/indexprotocol/mimo"
 	"github.com/pkg/errors"
 ) // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
 const (
@@ -37,22 +38,7 @@ type queryResolver struct {
 	service *mimoService
 }
 
-// Exchanges returns all exchanges
-func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error) {
-	if pagination.Skip < 0 {
-		return nil, ErrPaginationInvalidOffset
-	}
-	if pagination.First <= 0 || pagination.First > MaximumPageSize {
-		return nil, ErrPaginationInvalidSize
-	}
-	h, ok := new(big.Int).SetString(height, 10)
-	if !ok {
-		return nil, errors.Errorf("failed to parse height %s", height)
-	}
-	pairs, err := r.service.exchanges(h.Uint64(), uint32(pagination.Skip), uint8(pagination.First))
-	if err != nil {
-		return nil, err
-	}
+func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []AddressPair) ([]*Exchange, error) {
 	exchanges := make([]string, len(pairs))
 	tokens := make([]string, len(pairs))
 	reversePairs := make([]AddressPair, len(pairs))
@@ -64,19 +50,19 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 			Address2: pair.Address1,
 		}
 	}
-	balances, err := r.service.balances(h.Uint64(), exchanges)
+	balances, err := r.service.balances(height, exchanges)
 	if err != nil {
 		return nil, err
 	}
-	supplies, err := r.service.supplies(h.Uint64(), exchanges)
+	supplies, err := r.service.supplies(height, exchanges)
 	if err != nil {
 		return nil, err
 	}
-	tokenInfos, err := r.service.tokens(h.Uint64(), tokens)
+	tokenInfos, err := r.service.tokens(height, tokens)
 	if err != nil {
 		return nil, err
 	}
-	tokenBalances, err := r.service.tokenBalances(h.Uint64(), reversePairs)
+	tokenBalances, err := r.service.tokenBalances(height, reversePairs)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +113,25 @@ func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination
 		})
 	}
 	return ret, nil
+}
+
+// Exchanges returns all exchanges
+func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error) {
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, ErrPaginationInvalidSize
+	}
+	h, ok := new(big.Int).SetString(height, 10)
+	if !ok {
+		return nil, errors.Errorf("failed to parse height %s", height)
+	}
+	pairs, err := r.service.exchanges(h.Uint64(), uint32(pagination.Skip), uint8(pagination.First))
+	if err != nil {
+		return nil, err
+	}
+	return r.exchanges(ctx, h.Uint64(), pairs)
 }
 
 func (r *queryResolver) TipHeight(ctx context.Context) (string, error) {
@@ -200,4 +205,26 @@ func (r *queryResolver) Liquidities(ctx context.Context, days int) ([]*AmountInO
 		})
 	}
 	return ret, nil
+}
+
+func (r *queryResolver) Actions(ctx context.Context, actionType ActionType, pagination Pagination) ([]*Action, error) {
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, ErrPaginationInvalidSize
+	}
+	types := []string{}
+	switch actionType {
+	case ActionTypeAll:
+		types = append(types, mimoprotocol.AddLiquidity, mimoprotocol.RemoveLiquidity, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
+	case ActionTypeAdd:
+		types = append(types, mimoprotocol.AddLiquidity)
+	case ActionTypeRemove:
+		types = append(types, mimoprotocol.RemoveLiquidity)
+	case ActionTypeSwap:
+		types = append(types, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
+	}
+
+	return r.service.actions(types, pagination.Skip, pagination.First)
 }
