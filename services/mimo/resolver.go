@@ -54,6 +54,10 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 	if err != nil {
 		return nil, err
 	}
+	balances24HoursAgo, err := r.service.balances(height-720*24, exchanges)
+	if err != nil {
+		return nil, err
+	}
 	supplies, err := r.service.supplies(height, exchanges)
 	if err != nil {
 		return nil, err
@@ -62,7 +66,11 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 	if err != nil {
 		return nil, err
 	}
-	tokenBalances, err := r.service.tokenBalances(height, reversePairs)
+	tokenBalances, err := r.service.tokenBalances(height, exchanges)
+	if err != nil {
+		return nil, err
+	}
+	tokenBalances24HoursAgo, err := r.service.tokenBalances(height-720*24, exchanges)
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +90,17 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 		if !ok {
 			balance = big.NewInt(0)
 		}
-		tokenBalance, ok := tokenBalances[pair]
+		tokenBalance, ok := tokenBalances[exchange]
 		if !ok {
 			tokenBalance = big.NewInt(0)
+		}
+		balance24HoursAgo, ok := balances24HoursAgo[exchange]
+		if !ok {
+			balance24HoursAgo = big.NewInt(0)
+		}
+		tokenBalance24HoursAgo, ok := tokenBalances24HoursAgo[exchange]
+		if !ok {
+			tokenBalance24HoursAgo = big.NewInt(0)
 		}
 		supply, ok := supplies[exchange]
 		if !ok {
@@ -103,29 +119,51 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 			info = Token{Address: token}
 		}
 		ret = append(ret, &Exchange{
-			Address:             exchange,
-			Token:               info,
-			VolumeInPast24Hours: volumeInPast24Hours.String(),
-			VolumeInPast7Days:   volumeInPast7Days.String(),
-			Liquidity:           supply.String(),
-			BalanceOfIotx:       balance.String(),
-			BalanceOfToken:      tokenBalance.String(),
+			Address:                  exchange,
+			Token:                    info,
+			VolumeInPast24Hours:      volumeInPast24Hours.String(),
+			VolumeInPast7Days:        volumeInPast7Days.String(),
+			Supply:                   supply.String(),
+			BalanceOfIotx:            balance.String(),
+			BalanceOfIOTX24HoursAgo:  balance24HoursAgo.String(),
+			BalanceOfToken:           tokenBalance.String(),
+			BalanceOfToken24HoursAgo: tokenBalance24HoursAgo.String(),
 		})
 	}
 	return ret, nil
 }
 
+// Exchange returns an exchange given address
+func (r *queryResolver) Exchange(ctx context.Context, exchange string) (*Exchange, error) {
+	tip, err := r.service.latestHeight()
+	if err != nil {
+		return nil, err
+	}
+	pair, err := r.service.exchange(tip.Uint64(), exchange)
+	if err != nil {
+		return nil, err
+	}
+	values, err := r.exchanges(ctx, tip.Uint64(), []AddressPair{pair})
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, errors.Errorf("failed to extract features of exchange %s", exchange)
+	}
+	return values[0], nil
+}
+
 // Exchanges returns all exchanges
-func (r *queryResolver) Exchanges(ctx context.Context, height string, pagination Pagination) ([]*Exchange, error) {
+func (r *queryResolver) Exchanges(ctx context.Context, pagination Pagination) ([]*Exchange, error) {
 	if pagination.Skip < 0 {
 		return nil, ErrPaginationInvalidOffset
 	}
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
 		return nil, ErrPaginationInvalidSize
 	}
-	h, ok := new(big.Int).SetString(height, 10)
-	if !ok {
-		return nil, errors.Errorf("failed to parse height %s", height)
+	h, err := r.service.latestHeight()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tip height")
 	}
 	pairs, err := r.service.exchanges(h.Uint64(), uint32(pagination.Skip), uint8(pagination.First))
 	if err != nil {
@@ -172,7 +210,28 @@ func (r *queryResolver) Volumes(ctx context.Context, days int) ([]*AmountInOneDa
 	if days > 256 {
 		days = 256
 	}
-	dates, volumes, err := r.service.volumesInPastNDays(uint8(days))
+	dates, volumes, err := r.service.volumesInPastNDays([]string{}, uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*AmountInOneDay{}
+	for i, date := range dates {
+		ret = append(ret, &AmountInOneDay{
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
+		})
+	}
+	return ret, nil
+}
+
+func (r *queryResolver) VolumesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	dates, volumes, err := r.service.volumesInPastNDays([]string{exchange}, uint8(days))
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +252,28 @@ func (r *queryResolver) Liquidities(ctx context.Context, days int) ([]*AmountInO
 	if days > 256 {
 		days = 256
 	}
-	dates, volumes, err := r.service.liquiditiesInPastNDays(uint8(days))
+	dates, volumes, err := r.service.liquiditiesInPastNDays([]string{}, uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*AmountInOneDay{}
+	for i, date := range dates {
+		ret = append(ret, &AmountInOneDay{
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
+		})
+	}
+	return ret, nil
+}
+
+func (r *queryResolver) LiquiditiesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	dates, volumes, err := r.service.liquiditiesInPastNDays([]string{exchange}, uint8(days))
 	if err != nil {
 		return nil, err
 	}
@@ -214,17 +294,17 @@ func (r *queryResolver) Actions(ctx context.Context, actionType ActionType, pagi
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
 		return nil, ErrPaginationInvalidSize
 	}
-	types := []string{}
+	topics := []mimoprotocol.EventTopic{}
 	switch actionType {
 	case ActionTypeAll:
-		types = append(types, mimoprotocol.AddLiquidity, mimoprotocol.RemoveLiquidity, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
+		topics = append(topics, mimoprotocol.AddLiquidity, mimoprotocol.RemoveLiquidity, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
 	case ActionTypeAdd:
-		types = append(types, mimoprotocol.AddLiquidity)
+		topics = append(topics, mimoprotocol.AddLiquidity)
 	case ActionTypeRemove:
-		types = append(types, mimoprotocol.RemoveLiquidity)
+		topics = append(topics, mimoprotocol.RemoveLiquidity)
 	case ActionTypeSwap:
-		types = append(types, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
+		topics = append(topics, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
 	}
 
-	return r.service.actions(types, pagination.Skip, pagination.First)
+	return r.service.actions(topics, pagination.Skip, pagination.First)
 }

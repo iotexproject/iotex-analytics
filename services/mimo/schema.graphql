@@ -1,8 +1,11 @@
 type Query {
-    exchanges(height: String!, pagination: Pagination!): [Exchange]!
+    exchange(exchange: String!): Exchange
+    exchanges(pagination: Pagination!): [Exchange]!
     tipHeight: String!
     volumes(days: Int!): [AmountInOneDay]!
     liquidities(days: Int!): [AmountInOneDay]!
+    volumesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
+    liquiditiesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
     actions(type: ActionType!, pagination: Pagination!): [Action]!
@@ -11,11 +14,13 @@ type Query {
 type Exchange {
     address: String!
     token: Token!
-    liquidity: String!
+    supply: String!
     volumeInPast24Hours: String!
     volumeInPast7Days: String!
     balanceOfToken: String!
+    balanceOfToken24HoursAgo: String!
     balanceOfIOTX: String!
+    balanceOfIOTX24HoursAgo: String!
 }
 
 enum ActionType {

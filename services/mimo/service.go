@@ -24,13 +24,10 @@ import (
 	"github.com/iotexproject/iotex-core/blockchain/block"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
-	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/accountbalance"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blockinfo"
 	mimoprotocol "github.com/iotexproject/iotex-analytics/indexprotocol/mimo"
-	"github.com/iotexproject/iotex-analytics/indexprotocol/xrc20"
 	"github.com/iotexproject/iotex-analytics/services"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -71,8 +68,6 @@ func NewService(chainClient iotexapi.APIServiceClient, store s.Store, mimoFactor
 		protocols: []indexprotocol.ProtocolV2{
 			blockinfo.NewProtocol(),
 			mimoprotocol.NewProtocol(mimoFactoryAddr),
-			accountbalance.NewProtocolWithMonitorTable(mimoprotocol.ExchangeMonitorViewName, initBalances),
-			xrc20.NewProtocolWithMonitorTokenAndAddresses(mimoprotocol.TokenMonitorViewName),
 		},
 		batchSize: uint64(batchSize),
 	}
@@ -175,23 +170,8 @@ func (service *mimoService) indexInBatch(ctx context.Context, tipHeight uint64) 
 				receipt.ConvertFromReceiptPb(receiptPb)
 				blk.Receipts = append(blk.Receipts, receipt)
 			}
-			var transactionLogs []*iotextypes.TransactionLog
-			/*
-				if tls := blkInfo.GetTransactionLogs(); tls != nil {
-					transactionLogs = tls.Logs
-				}
-			*/
-			// TODO: add transaction log via GetRawBlocks
-			transactionLogResponse, err := chainClient.GetTransactionLogByBlockHeight(ctx, &iotexapi.GetTransactionLogByBlockHeightRequest{
-				BlockHeight: blk.Height(),
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to fetch transaction log of block %d", blk.Height())
-			}
-			transactionLogs = transactionLogResponse.GetTransactionLogs().GetLogs()
 			if err := service.buildIndex(ctx, &indexprotocol.BlockData{
-				Block:           blk,
-				TransactionLogs: transactionLogs,
+				Block: blk,
 			}); err != nil {
 				return errors.Wrap(err, "failed to build index for the block")
 			}
@@ -260,9 +240,28 @@ func (service *mimoService) numOfPairs() (int, error) {
 	return n, nil
 }
 
+func (service *mimoService) exchange(height uint64, exchange string) (AddressPair, error) {
+	pair := AddressPair{
+		Address1: exchange,
+	}
+	var token sql.NullString
+	if err := service.store.GetDB().QueryRow(
+		"SELECT `token` FROM `"+mimoprotocol.ExchangeCreationTableName+"` WHERE `block_height` <= ? AND `exchange` = ?",
+		height,
+		exchange,
+	).Scan(&token); err != nil {
+		return pair, err
+	}
+	if !token.Valid {
+		return pair, errors.Errorf("failed to query exchange %s", exchange)
+	}
+	pair.Address2 = token.String
+	return pair, nil
+}
+
 func (service *mimoService) exchanges(height uint64, offset uint32, count uint8) ([]AddressPair, error) {
 	rows, err := service.store.GetDB().Query(
-		"SELECT `exchange`, `token` FROM `"+mimoprotocol.ExchangeCreationTableName+"` WHERE `block_height` <= ? AND `id` > ? ORDER BY `id` LIMIT ?",
+		"SELECT `exchange`, `token` FROM `"+mimoprotocol.ExchangeCreationTableName+"` WHERE `block_height` <= ? ORDER BY `block_height` LIMIT ?,?",
 		height,
 		offset,
 		count,
@@ -288,7 +287,7 @@ func (service *mimoService) numOfTransactions(duration time.Duration) (int, erro
 	var count int
 	err := service.store.GetDB().QueryRow(
 		"SELECT COUNT(DISTINCT(t.action_hash)) "+
-			"FROM `"+xrc20.TransactionTableName+"` t "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
 			"INNER JOIN `"+blockinfo.TableName+"` bi "+
 			"ON bi.block_height = t.block_height "+
 			"WHERE bi.timestamp >= ? ",
@@ -301,11 +300,11 @@ func (service *mimoService) numOfTransactions(duration time.Duration) (int, erro
 func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error) {
 	var s sql.NullString
 	if err := service.store.GetDB().QueryRow(
-		"SELECT SUM(t.amount) v "+
-			"FROM `"+accountbalance.TransactionTableName+"` t "+
+		"SELECT SUM(t.iotx_amount) v "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
 			"INNER JOIN `"+blockinfo.TableName+"` bi "+
 			"ON bi.block_height = t.block_height "+
-			"WHERE bi.timestamp >= ? ",
+			"WHERE bi.timestamp >= ? AND t.type in ("+mimoprotocol.JoinTopicsWithQuotes(mimoprotocol.CoinPurchase, mimoprotocol.TokenPurchase)+")",
 		time.Now().UTC().Add(-duration).String(),
 	).Scan(&s); err != nil {
 		return nil, errors.Wrap(err, "failed to query volumes")
@@ -320,18 +319,20 @@ func (service *mimoService) volumeOfAll(duration time.Duration) (*big.Int, error
 	return volume, nil
 }
 
-func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.Int, error) {
+func (service *mimoService) volumesInPastNDays(exchanges []string, days uint8) ([]time.Time, []*big.Int, error) {
 	if days == 0 {
 		days = 1
 	}
+	exchangeCondition := ""
+	if len(exchanges) > 0 {
+		exchangeCondition = " AND t.exchange in ('" + strings.Join(exchanges, "','") + "')"
+	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT DATE(bi.timestamp) d, SUM(t.amount) v "+
-			"FROM `"+accountbalance.TransactionTableName+"` t "+
+		"SELECT DATE(bi.timestamp) d, SUM(t.iotx_amount) v "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
 			"INNER JOIN `"+blockinfo.TableName+"` bi "+
 			"ON bi.block_height = t.block_height "+
-			"INNER JOIN `"+mimoprotocol.ExchangeMonitorViewName+"` e "+
-			"ON e.account = t.sender OR e.account = t.recipient "+
-			"WHERE bi.timestamp >= ? "+
+			"WHERE bi.timestamp >= ?"+exchangeCondition+" AND t.type in ("+mimoprotocol.JoinTopicsWithQuotes(mimoprotocol.AddLiquidity, mimoprotocol.RemoveLiquidity)+") "+
 			"GROUP BY d "+
 			"ORDER BY d",
 		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
@@ -340,7 +341,7 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 		return nil, nil, errors.Wrap(err, "failed to query volumes")
 	}
 	dates := []time.Time{}
-	totals := map[string]*big.Int{}
+	volumes := []*big.Int{}
 	for rows.Next() {
 		var date time.Time
 		var volumeStr string
@@ -352,48 +353,14 @@ func (service *mimoService) volumesInPastNDays(days uint8) ([]time.Time, []*big.
 			return nil, nil, errors.Errorf("failed to parse volume %s", volumeStr)
 		}
 		dates = append(dates, date)
-		totals[date.String()] = volume
-	}
-	rows, err = service.store.GetDB().Query(
-		"SELECT DATE(bi.timestamp) d, SUM(t.iotx_amount) v "+
-			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
-			"INNER JOIN `"+blockinfo.TableName+"` bi "+
-			"ON bi.block_height = t.block_height "+
-			"INNER JOIN `"+mimoprotocol.ExchangeMonitorViewName+"` e "+
-			"ON e.account = t.actor "+
-			"WHERE bi.timestamp >= ? AND t.type in ('"+mimoprotocol.AddLiquidity+"','"+mimoprotocol.RemoveLiquidity+"') "+
-			"GROUP BY d",
-		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
-	)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to query liquidity change")
-	}
-	for rows.Next() {
-		var date time.Time
-		var volumeStr string
-		if err := rows.Scan(&date, &volumeStr); err != nil {
-			return nil, nil, errors.Wrap(err, "failed to parse volume information")
-		}
-		volume, ok := new(big.Int).SetString(volumeStr, 10)
-		if !ok {
-			return nil, nil, errors.Errorf("failed to parse volume %s", volumeStr)
-		}
-		if total, ok := totals[date.String()]; ok {
-			totals[date.String()].Sub(total, volume)
-		} else {
-			return nil, nil, errors.New("volume cannot be negative")
-		}
-	}
-	volumes := make([]*big.Int, len(dates))
-	for i, date := range dates {
-		volumes[i] = totals[date.String()]
+		volumes = append(volumes, volume)
 	}
 	return dates, volumes, nil
 }
 
 const layoutISO = "2006-01-02"
 
-func (service *mimoService) liquiditiesInPastNDays(days uint8) ([]time.Time, []*big.Int, error) {
+func (service *mimoService) liquiditiesInPastNDays(exchanges []string, days uint8) ([]time.Time, []*big.Int, error) {
 	if days == 0 {
 		days = 1
 	}
@@ -402,19 +369,21 @@ func (service *mimoService) liquiditiesInPastNDays(days uint8) ([]time.Time, []*
 	for i := uint8(1); i < days; i++ {
 		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i)*24*time.Hour).Format(layoutISO) + "'"
 	}
+	exchangeCondition := ""
+	if len(exchanges) > 0 {
+		exchangeCondition = "WHERE ab.exchange in ('" + strings.Join(exchanges, "','") + "')"
+	}
 	rows, err := service.store.GetDB().Query(
 		"SELECT h1.date, SUM(b1.balance) * 2 " +
-			"FROM `" + accountbalance.BalanceTableName + "` b1 INNER JOIN (" +
-			"    SELECT e.account, t.date, MAX(bi.block_height) max_height " +
-			"    FROM `" + accountbalance.BalanceTableName + "` ab " +
+			"FROM `" + mimoprotocol.CoinBalanceTableName + "` b1 INNER JOIN (" +
+			"    SELECT ab.exchange, t.date, MAX(bi.block_height) max_height " +
+			"    FROM `" + mimoprotocol.CoinBalanceTableName + "` ab " +
 			"    INNER JOIN `" + blockinfo.TableName + "` bi " +
 			"    ON bi.block_height = ab.block_height " +
-			"    INNER JOIN `" + mimoprotocol.ExchangeMonitorViewName + "` e " +
-			"    ON e.account = ab.account " +
 			"    INNER JOIN (" + tempTable + ") AS t " +
-			"    ON Date(bi.timestamp) <= t.date " +
-			"    GROUP BY e.account, t.date" +
-			") h1 ON b1.account = h1.account and b1.block_height = h1.max_height " +
+			"    ON Date(bi.timestamp) <= t.date " + exchangeCondition +
+			"    GROUP BY ab.exchange, t.date " +
+			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height " +
 			"GROUP BY h1.date " +
 			"ORDER BY h1.date",
 	)
@@ -446,20 +415,22 @@ func (service *mimoService) volumes(exchanges []string, duration time.Duration) 
 	if len(exchanges) == 0 {
 		return nil, nil
 	}
-	tempTable := "SELECT '" + exchanges[0] + "' AS `account`"
-	for i := 1; i < len(exchanges); i++ {
-		tempTable += " UNION SELECT '" + exchanges[i] + "'"
+	args := make([]interface{}, len(exchanges)+1)
+	args[0] = time.Now().UTC().Add(-duration).String()
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		args[i+1] = exchange
+		questionMarks[i] = "?"
 	}
+
 	rows, err := service.store.GetDB().Query(
-		"SELECT e.account, SUM(t.amount) v "+
-			"FROM `"+accountbalance.TransactionTableName+"` t "+
+		"SELECT t.exchange, SUM(t.iotx_amount) v "+
+			"FROM `"+mimoprotocol.ExchangeActionTableName+"` t "+
 			"INNER JOIN `"+blockinfo.TableName+"` bi "+
 			"ON bi.block_height = t.block_height "+
-			"INNER JOIN ("+tempTable+") AS e "+
-			"ON CONVERT(e.account USING latin1) = t.sender OR CONVERT(e.account USING latin1) = t.recipient "+
-			"WHERE bi.timestamp >= ? "+
-			"GROUP BY e.account",
-		time.Now().UTC().Add(-duration).String(),
+			"WHERE bi.timestamp >= ? AND t.exchange in ("+strings.Join(questionMarks, ",")+") AND t.type in ("+mimoprotocol.JoinTopicsWithQuotes(mimoprotocol.CoinPurchase, mimoprotocol.TokenPurchase)+") "+
+			"GROUP BY t.exchange",
+		args...,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query volumes")
@@ -522,13 +493,13 @@ func (service *mimoService) balances(height uint64, addrs []string) (map[string]
 		questionMarks[i] = "?"
 	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT b1.account, b1.balance "+
-			"FROM `"+accountbalance.BalanceTableName+"` b1 INNER JOIN ("+
-			"    SELECT account, MAX(block_height) max_height "+
-			"    FROM `"+accountbalance.BalanceTableName+"` "+
-			"    WHERE `block_height` <= ? AND account in ("+strings.Join(questionMarks, ",")+")"+
-			"    GROUP BY account"+
-			") h1 ON b1.account = h1.account and b1.block_height = h1.max_height",
+		"SELECT b1.exchange, b1.balance "+
+			"FROM `"+mimoprotocol.CoinBalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT exchange, MAX(block_height) max_height "+
+			"    FROM `"+mimoprotocol.CoinBalanceTableName+"` "+
+			"    WHERE `block_height` <= ? AND exchange in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY exchange"+
+			") h1 ON b1.exchange = h1.exchange and b1.block_height = h1.max_height",
 		args...)
 	if err != nil {
 		return nil, err
@@ -549,62 +520,60 @@ func (service *mimoService) balances(height uint64, addrs []string) (map[string]
 	return ret, nil
 }
 
-func (service *mimoService) tokenBalances(height uint64, tokenAndAddrPairs []AddressPair) (map[AddressPair]*big.Int, error) {
-	args := make([]interface{}, len(tokenAndAddrPairs)*2+1)
+func (service *mimoService) tokenBalances(height uint64, exchanges []string) (map[string]*big.Int, error) {
+	args := make([]interface{}, len(exchanges)+1)
 	args[0] = height
-	questionMarks := make([]string, len(tokenAndAddrPairs))
-	for i, pair := range tokenAndAddrPairs {
-		args[2*i+1] = pair.Address1
-		args[2*i+2] = pair.Address2
-		questionMarks[i] = "(?,?)"
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		args[i+1] = exchange
+		questionMarks[i] = "?"
 	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT h1.token,h1.account,b1.balance "+
-			"FROM `"+xrc20.BalanceTableName+"` b1 INNER JOIN ("+
-			"    SELECT token,account,MAX(block_height) max_height "+
-			"    FROM `"+xrc20.BalanceTableName+"` "+
-			"    WHERE `block_height` <= ? AND (`token`,`account`) in ("+strings.Join(questionMarks, ",")+")"+
-			"    GROUP BY token,account"+
-			") h1 ON b1.token = h1.token AND b1.account = h1.account AND b1.block_height = h1.max_height",
+		"SELECT h1.exchange,b1.balance "+
+			"FROM `"+mimoprotocol.TokenBalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT `exchange`,MAX(`block_height`) max_height "+
+			"    FROM `"+mimoprotocol.TokenBalanceTableName+"` "+
+			"    WHERE `block_height` <= ? AND `exchange` in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY `exchange`"+
+			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height",
 		args...)
 	if err != nil {
 		return nil, err
 	}
-	ret := map[AddressPair]*big.Int{}
+	ret := map[string]*big.Int{}
 	for rows.Next() {
-		var token string
-		var account string
+		var exchange string
 		var balance string
-		if err := rows.Scan(&token, &account, &balance); err != nil {
+		if err := rows.Scan(&exchange, &balance); err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance")
 		}
 		bb, ok := new(big.Int).SetString(balance, 10)
 		if !ok {
 			return nil, errors.Errorf("failed to parse balance %s", balance)
 		}
-		ret[AddressPair{token, account}] = bb
+		ret[exchange] = bb
 	}
 	return ret, nil
 }
 
-func (service *mimoService) supplies(height uint64, tokens []string) (map[string]*big.Int, error) {
-	args := make([]interface{}, len(tokens)+1)
+func (service *mimoService) supplies(height uint64, exchanges []string) (map[string]*big.Int, error) {
+	args := make([]interface{}, len(exchanges)+1)
 	args[0] = height
-	questionMarks := make([]string, len(tokens))
-	for i, token := range tokens {
-		args[i+1] = token
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		args[i+1] = exchange
 		questionMarks[i] = "?"
 	}
 
 	rows, err := service.store.GetDB().Query(
-		"SELECT b1.token, b1.supply "+
-			"FROM `"+xrc20.SupplyTableName+"` b1 "+
+		"SELECT b1.exchange, b1.supply "+
+			"FROM `"+mimoprotocol.SupplyTableName+"` b1 "+
 			"INNER JOIN ("+
-			"    SELECT token, MAX(block_height) max_height "+
-			"    FROM `"+xrc20.SupplyTableName+"` "+
-			"    WHERE block_height <= ? AND token in ("+strings.Join(questionMarks, ",")+")"+
-			"    GROUP BY token"+
-			") h1 ON b1.token = h1.token AND b1.block_height = h1.max_height",
+			"    SELECT `exchange`, MAX(`block_height`) max_height "+
+			"    FROM `"+mimoprotocol.SupplyTableName+"` "+
+			"    WHERE `block_height` <= ? AND `exchange` in ("+strings.Join(questionMarks, ",")+")"+
+			"    GROUP BY `exchange`"+
+			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height",
 		args...,
 	)
 	if err != nil {
@@ -625,16 +594,16 @@ func (service *mimoService) supplies(height uint64, tokens []string) (map[string
 	return ret, nil
 }
 
-func (service *mimoService) actions(types []string, skip, first int) ([]*Action, error) {
+func (service *mimoService) actions(topics []mimoprotocol.EventTopic, skip, first int) ([]*Action, error) {
 	if first > 512 {
 		return nil, errors.New("page size cannot be more than 512")
 	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT a.action_hash,a.type,a.exchange,a.actor,a.iotx_amount,a.token_amount,b.timestamp "+
+		"SELECT a.action_hash,a.type,a.exchange,a.provider,a.iotx_amount,a.token_amount,b.timestamp "+
 			"FROM `"+mimoprotocol.ExchangeActionTableName+"` a "+
 			"LEFT JOIN `"+blockinfo.TableName+"` b "+
 			"ON a.block_height = b.block_height "+
-			"WHERE a.type in ('"+strings.Join(types, "','")+"') "+
+			"WHERE a.type in ("+mimoprotocol.JoinTopicsWithQuotes(topics...)+") "+
 			"ORDER BY a.block_height DESC "+
 			"LIMIT ?,?",
 		skip,
@@ -663,7 +632,7 @@ func (service *mimoService) actions(types []string, skip, first int) ([]*Action,
 }
 
 func convertActionType(at string) ActionType {
-	switch at {
+	switch mimoprotocol.EventTopic(at) {
 	case mimoprotocol.AddLiquidity:
 		return ActionTypeAdd
 	case mimoprotocol.RemoveLiquidity:

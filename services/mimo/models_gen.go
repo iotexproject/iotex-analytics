@@ -23,13 +23,15 @@ type AmountInOneDay struct {
 }
 
 type Exchange struct {
-	Address             string `json:"address"`
-	Token               Token  `json:"token"`
-	Liquidity           string `json:"liquidity"`
-	VolumeInPast24Hours string `json:"volumeInPast24Hours"`
-	VolumeInPast7Days   string `json:"volumeInPast7Days"`
-	BalanceOfToken      string `json:"balanceOfToken"`
-	BalanceOfIotx       string `json:"balanceOfIOTX"`
+	Address                  string `json:"address"`
+	Token                    Token  `json:"token"`
+	Supply                   string `json:"supply"`
+	VolumeInPast24Hours      string `json:"volumeInPast24Hours"`
+	VolumeInPast7Days        string `json:"volumeInPast7Days"`
+	BalanceOfToken           string `json:"balanceOfToken"`
+	BalanceOfToken24HoursAgo string `json:"balanceOfToken24HoursAgo"`
+	BalanceOfIotx            string `json:"balanceOfIOTX"`
+	BalanceOfIOTX24HoursAgo  string `json:"balanceOfIOTX24HoursAgo"`
 }
 
 type Pagination struct {

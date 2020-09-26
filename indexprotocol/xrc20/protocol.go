@@ -33,12 +33,12 @@ const (
 var (
 	createTransactionTable = "CREATE TABLE IF NOT EXISTS `" + TransactionTableName + "` (" +
 		"`block_height` DECIMAL(65) UNSIGNED NULL," +
-		"`action_hash` VARCHAR(40) NOT NULL," +
+		"`action_hash` VARCHAR(64) NOT NULL," +
 		"`idx` INT(5) UNSIGNED NOT NULL," +
 		"`token` VARCHAR(41) NOT NULL," +
 		"`sender` VARCHAR(41) NOT NULL," +
 		"`recipient` VARCHAR(41) NOT NULL," +
-		"`amount` DECIMAL(65) UNSIGNED NULL," +
+		"`amount` DECIMAL(65) UNSIGNED NOT NULL," +
 		"PRIMARY KEY (`action_hash`, `idx`)," +
 		"KEY `i_block_height` (`block_height`)," +
 		"KEY `i_sender` (`sender`)," +

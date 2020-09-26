@@ -4,7 +4,7 @@
 // permitted by law, all liability for your use of the code is disclaimed. This source code is governed by Apache
 // License 2.0 that can be found in the LICENSE file.
 
-package mino
+package mimo
 
 import (
 	"context"
@@ -25,18 +25,6 @@ const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "mino"
 
-	// AddLiquidity is an event of adding liquidity
-	AddLiquidity = "AddLiquidity"
-
-	// RemoveLiquidity is an event of removing liquidity
-	RemoveLiquidity = "RemoveLiquidity"
-
-	// TokenPurchase is an event of purchasing token
-	TokenPurchase = "TokenPurchase"
-
-	// CoinPurchase is an event of purchasing coin
-	CoinPurchase = "CoinPurchase"
-
 	// ExchangeCreationTableName is the table storing exchange creation records
 	ExchangeCreationTableName = "mimo_exchange_creations"
 
@@ -46,45 +34,220 @@ const (
 	// TokenMonitorViewName is the table storing all the <token,account> to monitor
 	TokenMonitorViewName = "mimo_token_to_monitor"
 
-	// ExchangeActionTableName is the table storing the exchange actions
+	// ExchangeActionTableName is the table storing the actions of exchanges
 	ExchangeActionTableName = "mimo_exchange_actions"
 
+	// TokenActionTableName is the table storing the actions of token from/to exchanges
+	TokenActionTableName = "mimo_token_actions"
+
+	// ExchangeTokenActionTableName is the table storing the actions of exchange tokens
+	ExchangeTokenActionTableName = "mimo_exchange_token_actions"
+
+	// CoinBalanceTableName is the table storing the coin balances of exchanges
+	CoinBalanceTableName = "mimo_coin_balances"
+
+	// TokenBalanceTableName is the table stroing the token balances of exchanges
+	TokenBalanceTableName = "mimo_token_balances"
+
+	// ProviderBalanceTableName is the table storing the exchange holders
+	ProviderBalanceTableName = "mimo_holder_balances"
+
+	// SupplyTableName is the table storing the supplies of exchanges
+	SupplyTableName = "mimo_supplies"
+)
+
+var (
 	createTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeCreationTableName + "` (" +
-		"`id` int(11) NOT NULL AUTO_INCREMENT," +
 		"`exchange` varchar(41) NOT NULL," +
 		"`token` varchar(41) NOT NULL," +
 		"`block_height` decimal(65,0) unsigned NOT NULL," +
-		"`action_hash` varchar(40) NOT NULL," +
+		"`action_hash` varchar(64) NOT NULL," +
 		"`token_name` varchar(140) NOT NULL," +
 		"`token_symbol` varchar(140) NOT NULL," +
 		"`token_decimals` int(10) unsigned NOT NULL DEFAULT 18," +
-		"PRIMARY KEY (`id`)," +
+		"PRIMARY KEY (`exchange`,`token`)," +
 		"UNIQUE KEY `exchange_UNIQUE` (`exchange`)," +
 		"UNIQUE KEY `token_UNIQUE` (`token`)," +
 		"KEY `i_block_height` (`block_height`)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
-	createActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeActionTableName + "` (" +
-		"`action_hash` varchar(40) NOT NULL," +
-		"`idx` int(10) NOT NULL," +
-		"`type` enum('" + AddLiquidity + "','" + RemoveLiquidity + "','" + TokenPurchase + "','" + CoinPurchase + "') NOT NULL," +
-		"`exchange` varchar(41) NOT NULL," +
+	createExchangeActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeActionTableName + "` (" +
 		"`block_height` decimal(65,0) unsigned NOT NULL," +
-		"`actor` varchar(41) NOT NULL," +
-		"`iotx_amount` decimal(65,0) NOT NULL," +
-		"`token_amount` decimal(65,0) NOT NULL," +
+		"`action_hash` varchar(64) NOT NULL," +
+		"`idx` int(10) NOT NULL," +
+		"`type` enum(" + JoinTopicsWithQuotes(AddLiquidity, RemoveLiquidity, CoinPurchase, TokenPurchase) + ") NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`provider` varchar(41) NOT NULL," +
+		"`iotx_amount` decimal(65,0) unsigned NOT NULL," +
+		"`token_amount` decimal(65,0) unsigned NOT NULL," +
 		"PRIMARY KEY (`action_hash`,`idx`)," +
 		"KEY `i_action_hash` (`action_hash`)," +
 		"KEY `i_block_height` (`block_height`)," +
 		"KEY `i_exchange` (`exchange`)," +
-		"KEY `i_actor` (`actor`)" +
+		"KEY `i_provider` (`provider`)," +
+		"KEY `i_type` (`type`)," +
+		"CONSTRAINT `fk_actions_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createTokenActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + TokenActionTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`action_hash` varchar(64) NOT NULL," +
+		"`idx` int(10) NOT NULL," +
+		"`token` varchar(41) NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`amount` decimal(65,0) NOT NULL," +
+		"PRIMARY KEY (`action_hash`,`idx`,`exchange`,`token`)," +
+		"KEY `i_action_hash` (`action_hash`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"KEY `i_token` (`token`)," +
+		"KEY `fk_exchange_token` (`exchange`,`token`)," +
+		"CONSTRAINT `fk_exchange_token` FOREIGN KEY (`exchange`, `token`) REFERENCES `mimo_exchange_creations` (`exchange`, `token`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createExchangeTokenActionTableQuery = "CREATE TABLE IF NOT EXISTS `" + ExchangeTokenActionTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`action_hash` varchar(64) NOT NULL," +
+		"`idx` int(10) NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`sender` varchar(41) NOT NULL," +
+		"`recipient` varchar(41) NOT NULL," +
+		"`amount` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`action_hash`,`idx`)," +
+		"KEY `i_action_hash` (`action_hash`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"KEY `i_sender` (`sender`)," +
+		"KEY `i_recipient` (`recipient`)," +
+		"CONSTRAINT `fk_token_actions_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createCoinBalanceTableQuery = "CREATE TABLE IF NOT EXISTS `" + CoinBalanceTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`balance` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`block_height`,`exchange`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"CONSTRAINT `fk_coin_balances_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createTokenBalanceTableQuery = "CREATE TABLE IF NOT EXISTS `" + TokenBalanceTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`balance` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`block_height`,`exchange`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"CONSTRAINT `fk_token_balances_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createProviderBalanceTableQuery = "CREATE TABLE IF NOT EXISTS `" + ProviderBalanceTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`provider` varchar(41) NOT NULL," +
+		"`balance` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`block_height`,`exchange`,`provider`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"KEY `i_provider` (`provider`)," +
+		"CONSTRAINT `fk_holder_balances_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
+		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
+
+	createSupplyTableQuery = "CREATE TABLE IF NOT EXISTS `" + SupplyTableName + "` (" +
+		"`block_height` decimal(65,0) unsigned NOT NULL," +
+		"`exchange` varchar(41) NOT NULL," +
+		"`supply` decimal(65,0) unsigned NOT NULL," +
+		"PRIMARY KEY (`block_height`,`exchange`)," +
+		"KEY `i_block_height` (`block_height`)," +
+		"KEY `i_exchange` (`exchange`)," +
+		"CONSTRAINT `fk_supplies_exchange` FOREIGN KEY (`exchange`) REFERENCES `mimo_exchange_creations` (`exchange`) ON DELETE NO ACTION ON UPDATE NO ACTION" +
 		") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 
 	createExchangeViewQuery = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + ExchangeMonitorViewName + "` AS select `exchange` AS `account` from `" + ExchangeCreationTableName + "`"
 	createTokenViewQuery    = "CREATE OR REPLACE ALGORITHM=UNDEFINED DEFINER=`admin`@`%` SQL SECURITY DEFINER VIEW `" + TokenMonitorViewName + "` AS select `token`,`exchange` AS `account` from `" + ExchangeCreationTableName + "` union all select `exchange` AS `token`,'*' from `" + ExchangeCreationTableName + "`"
 
-	insertExchangeQuery = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`,`token_decimals`) VALUES %s"
-	insertActionsQuery  = "INSERT INTO `" + ExchangeActionTableName + "` (`action_hash`,`idx`,`type`,`exchange`,`block_height`,`actor`,`iotx_amount`,`token_amount`) VALUES %s"
+	insertExchangeQuery             = "INSERT INTO `" + ExchangeCreationTableName + "` (`exchange`,`token`,`block_height`,`action_hash`,`token_name`,`token_symbol`,`token_decimals`) VALUES %s"
+	insertExchangeActionsQuery      = "INSERT INTO `" + ExchangeActionTableName + "` (`block_height`, `action_hash`,`idx`,`type`,`exchange`,`provider`,`iotx_amount`,`token_amount`) VALUES %s"
+	insertTokenActionsQuery         = "INSERT IGNORE INTO `" + TokenActionTableName + "` (`block_height`,`action_hash`,`idx`,`token`,`exchange`,`amount`) VALUES %s"
+	insertExchangeTokenActionsQuery = "INSERT IGNORE INTO `" + ExchangeTokenActionTableName + "` (`block_height`,`action_hash`,`idx`,`exchange`,`sender`,`recipient`,`amount`) VALUES %s"
+
+	updateCoinBalancesQuery = "INSERT INTO `" + CoinBalanceTableName + "` (`block_height`,`exchange`,`balance`) " +
+		"SELECT ?, delta.exchange, coalesce(curr.balance, 0)+coalesce(delta.amount, 0) " +
+		"FROM (" +
+		"    SELECT cb.exchange, cb.balance " +
+		"    FROM `" + CoinBalanceTableName + "` cb " +
+		"    INNER JOIN (" +
+		"        SELECT `exchange`, MAX(`block_height`) `max_height` " +
+		"        FROM `" + CoinBalanceTableName + "` " +
+		"        WHERE `block_height` < ? " +
+		"        GROUP BY `exchange` " +
+		"    ) h1 ON cb.exchange = h1.exchange AND cb.block_height = h1.max_height" +
+		") AS `curr` RIGHT JOIN (" +
+		"    SELECT `exchange`, SUM(IF(`type` in (" + JoinTopicsWithQuotes(AddLiquidity, TokenPurchase) + "), `iotx_amount`, -`iotx_amount`)) `amount` " +
+		"    FROM `" + ExchangeActionTableName + "` " +
+		"    WHERE `block_height` = ? " +
+		"    GROUP BY `exchange` " +
+		") AS `delta` ON delta.exchange = curr.exchange "
+
+	updateTokenBalancesQuery = "INSERT INTO `" + TokenBalanceTableName + "` (`block_height`,`exchange`,`balance`) " +
+		"SELECT ?, delta.exchange, coalesce(curr.balance, 0)+coalesce(delta.amount, 0) " +
+		"FROM (" +
+		"    SELECT tb.exchange, tb.balance " +
+		"    FROM `" + TokenBalanceTableName + "` tb " +
+		"    INNER JOIN (" +
+		"        SELECT `exchange`, MAX(`block_height`) `max_height` " +
+		"        FROM `" + TokenBalanceTableName + "` " +
+		"        WHERE `block_height` < ? " +
+		"        GROUP BY `exchange` " +
+		"    ) h1 ON tb.exchange = h1.exchange AND tb.block_height = h1.max_height" +
+		") AS `curr` RIGHT JOIN (" +
+		"    SELECT `exchange`, SUM(`amount`) `amount` " +
+		"    FROM `" + TokenActionTableName + "` " +
+		"    WHERE `block_height` = ? " +
+		"    GROUP BY `exchange` " +
+		") AS `delta` ON delta.exchange = curr.exchange "
+
+	updateProviderBalancesQuery = "INSERT INTO `" + ProviderBalanceTableName + "` (`block_height`,`exchange`,`provider`,`balance`) " +
+		"SELECT ?, delta.exchange, delta.provider, coalesce(curr.balance, 0)+coalesce(delta.amount, 0) " +
+		"FROM (" +
+		"    SELECT pb.exchange, pb.provider, pb.balance " +
+		"    FROM `" + ProviderBalanceTableName + "` pb " +
+		"    INNER JOIN (" +
+		"        SELECT `exchange`,`provider`,MAX(`block_height`) `max_height` " +
+		"        FROM `" + ProviderBalanceTableName + "` " +
+		"        WHERE `block_height` < ? " +
+		"        GROUP BY `exchange`,`provider`" +
+		"    ) h1 ON pb.exchange = h1.exchange AND pb.provider = h1.provider AND pb.block_height = h1.max_height" +
+		") AS `curr` RIGHT JOIN ((" +
+		"    SELECT `exchange`, `sender` `provider`, SUM(-`amount`) `amount` " +
+		"    FROM `" + ExchangeTokenActionTableName + "` " +
+		"    WHERE `block_height` = ? AND `sender` != '" + address.ZeroAddress + "' " +
+		"    GROUP BY `exchange`,`sender`" +
+		") UNION (" +
+		"    SELECT `exchange`, `recipient` `provider`, SUM(`amount`) `amount` " +
+		"    FROM `" + ExchangeTokenActionTableName + "` " +
+		"    WHERE `block_height` = ? AND `recipient` != '" + address.ZeroAddress + "' " +
+		"    GROUP BY `exchange`,`recipient`" +
+		")) AS `delta` ON delta.exchange = curr.exchange AND delta.provider = curr.provider"
+
+	updateSuppliesQuery = "INSERT INTO `" + SupplyTableName + "` (`block_height`,`exchange`,`supply`) " +
+		"SELECT ?, delta.exchange,  coalesce(curr.supply, 0)+coalesce(delta.amount, 0) " +
+		"FROM (" +
+		"    SELECT s.exchange, s.supply " +
+		"    FROM `" + SupplyTableName + "` s " +
+		"    INNER JOIN (" +
+		"        SELECT `exchange`, MAX(`block_height`) `max_height` " +
+		"        FROM `" + SupplyTableName + "` " +
+		"        WHERE `block_height` < ? " +
+		"        GROUP BY `exchange`" +
+		"    ) h1 ON s.exchange = h1.exchange AND s.block_height = h1.max_height" +
+		") AS `curr` RIGHT JOIN (" +
+		"    SELECT `exchange`,SUM(IF(`sender` = '" + address.ZeroAddress + "', `amount`, -`amount`)) `amount` " +
+		"    FROM `" + ExchangeTokenActionTableName + "` " +
+		"    WHERE `block_height` = ? AND (`sender` = '" + address.ZeroAddress + "' OR `recipient` = '" + address.ZeroAddress + "')" +
+		"    GROUP BY `exchange`" +
+		") AS `delta` ON delta.exchange = curr.exchange"
 )
 
 var (
@@ -116,19 +279,40 @@ func (p *Protocol) Initialize(ctx context.Context, tx *sql.Tx) error {
 	if _, err := tx.Exec(createTokenViewQuery); err != nil {
 		return errors.Wrap(err, "failed to create token view")
 	}
-	if _, err := tx.Exec(createActionTableQuery); err != nil {
+	if _, err := tx.Exec(createExchangeActionTableQuery); err != nil {
 		return errors.Wrap(err, "failed to create exchange action table")
 	}
-
+	if _, err := tx.Exec(createTokenActionTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create token action of exchanges table")
+	}
+	if _, err := tx.Exec(createExchangeTokenActionTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange token action table")
+	}
+	if _, err := tx.Exec(createCoinBalanceTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange coin balance table")
+	}
+	if _, err := tx.Exec(createTokenBalanceTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange token balance table")
+	}
+	if _, err := tx.Exec(createProviderBalanceTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange provider balance table")
+	}
+	if _, err := tx.Exec(createSupplyTableQuery); err != nil {
+		return errors.Wrap(err, "failed to create exchange supply table")
+	}
 	return nil
 }
 
 // HandleBlockData handles blocks
 func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexprotocol.BlockData) error {
-	valStrs := make([]string, 0)
-	valArgs := make([]interface{}, 0)
+	creationValStrs := make([]string, 0)
+	creationValArgs := make([]interface{}, 0)
 	actionValStrs := make([]string, 0)
 	actionValArgs := make([]interface{}, 0)
+	tokenTransferValStrs := make([]string, 0)
+	tokenTransferValArgs := make([]interface{}, 0)
+	exchangeTokenTransferValStrs := make([]string, 0)
+	exchangeTokenTransferValArgs := make([]interface{}, 0)
 	if p.factoryAddr == nil {
 		return nil
 	}
@@ -167,9 +351,9 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 					if err != nil {
 						return err
 					}
-					valStrs = append(valStrs, "(?,?,?,?,?,?,?)")
-					valArgs = append(
-						valArgs,
+					creationValStrs = append(creationValStrs, "(?,?,?,?,?,?,?)")
+					creationValArgs = append(
+						creationValArgs,
 						exchange.String(),
 						token.String(),
 						l.BlockHeight,
@@ -181,97 +365,119 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 				}
 				continue
 			}
+			var eventTopic EventTopic
+			var iotxAmount, tokenAmount string
 			switch topic {
-			case "06239653922ac7bea6aa2b19dc486b9361821d37712eb796adfd38d81de278ca": // add liquidity
-				provider, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
+			case "06239653922ac7bea6aa2b19dc486b9361821d37712eb796adfd38d81de278ca":
+				eventTopic = AddLiquidity
+				iotxAmount = new(big.Int).SetBytes(l.Topics[2][:]).String()
+				tokenAmount = new(big.Int).SetBytes(l.Topics[3][:]).String()
+			case "0fbf06c058b90cb038a618f8c2acbf6145f8b3570fd1fa56abb8f0f3f05b36e8":
+				eventTopic = RemoveLiquidity
+				iotxAmount = new(big.Int).SetBytes(l.Topics[2][:]).String()
+				tokenAmount = new(big.Int).SetBytes(l.Topics[3][:]).String()
+			case "cd60aa75dea3072fbc07ae6d7d856b5dc5f4eee88854f5b4abf7b680ef8bc50f":
+				eventTopic = TokenPurchase
+				iotxAmount = new(big.Int).SetBytes(l.Topics[2][:]).String()
+				tokenAmount = new(big.Int).SetBytes(l.Topics[3][:]).String()
+			case "bd5084afcc95a37b2846c5adaf2918caab943ad011b8830b1eb3f7ff81a8b24f":
+				eventTopic = CoinPurchase
+				tokenAmount = new(big.Int).SetBytes(l.Topics[2][:]).String()
+				iotxAmount = new(big.Int).SetBytes(l.Topics[3][:]).String()
+			case "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
+				amount := new(big.Int).SetBytes(l.Data)
+				if amount.Cmp(big.NewInt(0)) > 0 {
+					sender, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
+					if err != nil {
+						return err
+					}
+					recipient, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
+					if err != nil {
+						return err
+					}
+					exchangeTokenTransferValStrs = append(exchangeTokenTransferValStrs, "(?,?,?,?,?,?,?)")
+					exchangeTokenTransferValArgs = append(
+						exchangeTokenTransferValArgs,
+						l.BlockHeight,
+						hex.EncodeToString(l.ActionHash[:]),
+						i,
+						l.Address,
+						sender.String(),
+						recipient.String(),
+						amount.String(),
+					)
+					tokenTransferValStrs = append(tokenTransferValStrs, "(?,?,?,?,?,?)", "(?,?,?,?,?,?)")
+					tokenTransferValArgs = append(
+						tokenTransferValArgs,
+						l.BlockHeight,
+						hex.EncodeToString(l.ActionHash[:]),
+						i,
+						l.Address,
+						sender.String(),
+						new(big.Int).Neg(amount).String(),
+						l.BlockHeight,
+						hex.EncodeToString(l.ActionHash[:]),
+						i,
+						l.Address,
+						recipient.String(),
+						amount.String(),
+					)
+				}
+			}
+			if eventTopic.IsValid() {
+				actor, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
 				if err != nil {
 					return err
 				}
-				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
-				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
 				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
 				actionValArgs = append(
 					actionValArgs,
+					l.BlockHeight,
 					hex.EncodeToString(l.ActionHash[:]),
 					i,
-					AddLiquidity,
+					eventTopic,
 					l.Address,
-					l.BlockHeight,
-					provider.String(),
-					iotxAmount.String(),
-					tokenAmount.String(),
-				)
-			case "0fbf06c058b90cb038a618f8c2acbf6145f8b3570fd1fa56abb8f0f3f05b36e8": // remove liquidity
-				provider, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
-				if err != nil {
-					return err
-				}
-				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
-				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
-				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
-				actionValArgs = append(
-					actionValArgs,
-					hex.EncodeToString(l.ActionHash[:]),
-					i,
-					RemoveLiquidity,
-					l.Address,
-					l.BlockHeight,
-					provider.String(),
-					iotxAmount.String(),
-					tokenAmount.String(),
-				)
-			case "cd60aa75dea3072fbc07ae6d7d856b5dc5f4eee88854f5b4abf7b680ef8bc50f": // token purchase
-				buyer, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
-				if err != nil {
-					return err
-				}
-				iotxAmount := new(big.Int).SetBytes(l.Topics[2][:])
-				tokenAmount := new(big.Int).SetBytes(l.Topics[3][:])
-				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
-				actionValArgs = append(
-					actionValArgs,
-					hex.EncodeToString(l.ActionHash[:]),
-					i,
-					TokenPurchase,
-					l.Address,
-					l.BlockHeight,
-					buyer.String(),
-					iotxAmount.String(),
-					tokenAmount.String(),
-				)
-			case "bd5084afcc95a37b2846c5adaf2918caab943ad011b8830b1eb3f7ff81a8b24f": // iotx purchase
-				buyer, err := indexprotocol.ConvertTopicToAddress(l.Topics[1])
-				if err != nil {
-					return err
-				}
-				tokenAmount := new(big.Int).SetBytes(l.Topics[2][:])
-				iotxAmount := new(big.Int).SetBytes(l.Topics[3][:])
-				actionValStrs = append(actionValStrs, "(?,?,?,?,?,?,?,?)")
-				actionValArgs = append(
-					actionValArgs,
-					hex.EncodeToString(l.ActionHash[:]),
-					i,
-					CoinPurchase,
-					l.Address,
-					l.BlockHeight,
-					buyer.String(),
-					iotxAmount.String(),
-					tokenAmount.String(),
+					actor.String(),
+					iotxAmount,
+					tokenAmount,
 				)
 			}
 		}
 	}
-	if len(valStrs) != 0 {
-		fmt.Println(fmt.Sprintf(insertExchangeQuery, strings.Join(valStrs, ",")), valArgs)
-		if _, err := tx.Exec(fmt.Sprintf(insertExchangeQuery, strings.Join(valStrs, ",")), valArgs...); err != nil {
-			return err
+	if len(creationValStrs) != 0 {
+		if _, err := tx.Exec(fmt.Sprintf(insertExchangeQuery, strings.Join(creationValStrs, ",")), creationValArgs...); err != nil {
+			return errors.Wrap(err, "failed to insert exchange creation records")
 		}
 	}
 	if len(actionValStrs) != 0 {
-		if _, err := tx.Exec(fmt.Sprintf(insertActionsQuery, strings.Join(actionValStrs, ",")), actionValArgs...); err != nil {
-			return err
+		if _, err := tx.Exec(fmt.Sprintf(insertExchangeActionsQuery, strings.Join(actionValStrs, ",")), actionValArgs...); err != nil {
+			return errors.Wrap(err, "failed to insert exchange action records")
 		}
 	}
+	if len(tokenTransferValStrs) != 0 {
+		if _, err := tx.Exec(fmt.Sprintf(insertTokenActionsQuery, strings.Join(tokenTransferValStrs, ",")), tokenTransferValArgs...); err != nil {
+			return errors.Wrap(err, "failed to insert token transfer records")
+		}
+	}
+	if len(exchangeTokenTransferValStrs) != 0 {
+		if _, err := tx.Exec(fmt.Sprintf(insertExchangeTokenActionsQuery, strings.Join(exchangeTokenTransferValStrs, ",")), exchangeTokenTransferValArgs...); err != nil {
+			return errors.Wrap(err, "failed to insert exchange token transfer records")
+		}
+	}
+	height := data.Block.Height()
+	if _, err := tx.Exec(updateCoinBalancesQuery, height, height, height); err != nil {
+		return errors.Wrap(err, "failed to update coin balances")
+	}
+	if _, err := tx.Exec(updateTokenBalancesQuery, height, height, height); err != nil {
+		return errors.Wrap(err, "failed to update token balances")
+	}
+	if _, err := tx.Exec(updateProviderBalancesQuery, height, height, height, height); err != nil {
+		return errors.Wrap(err, "failed to update provider balances")
+	}
+	if _, err := tx.Exec(updateSuppliesQuery, height, height, height); err != nil {
+		return errors.Wrap(err, "failed to update supplies")
+	}
+
 	return nil
 }
 
