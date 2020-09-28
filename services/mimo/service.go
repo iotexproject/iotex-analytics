@@ -323,9 +323,16 @@ func (service *mimoService) volumesInPastNDays(exchanges []string, days uint8) (
 	if days == 0 {
 		days = 1
 	}
+	args := make([]interface{}, len(exchanges)+1)
+	args[0] = time.Now().UTC().Add(-time.Duration(days-1) * 24 * time.Hour).Truncate(24 * time.Hour).String()
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		questionMarks[i] = "?"
+		args[i+1] = exchange
+	}
 	exchangeCondition := ""
 	if len(exchanges) > 0 {
-		exchangeCondition = " AND t.exchange in ('" + strings.Join(exchanges, "','") + "')"
+		exchangeCondition = " AND t.exchange in (" + strings.Join(questionMarks, ",") + ")"
 	}
 	rows, err := service.store.GetDB().Query(
 		"SELECT DATE(bi.timestamp) d, SUM(t.iotx_amount) v "+
@@ -335,7 +342,7 @@ func (service *mimoService) volumesInPastNDays(exchanges []string, days uint8) (
 			"WHERE bi.timestamp >= ?"+exchangeCondition+" AND t.type in ("+mimoprotocol.JoinTopicsWithQuotes(mimoprotocol.AddLiquidity, mimoprotocol.RemoveLiquidity)+") "+
 			"GROUP BY d "+
 			"ORDER BY d",
-		time.Now().UTC().Add(-time.Duration(days-1)*24*time.Hour).Truncate(24*time.Hour).String(),
+		args...,
 	)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to query volumes")
@@ -369,23 +376,30 @@ func (service *mimoService) liquiditiesInPastNDays(exchanges []string, days uint
 	for i := uint8(1); i < days; i++ {
 		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i)*24*time.Hour).Format(layoutISO) + "'"
 	}
+	args := make([]interface{}, len(exchanges))
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		questionMarks[i] = "?"
+		args[i] = exchange
+	}
 	exchangeCondition := ""
 	if len(exchanges) > 0 {
-		exchangeCondition = "WHERE ab.exchange in ('" + strings.Join(exchanges, "','") + "')"
+		exchangeCondition = "WHERE ab.exchange in (" + strings.Join(questionMarks, ",") + ")"
 	}
 	rows, err := service.store.GetDB().Query(
-		"SELECT h1.date, SUM(b1.balance) * 2 " +
-			"FROM `" + mimoprotocol.CoinBalanceTableName + "` b1 INNER JOIN (" +
-			"    SELECT ab.exchange, t.date, MAX(bi.block_height) max_height " +
-			"    FROM `" + mimoprotocol.CoinBalanceTableName + "` ab " +
-			"    INNER JOIN `" + blockinfo.TableName + "` bi " +
-			"    ON bi.block_height = ab.block_height " +
-			"    INNER JOIN (" + tempTable + ") AS t " +
-			"    ON Date(bi.timestamp) <= t.date " + exchangeCondition +
-			"    GROUP BY ab.exchange, t.date " +
-			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height " +
-			"GROUP BY h1.date " +
+		"SELECT h1.date, SUM(b1.balance) * 2 "+
+			"FROM `"+mimoprotocol.CoinBalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT ab.exchange, t.date, MAX(bi.block_height) max_height "+
+			"    FROM `"+mimoprotocol.CoinBalanceTableName+"` ab "+
+			"    INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"    ON bi.block_height = ab.block_height "+
+			"    INNER JOIN ("+tempTable+") AS t "+
+			"    ON Date(bi.timestamp) <= t.date "+exchangeCondition+
+			"    GROUP BY ab.exchange, t.date "+
+			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height "+
+			"GROUP BY h1.date "+
 			"ORDER BY h1.date",
+		args...,
 	)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to query balances")
@@ -594,20 +608,31 @@ func (service *mimoService) supplies(height uint64, exchanges []string) (map[str
 	return ret, nil
 }
 
-func (service *mimoService) actions(topics []mimoprotocol.EventTopic, skip, first int) ([]*Action, error) {
+func (service *mimoService) actions(exchanges []string, topics []mimoprotocol.EventTopic, skip, first int) ([]*Action, error) {
 	if first > 512 {
 		return nil, errors.New("page size cannot be more than 512")
+	}
+	questionMarks := make([]string, len(exchanges))
+	args := make([]interface{}, len(exchanges)+2)
+	for i, exchange := range exchanges {
+		questionMarks[i] = "?"
+		args[i] = exchange
+	}
+	args[len(exchanges)] = skip
+	args[len(exchanges)+1] = first
+	exchangeCondition := ""
+	if len(exchanges) > 0 {
+		exchangeCondition = "AND a.exchange in (" + strings.Join(questionMarks, ",") + ") "
 	}
 	rows, err := service.store.GetDB().Query(
 		"SELECT a.action_hash,a.type,a.exchange,a.provider,a.iotx_amount,a.token_amount,b.timestamp "+
 			"FROM `"+mimoprotocol.ExchangeActionTableName+"` a "+
 			"LEFT JOIN `"+blockinfo.TableName+"` b "+
 			"ON a.block_height = b.block_height "+
-			"WHERE a.type in ("+mimoprotocol.JoinTopicsWithQuotes(topics...)+") "+
+			"WHERE a.type in ("+mimoprotocol.JoinTopicsWithQuotes(topics...)+") "+exchangeCondition+
 			"ORDER BY a.block_height DESC "+
 			"LIMIT ?,?",
-		skip,
-		first,
+		args...,
 	)
 	if err != nil {
 		return nil, err

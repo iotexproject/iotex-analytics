@@ -6,6 +6,7 @@ type Query {
     liquidities(days: Int!): [AmountInOneDay]!
     volumesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     liquiditiesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
+    actionsOfExchange(exchange: String!, type: ActionType!, pagination: Pagination!): [Action]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
     actions(type: ActionType!, pagination: Pagination!): [Action]!

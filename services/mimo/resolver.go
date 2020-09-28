@@ -294,6 +294,11 @@ func (r *queryResolver) Actions(ctx context.Context, actionType ActionType, pagi
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
 		return nil, ErrPaginationInvalidSize
 	}
+
+	return r.service.actions([]string{}, actionTypeToTopics(actionType), pagination.Skip, pagination.First)
+}
+
+func actionTypeToTopics(actionType ActionType) []mimoprotocol.EventTopic {
 	topics := []mimoprotocol.EventTopic{}
 	switch actionType {
 	case ActionTypeAll:
@@ -305,6 +310,16 @@ func (r *queryResolver) Actions(ctx context.Context, actionType ActionType, pagi
 	case ActionTypeSwap:
 		topics = append(topics, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
 	}
+	return topics
+}
 
-	return r.service.actions(topics, pagination.Skip, pagination.First)
+func (r *queryResolver) ActionsOfExchange(ctx context.Context, exchange string, actionType ActionType, pagination Pagination) ([]*Action, error) {
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, ErrPaginationInvalidSize
+	}
+
+	return r.service.actions([]string{exchange}, actionTypeToTopics(actionType), pagination.Skip, pagination.First)
 }
