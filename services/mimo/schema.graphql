@@ -17,6 +17,7 @@ type Exchange {
     token: Token!
     supply: String!
     volumeInPast24Hours: String!
+    volumeInPast48Hours: String!
     volumeInPast7Days: String!
     balanceOfToken: String!
     balanceOfToken24HoursAgo: String!

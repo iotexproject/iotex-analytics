@@ -28,6 +28,7 @@ type Exchange struct {
 	Token                    Token  `json:"token"`
 	Supply                   string `json:"supply"`
 	VolumeInPast24Hours      string `json:"volumeInPast24Hours"`
+	VolumeInPast48Hours      string `json:"volumeInPast48Hours"`
 	VolumeInPast7Days        string `json:"volumeInPast7Days"`
 	BalanceOfToken           string `json:"balanceOfToken"`
 	BalanceOfToken24HoursAgo string `json:"balanceOfToken24HoursAgo"`

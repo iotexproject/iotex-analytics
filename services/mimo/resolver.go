@@ -78,6 +78,10 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 	if err != nil {
 		return nil, err
 	}
+	volumesInPast48Hours, err := r.service.volumes(exchanges, 48*time.Hour)
+	if err != nil {
+		return nil, err
+	}
 	volumesInPast7Days, err := r.service.volumes(exchanges, 7*24*time.Hour)
 	if err != nil {
 		return nil, err
@@ -110,6 +114,10 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 		if !ok {
 			volumeInPast24Hours = big.NewInt(0)
 		}
+		volumeInPast48Hours, ok := volumesInPast48Hours[exchange]
+		if !ok {
+			volumeInPast48Hours = big.NewInt(0)
+		}
 		volumeInPast7Days, ok := volumesInPast7Days[exchange]
 		if !ok {
 			volumeInPast7Days = big.NewInt(0)
@@ -122,6 +130,7 @@ func (r *queryResolver) exchanges(ctx context.Context, height uint64, pairs []Ad
 			Address:                  exchange,
 			Token:                    info,
 			VolumeInPast24Hours:      volumeInPast24Hours.String(),
+			VolumeInPast48Hours:      volumeInPast48Hours.String(),
 			VolumeInPast7Days:        volumeInPast7Days.String(),
 			Supply:                   supply.String(),
 			BalanceOfIotx:            balance.String(),

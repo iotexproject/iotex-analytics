@@ -64,6 +64,7 @@ type ComplexityRoot struct {
 		Supply                   func(childComplexity int) int
 		Token                    func(childComplexity int) int
 		VolumeInPast24Hours      func(childComplexity int) int
+		VolumeInPast48Hours      func(childComplexity int) int
 		VolumeInPast7Days        func(childComplexity int) int
 	}
 
@@ -241,6 +242,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Exchange.VolumeInPast24Hours(childComplexity), true
+
+	case "Exchange.VolumeInPast48Hours":
+		if e.complexity.Exchange.VolumeInPast48Hours == nil {
+			break
+		}
+
+		return e.complexity.Exchange.VolumeInPast48Hours(childComplexity), true
 
 	case "Exchange.VolumeInPast7Days":
 		if e.complexity.Exchange.VolumeInPast7Days == nil {
@@ -496,6 +504,7 @@ type Exchange {
     token: Token!
     supply: String!
     volumeInPast24Hours: String!
+    volumeInPast48Hours: String!
     volumeInPast7Days: String!
     balanceOfToken: String!
     balanceOfToken24HoursAgo: String!
@@ -1097,6 +1106,33 @@ func (ec *executionContext) _Exchange_volumeInPast24Hours(ctx context.Context, f
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.VolumeInPast24Hours, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Exchange_volumeInPast48Hours(ctx context.Context, field graphql.CollectedField, obj *Exchange) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Exchange",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VolumeInPast48Hours, nil
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2799,6 +2835,11 @@ func (ec *executionContext) _Exchange(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "volumeInPast24Hours":
 			out.Values[i] = ec._Exchange_volumeInPast24Hours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
+		case "volumeInPast48Hours":
+			out.Values[i] = ec._Exchange_volumeInPast48Hours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalid = true
 			}
