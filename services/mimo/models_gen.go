@@ -9,6 +9,7 @@ import (
 )
 
 type Action struct {
+	Hash        string     `json:"hash"`
 	Type        ActionType `json:"type"`
 	Exchange    string     `json:"exchange"`
 	Account     string     `json:"account"`

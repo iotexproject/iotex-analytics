@@ -645,6 +645,7 @@ func (service *mimoService) actions(exchanges []string, topics []mimoprotocol.Ev
 			return nil, errors.Wrap(err, "failed to parse supply query result")
 		}
 		actions = append(actions, &Action{
+			Hash:        actionHash,
 			Type:        convertActionType(actionType),
 			Exchange:    exchangeAddr,
 			Account:     actor,

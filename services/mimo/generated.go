@@ -43,6 +43,7 @@ type ComplexityRoot struct {
 	Action struct {
 		Account     func(childComplexity int) int
 		Exchange    func(childComplexity int) int
+		Hash        func(childComplexity int) int
 		IotxAmount  func(childComplexity int) int
 		Time        func(childComplexity int) int
 		TokenAmount func(childComplexity int) int
@@ -135,6 +136,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Action.Exchange(childComplexity), true
+
+	case "Action.Hash":
+		if e.complexity.Action.Hash == nil {
+			break
+		}
+
+		return e.complexity.Action.Hash(childComplexity), true
 
 	case "Action.IotxAmount":
 		if e.complexity.Action.IotxAmount == nil {
@@ -503,6 +511,7 @@ enum ActionType {
 }
 
 type Action {
+    hash: String!
     type: ActionType!
     exchange: String!
     account: String!
@@ -749,6 +758,33 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Action_hash(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Hash, nil
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Action_type(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
@@ -2657,6 +2693,11 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Action")
+		case "hash":
+			out.Values[i] = ec._Action_hash(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalid = true
+			}
 		case "type":
 			out.Values[i] = ec._Action_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

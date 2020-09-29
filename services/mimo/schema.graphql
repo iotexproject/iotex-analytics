@@ -32,6 +32,7 @@ enum ActionType {
 }
 
 type Action {
+    hash: String!
     type: ActionType!
     exchange: String!
     account: String!
