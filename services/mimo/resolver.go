@@ -316,8 +316,10 @@ func actionTypeToTopics(actionType ActionType) []mimoprotocol.EventTopic {
 		topics = append(topics, mimoprotocol.AddLiquidity)
 	case ActionTypeRemove:
 		topics = append(topics, mimoprotocol.RemoveLiquidity)
-	case ActionTypeSwap:
-		topics = append(topics, mimoprotocol.TokenPurchase, mimoprotocol.CoinPurchase)
+	case ActionTypeBuyCoin:
+		topics = append(topics, mimoprotocol.CoinPurchase)
+	case ActionTypeBuyToken:
+		topics = append(topics, mimoprotocol.TokenPurchase)
 	}
 	return topics
 }

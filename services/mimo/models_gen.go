@@ -56,22 +56,24 @@ type Token struct {
 type ActionType string
 
 const (
-	ActionTypeAll    ActionType = "ALL"
-	ActionTypeSwap   ActionType = "SWAP"
-	ActionTypeAdd    ActionType = "ADD"
-	ActionTypeRemove ActionType = "REMOVE"
+	ActionTypeAll      ActionType = "ALL"
+	ActionTypeBuyCoin  ActionType = "BUY_COIN"
+	ActionTypeBuyToken ActionType = "BUY_TOKEN"
+	ActionTypeAdd      ActionType = "ADD"
+	ActionTypeRemove   ActionType = "REMOVE"
 )
 
 var AllActionType = []ActionType{
 	ActionTypeAll,
-	ActionTypeSwap,
+	ActionTypeBuyCoin,
+	ActionTypeBuyToken,
 	ActionTypeAdd,
 	ActionTypeRemove,
 }
 
 func (e ActionType) IsValid() bool {
 	switch e {
-	case ActionTypeAll, ActionTypeSwap, ActionTypeAdd, ActionTypeRemove:
+	case ActionTypeAll, ActionTypeBuyCoin, ActionTypeBuyToken, ActionTypeAdd, ActionTypeRemove:
 		return true
 	}
 	return false

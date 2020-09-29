@@ -514,7 +514,8 @@ type Exchange {
 
 enum ActionType {
     ALL
-    SWAP
+    BUY_COIN
+    BUY_TOKEN
     ADD
     REMOVE
 }

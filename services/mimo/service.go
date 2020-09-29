@@ -664,9 +664,9 @@ func convertActionType(at string) ActionType {
 	case mimoprotocol.RemoveLiquidity:
 		return ActionTypeRemove
 	case mimoprotocol.CoinPurchase:
-		fallthrough
+		return ActionTypeBuyCoin
 	case mimoprotocol.TokenPurchase:
-		return ActionTypeSwap
+		return ActionTypeBuyToken
 	default:
 		log.L().Panic("failed to convert action type", zap.String("action type", at))
 	}
