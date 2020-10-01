@@ -4,8 +4,10 @@ type Query {
     tipHeight: String!
     volumes(days: Int!): [AmountInOneDay]!
     liquidities(days: Int!): [AmountInOneDay]!
+    tokenBalances(days: Int!): [AmountInOneDay]!
     volumesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     liquiditiesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
+    tokenBalancesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     actionsOfExchange(exchange: String!, type: ActionType!, pagination: Pagination!): [Action]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!

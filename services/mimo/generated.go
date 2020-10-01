@@ -69,17 +69,19 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Actions               func(childComplexity int, typeArg ActionType, pagination Pagination) int
-		ActionsOfExchange     func(childComplexity int, exchange string, typeArg ActionType, pagination Pagination) int
-		Exchange              func(childComplexity int, exchange string) int
-		Exchanges             func(childComplexity int, pagination Pagination) int
-		Liquidities           func(childComplexity int, days int) int
-		LiquiditiesOfExchange func(childComplexity int, exchange string, days int) int
-		NumOfPairs            func(childComplexity int) int
-		Stats                 func(childComplexity int, hours int) int
-		TipHeight             func(childComplexity int) int
-		Volumes               func(childComplexity int, days int) int
-		VolumesOfExchange     func(childComplexity int, exchange string, days int) int
+		Actions                 func(childComplexity int, typeArg ActionType, pagination Pagination) int
+		ActionsOfExchange       func(childComplexity int, exchange string, typeArg ActionType, pagination Pagination) int
+		Exchange                func(childComplexity int, exchange string) int
+		Exchanges               func(childComplexity int, pagination Pagination) int
+		Liquidities             func(childComplexity int, days int) int
+		LiquiditiesOfExchange   func(childComplexity int, exchange string, days int) int
+		NumOfPairs              func(childComplexity int) int
+		Stats                   func(childComplexity int, hours int) int
+		TipHeight               func(childComplexity int) int
+		TokenBalances           func(childComplexity int, days int) int
+		TokenBalancesOfExchange func(childComplexity int, exchange string, days int) int
+		Volumes                 func(childComplexity int, days int) int
+		VolumesOfExchange       func(childComplexity int, exchange string, days int) int
 	}
 
 	Stats struct {
@@ -101,8 +103,10 @@ type QueryResolver interface {
 	TipHeight(ctx context.Context) (string, error)
 	Volumes(ctx context.Context, days int) ([]*AmountInOneDay, error)
 	Liquidities(ctx context.Context, days int) ([]*AmountInOneDay, error)
+	TokenBalances(ctx context.Context, days int) ([]*AmountInOneDay, error)
 	VolumesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error)
 	LiquiditiesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error)
+	TokenBalancesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error)
 	ActionsOfExchange(ctx context.Context, exchange string, typeArg ActionType, pagination Pagination) ([]*Action, error)
 	NumOfPairs(ctx context.Context) (int, error)
 	Stats(ctx context.Context, hours int) (*Stats, error)
@@ -355,6 +359,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.TipHeight(childComplexity), true
 
+	case "Query.TokenBalances":
+		if e.complexity.Query.TokenBalances == nil {
+			break
+		}
+
+		args, err := ec.field_Query_tokenBalances_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.TokenBalances(childComplexity, args["days"].(int)), true
+
+	case "Query.TokenBalancesOfExchange":
+		if e.complexity.Query.TokenBalancesOfExchange == nil {
+			break
+		}
+
+		args, err := ec.field_Query_tokenBalancesOfExchange_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.TokenBalancesOfExchange(childComplexity, args["exchange"].(string), args["days"].(int)), true
+
 	case "Query.Volumes":
 		if e.complexity.Query.Volumes == nil {
 			break
@@ -491,8 +519,10 @@ var parsedSchema = gqlparser.MustLoadSchema(
     tipHeight: String!
     volumes(days: Int!): [AmountInOneDay]!
     liquidities(days: Int!): [AmountInOneDay]!
+    tokenBalances(days: Int!): [AmountInOneDay]!
     volumesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     liquiditiesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
+    tokenBalancesOfExchange(exchange: String!, days: Int!): [AmountInOneDay]!
     actionsOfExchange(exchange: String!, type: ActionType!, pagination: Pagination!): [Action]!
     numOfPairs: Int!
     stats(hours: Int!): Stats!
@@ -698,6 +728,42 @@ func (ec *executionContext) field_Query_stats_args(ctx context.Context, rawArgs 
 		}
 	}
 	args["hours"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_tokenBalancesOfExchange_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["exchange"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["exchange"] = arg0
+	var arg1 int
+	if tmp, ok := rawArgs["days"]; ok {
+		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["days"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_tokenBalances_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["days"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["days"] = arg0
 	return args, nil
 }
 
@@ -1442,6 +1508,40 @@ func (ec *executionContext) _Query_liquidities(ctx context.Context, field graphq
 	return ec.marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_tokenBalances(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_tokenBalances_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().TokenBalances(rctx, args["days"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*AmountInOneDay)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_volumesOfExchange(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -1497,6 +1597,40 @@ func (ec *executionContext) _Query_liquiditiesOfExchange(ctx context.Context, fi
 	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Query().LiquiditiesOfExchange(rctx, args["exchange"].(string), args["days"].(int))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*AmountInOneDay)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNAmountInOneDay2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋservicesᚋmimoᚐAmountInOneDay(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_tokenBalancesOfExchange(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_tokenBalancesOfExchange_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().TokenBalancesOfExchange(rctx, args["exchange"].(string), args["days"].(int))
 	})
 	if resTmp == nil {
 		if !ec.HasError(rctx) {
@@ -2962,6 +3096,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "tokenBalances":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_tokenBalances(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
 		case "volumesOfExchange":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -2985,6 +3133,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_liquiditiesOfExchange(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "tokenBalancesOfExchange":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_tokenBalancesOfExchange(ctx, field)
 				if res == graphql.Null {
 					invalid = true
 				}

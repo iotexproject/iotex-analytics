@@ -296,6 +296,48 @@ func (r *queryResolver) LiquiditiesOfExchange(ctx context.Context, exchange stri
 	return ret, nil
 }
 
+func (r *queryResolver) TokenBalances(ctx context.Context, days int) ([]*AmountInOneDay, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	dates, volumes, err := r.service.tokenBalancesInPastNDays([]string{}, uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*AmountInOneDay{}
+	for i, date := range dates {
+		ret = append(ret, &AmountInOneDay{
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
+		})
+	}
+	return ret, nil
+}
+
+func (r *queryResolver) TokenBalancesOfExchange(ctx context.Context, exchange string, days int) ([]*AmountInOneDay, error) {
+	if days < 0 {
+		days = 30
+	}
+	if days > 256 {
+		days = 256
+	}
+	dates, volumes, err := r.service.tokenBalancesInPastNDays([]string{exchange}, uint8(days))
+	if err != nil {
+		return nil, err
+	}
+	ret := []*AmountInOneDay{}
+	for i, date := range dates {
+		ret = append(ret, &AmountInOneDay{
+			Amount: volumes[i].String(),
+			Date:   date.UTC().String(),
+		})
+	}
+	return ret, nil
+}
+
 func (r *queryResolver) Actions(ctx context.Context, actionType ActionType, pagination Pagination) ([]*Action, error) {
 	if pagination.Skip < 0 {
 		return nil, ErrPaginationInvalidOffset

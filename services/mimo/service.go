@@ -425,6 +425,64 @@ func (service *mimoService) liquiditiesInPastNDays(exchanges []string, days uint
 	return dates, liquidities, nil
 }
 
+func (service *mimoService) tokenBalancesInPastNDays(exchanges []string, days uint8) ([]time.Time, []*big.Int, error) {
+	if days == 0 {
+		days = 1
+	}
+	now := time.Now().UTC()
+	tempTable := "SELECT '" + now.Format(layoutISO) + "' AS `date`"
+	for i := uint8(1); i < days; i++ {
+		tempTable += " UNION SELECT '" + now.Add(-time.Duration(i)*24*time.Hour).Format(layoutISO) + "'"
+	}
+	args := make([]interface{}, len(exchanges))
+	questionMarks := make([]string, len(exchanges))
+	for i, exchange := range exchanges {
+		questionMarks[i] = "?"
+		args[i] = exchange
+	}
+	exchangeCondition := ""
+	if len(exchanges) > 0 {
+		exchangeCondition = "WHERE ab.exchange in (" + strings.Join(questionMarks, ",") + ")"
+	}
+	rows, err := service.store.GetDB().Query(
+		"SELECT h1.date, SUM(b1.balance) * 2 "+
+			"FROM `"+mimoprotocol.TokenBalanceTableName+"` b1 INNER JOIN ("+
+			"    SELECT ab.exchange, t.date, MAX(bi.block_height) max_height "+
+			"    FROM `"+mimoprotocol.TokenBalanceTableName+"` ab "+
+			"    INNER JOIN `"+blockinfo.TableName+"` bi "+
+			"    ON bi.block_height = ab.block_height "+
+			"    INNER JOIN ("+tempTable+") AS t "+
+			"    ON Date(bi.timestamp) <= t.date "+exchangeCondition+
+			"    GROUP BY ab.exchange, t.date "+
+			") h1 ON b1.exchange = h1.exchange AND b1.block_height = h1.max_height "+
+			"GROUP BY h1.date "+
+			"ORDER BY h1.date",
+		args...,
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to query balances")
+	}
+	dates := []time.Time{}
+	liquidities := []*big.Int{}
+	for rows.Next() {
+		var date, liquidity string
+		if err := rows.Scan(&date, &liquidity); err != nil {
+			return nil, nil, errors.Wrap(err, "failed to scan result")
+		}
+		d, err := time.ParseInLocation(layoutISO, date, time.UTC)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to parse date %s", d)
+		}
+		l, ok := new(big.Int).SetString(liquidity, 10)
+		if !ok {
+			return nil, nil, errors.Errorf("failed to parse liquidity %s", liquidity)
+		}
+		dates = append(dates, d)
+		liquidities = append(liquidities, l)
+	}
+	return dates, liquidities, nil
+}
+
 func (service *mimoService) volumes(exchanges []string, duration time.Duration) (map[string]*big.Int, error) {
 	if len(exchanges) == 0 {
 		return nil, nil
