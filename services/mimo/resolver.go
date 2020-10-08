@@ -202,13 +202,17 @@ func (r *queryResolver) Stats(ctx context.Context, hours int) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	volume, err := r.service.volumeOfAll(duration)
+	volumes, err := r.service.volumes([]string{}, duration)
 	if err != nil {
 		return nil, err
 	}
+	totalVolume := big.NewInt(0)
+	for _, volume := range volumes {
+		totalVolume.Add(totalVolume, volume)
+	}
 	return &Stats{
 		NumOfTransations: numOfTransactions,
-		Volume:           volume.String(),
+		Volume:           totalVolume.String(),
 	}, nil
 }
 
