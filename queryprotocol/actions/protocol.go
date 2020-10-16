@@ -25,11 +25,10 @@ import (
 )
 
 const (
-	disableLargeQueries            = true
 	selectActionHistoryByTimestamp = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE timestamp >= ? AND timestamp <= ? ORDER BY `timestamp` desc limit ?,?"
-	selectActionHistoryByType = "SELECT t1.action_hash, t2.block_hash, t2.timestamp, t1.action_type, t1.from, t1.to, t1.amount, t1.gas_price*t1.gas_consumed FROM %s AS t1 LEFT JOIN %s t2 ON t1.block_height=t2.block_height WHERE t1.action_type =? ORDER BY `timestamp` DESC limit ?,?"
+	selectActionHistoryByType = "SELECT t1.action_hash, t2.block_hash, t2.timestamp, t1.action_type, t1.from, t1.to, t1.amount, t1.gas_price*t1.gas_consumed FROM %s AS t1 LEFT JOIN %s t2 ON t1.block_height=t2.block_height WHERE t1.action_type =? ORDER BY t1.block_height DESC limit ?,?"
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
@@ -230,9 +229,6 @@ func (p *Protocol) GetActionCountByType(actionType string) (count int, err error
 
 // GetActionsByType gets actions by type
 func (p *Protocol) GetActionsByType(actionType string, offset, size uint64) ([]*ActionInfo, error) {
-	if disableLargeQueries {
-		return nil, nil
-	}
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
