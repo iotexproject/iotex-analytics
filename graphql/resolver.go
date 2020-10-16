@@ -347,7 +347,7 @@ func (r *queryResolver) TopHolders(ctx context.Context, endEpochNumber int, pagi
 		return nil, ErrPaginationInvalidOffset
 	}
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
-		return nil, ErrPaginationInvalidSize
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
 	}
 	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(pagination.Skip), uint64(pagination.First))
 	if err != nil {
@@ -1626,7 +1626,7 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]uint64, error)
 	}
 	size, ok := paginationMap["first"]
 	if ok && (size <= 0 || size > MaximumPageSize) {
-		return nil, ErrPaginationInvalidSize
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
 	}
 	ret := make(map[string]uint64)
 	for k, v := range paginationMap {
