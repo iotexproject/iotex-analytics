@@ -117,6 +117,9 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byAddressAndType") {
 		g.Go(func() error { return r.getActionsByAddressAndType(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "byBucketIndex") {
+		g.Go(func() error { return r.getActionsByBucketIndex(ctx, actionResponse) })
+	}
 	if containField(requestedFields, "evmTransfersByAddress") {
 		g.Go(func() error { return r.getEvmTransfersByAddress(ctx, actionResponse) })
 	}
@@ -794,6 +797,61 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	}
 
 	actionResponse.ByAddress = &ActionList{Exist: true, Actions: actInfoList, Count: count}
+
+	return nil
+}
+
+func (r *queryResolver) getActionsByBucketIndex(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byBucketIndex", "actions")
+	bucketIndex, err := getIntArg(argsMap, "bucketIndex")
+	if err != nil {
+		return errors.Wrap(err, "failed to get bucket index")
+	}
+	if bucketIndex <= 0 {
+		return errors.Errorf("bucket index %d is invalid", bucketIndex)
+	}
+
+	var offset, size uint64
+
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+	count, err := r.AP.GetActionCountByBucketIndex(uint64(bucketIndex))
+	if err != nil {
+		return errors.Wrap(err, "failed to get the number of actions by bucket index")
+	}
+	actionInfoList, err := r.AP.GetActionsByBucketIndex(uint64(bucketIndex), offset, size)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByAddress = &ActionList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get actions by bucket index")
+	}
+
+	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
+	for _, act := range actionInfoList {
+		actInfoList = append(actInfoList, &ActionInfo{
+			ActHash:   act.ActHash,
+			BlkHash:   act.BlkHash,
+			ActType:   act.ActType,
+			TimeStamp: int(act.TimeStamp),
+			Sender:    act.Sender,
+			Recipient: act.Recipient,
+			Amount:    act.Amount,
+			GasFee:    act.GasFee,
+		})
+	}
+
+	actionResponse.ByBucketIndex = &ActionList{Exist: true, Actions: actInfoList, Count: count}
 
 	return nil
 }

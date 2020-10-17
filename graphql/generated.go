@@ -51,6 +51,7 @@ type ComplexityRoot struct {
 	Action struct {
 		ByAddress             func(childComplexity int, address string) int
 		ByAddressAndType      func(childComplexity int, address string, typeArg string) int
+		ByBucketIndex         func(childComplexity int, bucketIndex int) int
 		ByDates               func(childComplexity int, startDate int, endDate int) int
 		ByHash                func(childComplexity int, actHash string) int
 		ByType                func(childComplexity int, typeArg string) int
@@ -486,6 +487,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Action.ByAddressAndType(childComplexity, args["address"].(string), args["type"].(string)), true
+
+	case "Action.ByBucketIndex":
+		if e.complexity.Action.ByBucketIndex == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byBucketIndex_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByBucketIndex(childComplexity, args["bucketIndex"].(int)), true
 
 	case "Action.ByDates":
 		if e.complexity.Action.ByDates == nil {
@@ -2116,6 +2129,7 @@ type Action {
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
     byAddressAndType(address: String!, type: String!): ActionList
+    byBucketIndex(bucketIndex: Int!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
 }
@@ -2509,6 +2523,20 @@ func (ec *executionContext) field_Action_byAddress_args(ctx context.Context, raw
 		}
 	}
 	args["address"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Action_byBucketIndex_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["bucketIndex"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["bucketIndex"] = arg0
 	return args, nil
 }
 
@@ -3483,6 +3511,37 @@ func (ec *executionContext) _Action_byAddressAndType(ctx context.Context, field 
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ByAddressAndType, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Action_byBucketIndex(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byBucketIndex_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByBucketIndex, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -9681,6 +9740,8 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Action_byAddress(ctx, field, obj)
 		case "byAddressAndType":
 			out.Values[i] = ec._Action_byAddressAndType(ctx, field, obj)
+		case "byBucketIndex":
+			out.Values[i] = ec._Action_byBucketIndex(ctx, field, obj)
 		case "evmTransfersByAddress":
 			out.Values[i] = ec._Action_evmTransfersByAddress(ctx, field, obj)
 		case "byType":

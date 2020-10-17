@@ -15,6 +15,7 @@ type Action struct {
 	ByHash                *ActionDetail    `json:"byHash"`
 	ByAddress             *ActionList      `json:"byAddress"`
 	ByAddressAndType      *ActionList      `json:"byAddressAndType"`
+	ByBucketIndex         *ActionList      `json:"byBucketIndex"`
 	EvmTransfersByAddress *EvmTransferList `json:"evmTransfersByAddress"`
 	ByType                *ActionList      `json:"byType"`
 }

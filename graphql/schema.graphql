@@ -55,6 +55,7 @@ type Action {
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
     byAddressAndType(address: String!, type: String!): ActionList
+    byBucketIndex(bucketIndex: Int!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
 }
