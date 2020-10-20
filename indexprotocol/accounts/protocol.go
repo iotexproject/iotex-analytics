@@ -318,7 +318,7 @@ func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx, epochNumber uint64) err
 		return err
 	}
 
-	if _, err := tx.Exec(
+	_, err := tx.Exec(
 		fmt.Sprintf(
 			insertAccountIncome,
 			AccountIncomeTableName,
@@ -329,11 +329,8 @@ func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx, epochNumber uint64) err
 		),
 		epochNumber,
 		epochNumber,
-	); err != nil {
-		return err
-	}
-
-	return nil
+	)
+	return err
 }
 
 func getTransactionLog(ctx context.Context, height uint64, client iotexapi.APIServiceClient) (

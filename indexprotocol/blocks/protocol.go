@@ -501,12 +501,9 @@ func (p *Protocol) rebuildProductivityTable(tx *sql.Tx, epochNumber uint64) erro
 		return err
 	}
 
-	if _, err := tx.Exec(
+	_, err := tx.Exec(
 		fmt.Sprintf(insertProductivity, ProductivityTableName, ExpectedProducerTableName, ProducerTableName),
 		epochNumber,
-	); err != nil {
-		return err
-	}
-
-	return nil
+	)
+	return err
 }
