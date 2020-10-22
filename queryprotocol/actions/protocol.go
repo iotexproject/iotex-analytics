@@ -39,7 +39,7 @@ const (
 		"LEFT JOIN %s AS t2 ON t1.action_hash = t2.action_hash " +
 		"LEFT JOIN %s AS t3 ON t2.block_height = t3.block_height " +
 		"WHERE t1.bucket_id = ? " +
-		"ORDER BY timestamp " +
+		"ORDER BY timestamp DESC " +
 		"LIMIT ?, ?"
 	selectEvmTransferHistoryByHash    = "SELECT `from`, `to`, amount FROM %s WHERE action_type = 'execution' AND action_hash = ?"
 	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
