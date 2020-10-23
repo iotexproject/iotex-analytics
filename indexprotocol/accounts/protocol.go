@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/go-pkgs/hash"
-	"github.com/iotexproject/iotex-address/address"
-	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-proto/golang/iotexapi"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
+	"github.com/iotexproject/iotex-analytics/indexcontext"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
@@ -61,6 +61,19 @@ const (
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createIndex         = "CREATE INDEX %s ON %s (action_hash)"
 	actionHashIndexName = "action_hash_index"
+)
+
+const (
+	transfer                   = "transfer"
+	execution                  = "execution"
+	depositToRewardingFund     = "depositToRewardingFund"
+	claimFromRewardingFund     = "claimFromRewardingFund"
+	stakeCreate                = "stakeCreate"
+	stakeWithdraw              = "stakeWithdraw"
+	stakeAddDeposit            = "stakeAddDeposit"
+	candidateRegisterFee       = "candidateRegisterFee"
+	candidateRegisterSelfStake = "candidateRegisterSelfStake"
+	gasFee                     = "gasFee"
 )
 
 var specialActionHash = hash.ZeroHash256
@@ -165,74 +178,17 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			actionSuccess[receipt.ActionHash] = true
 		}
 	}
-	// log action index
-	hashToGasPrice := make(map[string]*big.Int)
-	hashToSrcAddr := make(map[string]string)
-	for _, selp := range blk.Actions {
-		actionHash := selp.Hash()
-		src, dst, err := getsrcAndDst(selp)
-		if err != nil {
-			return errors.Wrap(err, "failed to get source address and destination address")
-		}
-		hashToSrcAddr[hex.EncodeToString(actionHash[:])] = src
-		hashToGasPrice[hex.EncodeToString(actionHash[:])] = selp.GasPrice()
-
-		if !actionSuccess[selp.Hash()] {
-			continue
-		}
-		act := selp.Action()
-		switch act := act.(type) {
-		case *action.Transfer:
-			actionType := "transfer"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		case *action.CreateStake:
-			actionType := "stakeCreate"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		case *action.DepositToStake:
-			actionType := "stakeAddDeposit"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		case *action.CandidateRegister:
-			actionType := "candidateRegister"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, dst, src, act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		// TODO: Handle this when core adds amount in receipt log
-		case *action.WithdrawStake:
-		case *action.DepositToRewardingFund:
-			actionType := "depositToRewardingFund"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, "", src, act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		case *action.ClaimFromRewardingFund:
-			actionType := "claimFromRewardingFund"
-			if err := p.updateBalanceHistory(tx, epochNumber, height, actionHash, actionType, src, "", act.Amount().String()); err != nil {
-				return errors.Wrapf(err, "failed to update balance history on height %d", height)
-			}
-		}
+	indexCtx := indexcontext.MustGetIndexCtx(ctx)
+	transferLogMap, err := getTransactionLog(ctx, height, indexCtx.ChainClient)
+	if err != nil {
+		return err
 	}
-	for _, receipt := range blk.Receipts {
-		actHash := receipt.ActionHash
-		srcAddr, ok := hashToSrcAddr[hex.EncodeToString(actHash[:])]
-		if !ok {
-			return errors.New("failed to find the corresponding action from receipt")
-		}
-		gasPrice, ok := hashToGasPrice[hex.EncodeToString(actHash[:])]
-		if !ok {
-			return errors.New("failed to find the corresponding action from receipt")
-		}
-		gasFee := gasPrice.Mul(gasPrice, big.NewInt(0).SetUint64(receipt.GasConsumed))
-
-		if gasFee.String() == "0" {
-			continue
-		}
-		if err := p.updateBalanceHistory(tx, epochNumber, height, actHash, "gasFee", "", srcAddr, gasFee.String()); err != nil {
-			return errors.Wrapf(err, "failed to update balance history with address %s", srcAddr)
+	for h, transactions := range transferLogMap {
+		for _, transaction := range transactions {
+			actionType := getActionType(transaction.Type)
+			if err := p.updateBalanceHistory(tx, epochNumber, height, h, actionType, transaction.GetRecipient(), transaction.GetSender(), transaction.GetAmount()); err != nil {
+				return errors.Wrapf(err, "failed to update balance history on height %d", height)
+			}
 		}
 	}
 
@@ -310,7 +266,7 @@ func (p *Protocol) updateBalanceHistory(
 	tx *sql.Tx,
 	epochNumber uint64,
 	blockHeight uint64,
-	actionHash hash.Hash256,
+	actionHash string,
 	actionType string,
 	to string,
 	from string,
@@ -318,7 +274,7 @@ func (p *Protocol) updateBalanceHistory(
 ) error {
 	insertQuery := fmt.Sprintf(insertBalanceHistory,
 		BalanceHistoryTableName)
-	if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, hex.EncodeToString(actionHash[:]), actionType, from, to, amount); err != nil {
+	if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, actionHash, actionType, from, to, amount); err != nil {
 		return errors.Wrap(err, "failed to update balance history")
 	}
 	return nil
@@ -341,11 +297,45 @@ func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx) error {
 	return nil
 }
 
-func getsrcAndDst(selp action.SealedEnvelope) (string, string, error) {
-	callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
-	if err != nil {
-		return "", "", err
+func getTransactionLog(ctx context.Context, height uint64, client iotexapi.APIServiceClient) (
+	transferLogMap map[string][]*iotextypes.TransactionLog_Transaction, err error) {
+	transferLogMap = make(map[string][]*iotextypes.TransactionLog_Transaction)
+	transferLog, err := client.GetTransactionLogByBlockHeight(
+		ctx,
+		&iotexapi.GetTransactionLogByBlockHeightRequest{BlockHeight: height},
+	)
+
+	if err == nil {
+		for _, a := range transferLog.GetTransactionLogs().GetLogs() {
+			h := hex.EncodeToString(a.ActionHash)
+			transferLogMap[h] = a.GetTransactions()
+		}
 	}
-	dst, _ := selp.Destination()
-	return callerAddr.String(), dst, nil
+	return transferLogMap, nil
+}
+
+func getActionType(t iotextypes.TransactionLogType) string {
+	switch {
+	case t == iotextypes.TransactionLogType_IN_CONTRACT_TRANSFER:
+		return execution
+	case t == iotextypes.TransactionLogType_WITHDRAW_BUCKET:
+		return stakeWithdraw
+	case t == iotextypes.TransactionLogType_CREATE_BUCKET:
+		return stakeCreate
+	case t == iotextypes.TransactionLogType_DEPOSIT_TO_BUCKET:
+		return stakeAddDeposit
+	case t == iotextypes.TransactionLogType_CLAIM_FROM_REWARDING_FUND:
+		return claimFromRewardingFund
+	case t == iotextypes.TransactionLogType_DEPOSIT_TO_REWARDING_FUND:
+		return depositToRewardingFund
+	case t == iotextypes.TransactionLogType_CANDIDATE_REGISTRATION_FEE:
+		return candidateRegisterFee
+	case t == iotextypes.TransactionLogType_CANDIDATE_SELF_STAKE:
+		return candidateRegisterSelfStake
+	case t == iotextypes.TransactionLogType_GAS_FEE:
+		return gasFee
+	case t == iotextypes.TransactionLogType_NATIVE_TRANSFER:
+		return transfer
+	}
+	return ""
 }

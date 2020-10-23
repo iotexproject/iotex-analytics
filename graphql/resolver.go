@@ -347,7 +347,7 @@ func (r *queryResolver) TopHolders(ctx context.Context, endEpochNumber int, pagi
 		return nil, ErrPaginationInvalidOffset
 	}
 	if pagination.First <= 0 || pagination.First > MaximumPageSize {
-		return nil, ErrPaginationInvalidSize
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
 	}
 	holders, err := r.AP.GetTopHolders(uint64(endEpochNumber), uint64(pagination.Skip), uint64(pagination.First))
 	if err != nil {
@@ -1481,38 +1481,54 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 
 func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, arguments ast.ArgumentList) {
 	val := graphql.GetRequestContext(ctx)
-	if val != nil {
+	// if variables are used:
+	// `variables` in request payload will be parsed to map `val.Variables`
+	// the map's key correspond to `arg.Value.Raw` instead of `arg.Name`
+	// if variables are not used:
+	// we have all ready got variables before
+	//
+	// Notice: do not directly chage arguments's *ast.Value in argsMap[arg.Name]
+	if len(val.Variables) != 0 {
 		for _, arg := range arguments {
 			if arg == nil {
 				continue
 			}
 			switch arg.Value.ExpectedType.Name() {
 			case "String":
-				value, ok := val.Variables[arg.Name].(string)
+				value, ok := val.Variables[arg.Value.Raw].(string)
 				if ok {
-					argsMap[arg.Name].Raw = value
+					argsMap[arg.Name] = &ast.Value{Raw: value}
 				}
 			case "Int":
-				valueJSON, ok := val.Variables[arg.Name].(json.Number)
+				valueJSON, ok := val.Variables[arg.Value.Raw].(json.Number)
 				if ok {
 					value, err := valueJSON.Int64()
 					if err != nil {
 						return
 					}
-					argsMap[arg.Name].Raw = fmt.Sprintf("%d", value)
+					argsMap[arg.Name] = &ast.Value{Raw: fmt.Sprintf("%d", value)}
 				}
 			case "Boolean":
-				value, ok := val.Variables[arg.Name].(bool)
+				value, ok := val.Variables[arg.Value.Raw].(bool)
 				if ok {
 					if value {
-						argsMap[arg.Name].Raw = "true"
+						argsMap[arg.Name] = &ast.Value{Raw: "true"}
 					} else {
-						argsMap[arg.Name].Raw = "false"
+						argsMap[arg.Name] = &ast.Value{Raw: "false"}
 					}
 				}
 			case "Pagination":
-				value, ok := val.Variables[arg.Name].(map[string]interface{})
+				value, ok := val.Variables[arg.Value.Raw].(map[string]interface{})
+				// `Pagination` as a whole param
+				// query string:
+				// `actions(pagination:$p)`
+				// query variables:
+				// "p":{
+				//     "first": 2,
+				//     "skip": 4
+				// }
 				if ok {
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
 					for k, v := range value {
 						valueJSON, ok := v.(json.Number)
 						if ok {
@@ -1521,6 +1537,31 @@ func parseVariables(ctx context.Context, argsMap map[string]*ast.Value, argument
 								continue
 							}
 							child := &ast.ChildValue{Name: k, Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)}}
+							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
+						}
+					}
+				} else {
+					// `Pagination` not a whole param
+					// query string:
+					// `actions(pagination:{first:$f, skip:$s})`
+					// query variables:
+					// {
+					//     "f":2,
+					//     "s":4
+					// }
+					argsMap[arg.Name] = &ast.Value{Children: ast.ChildValueList{}}
+					for _, child := range arg.Value.Children {
+
+						value, ok := val.Variables[child.Value.Raw].(json.Number)
+						if ok {
+							valueInt64, err := value.Int64()
+							if err != nil {
+								continue
+							}
+							child := &ast.ChildValue{
+								Name:  child.Name,
+								Value: &ast.Value{Raw: fmt.Sprintf("%d", valueInt64)},
+							}
 							argsMap[arg.Name].Children = append(argsMap[arg.Name].Children, child)
 						}
 					}
@@ -1585,7 +1626,7 @@ func getPaginationArgs(argsMap map[string]*ast.Value) (map[string]uint64, error)
 	}
 	size, ok := paginationMap["first"]
 	if ok && (size <= 0 || size > MaximumPageSize) {
-		return nil, ErrPaginationInvalidSize
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
 	}
 	ret := make(map[string]uint64)
 	for k, v := range paginationMap {

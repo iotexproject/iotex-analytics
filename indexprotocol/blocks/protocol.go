@@ -382,8 +382,9 @@ func (p *Protocol) updateDelegates(
 	if err := p.updateActiveBlockProducers(chainClient, epochNumber); err != nil {
 		return errors.Wrap(err, "update active block producers")
 	}
+	preEpochHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
 	if height >= p.epochCtx.FairbankEffectiveHeight() {
-		return p.updateStakingDelegates(chainClient, height)
+		return p.updateStakingDelegates(chainClient, preEpochHeight)
 	}
 	var gravityChainStartHeight uint64
 	if epochNumber == 1 {
