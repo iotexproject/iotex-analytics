@@ -20,6 +20,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol/accounts"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
+	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
@@ -33,6 +34,10 @@ const (
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
 	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
+	selectBucketActionHistoryByVoter = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash in (" +
+		"	SELECT action_hash FROM %s WHERE bucket_id in (SELECT t1.index FROM %s t1 RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS t2 ON t1.index = t2.index and t1.id = t2.mid WHERE t1.owner = ?)" +
+		") ORDER BY `timestamp` desc limit ?,?"
 	selectActionHistoryByAddressAndType = "SELECT action_hash, block_hash, timestamp, `action_type`, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE (`from` = ? OR `to` = ?) AND `action_type` = ? ORDER BY `timestamp` desc limit ?,?"
 	selectBucketActionsByIndex = "SELECT t1.action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t2.gas_price*t2.gas_consumed FROM %s AS t1 " +
@@ -53,6 +58,7 @@ const (
 	selectXrcTransactionCount      = selectCount + " WHERE address='%s'"
 	selectActionCountByDates       = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
 	selectActionCountByAddress     = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
+	selectBucketActionCountByVoter = "SELECT COUNT(*) FROM %s WHERE bucket_id in (SELECT t1.index FROM %s t1 RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS t2 ON t1.index = t2.index and t1.id = t2.mid WHERE t1.owner = '%s')"
 	selectActionCountByBucketIndex = selectCount + " WHERE bucket_id = %d"
 	selectActCntByAddrAndType      = selectCount + " WHERE (`from` = '%s' OR `to` = '%s') AND `action_type` = '%s'"
 	selectActionCountByType        = selectCount + " WHERE action_type = '%s'"
@@ -359,6 +365,57 @@ func (p *Protocol) GetActionsByAddress(address string, offset, size uint64) ([]*
 	}
 
 	rows, err := stmt.Query(address, address, offset, size)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	if err := stmt.Close(); err != nil {
+		return nil, errors.Wrap(err, "failed to close stmt")
+	}
+
+	parsedRows, err := s.ParseSQLRows(rows, &ActionInfo{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+
+	actionInfoList := make([]*ActionInfo, 0)
+	for _, parsedRow := range parsedRows {
+		actionInfoList = append(actionInfoList, parsedRow.(*ActionInfo))
+	}
+
+	return actionInfoList, nil
+}
+
+// GetBucketActionCountByVoter gets action counts by voter address
+func (p *Protocol) GetBucketActionCountByVoter(voter string) (count int, err error) {
+	// TODO: change voter to be a parameter of QueryRow
+	getQuery := fmt.Sprintf(selectBucketActionCountByVoter, actions.BucketActionsTableName, votings.StakingBucketInfoTableName, votings.StakingBucketInfoTableName, voter)
+	return p.getCount(getQuery)
+}
+
+// GetBucketActionsByVoter gets action information list by voter address
+func (p *Protocol) GetBucketActionsByVoter(voter string, offset, size uint64) ([]*ActionInfo, error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("accounts protocol is unregistered")
+	}
+
+	db := p.indexer.Store.GetDB()
+
+	getQuery := fmt.Sprintf(selectBucketActionHistoryByVoter, actions.ActionHistoryTableName, blocks.BlockHistoryTableName, actions.BucketActionsTableName, votings.StakingBucketInfoTableName, votings.StakingBucketInfoTableName)
+
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+
+	rows, err := stmt.Query(voter, offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}

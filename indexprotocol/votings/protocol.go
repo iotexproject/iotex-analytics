@@ -47,10 +47,14 @@ import (
 const (
 	// ProtocolID is the ID of protocol
 	ProtocolID = "voting"
+	// StakingBucketInfoTableName is the table name of bucket info table
+	StakingBucketInfoTableName = "staking_buckets"
 	// VotingResultTableName is the table name of voting result
 	VotingResultTableName = "voting_result"
-	//VotingMetaTableName is the voting meta table
+	// VotingMetaTableName is the voting meta table
 	VotingMetaTableName = "voting_meta"
+	// StakingCandidatesTableName is the table storing staking candidates
+	StakingCandidatesTableName = "staking_candidates"
 	// AggregateVotingTableName is the table name of voters' aggregate voting
 	AggregateVotingTableName = "aggregate_voting"
 	// EpochIndexName is the index name of epoch number on voting meta table
@@ -167,11 +171,11 @@ func NewProtocol(store s.Store, epochCtx *epochctx.EpochCtx, gravityChainCfg ind
 	if err != nil {
 		return nil, err
 	}
-	stakingBucketTableOperator, err := NewBucketTableOperator("staking_buckets", committee.MYSQL)
+	stakingBucketTableOperator, err := NewBucketTableOperator(StakingBucketInfoTableName, committee.MYSQL)
 	if err != nil {
 		return nil, err
 	}
-	stakingCandidateTableOperator, err := NewCandidateTableOperator("staking_candidates", committee.MYSQL)
+	stakingCandidateTableOperator, err := NewCandidateTableOperator(StakingCandidatesTableName, committee.MYSQL)
 	if err != nil {
 		return nil, err
 	}

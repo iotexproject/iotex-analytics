@@ -8,6 +8,7 @@ package graphql
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -20,8 +21,10 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/iotexproject/iotex-address/address"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
+	ipvotings "github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/actions"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/hermes2"
@@ -126,7 +129,64 @@ func (r *queryResolver) Action(ctx context.Context) (*Action, error) {
 	if containField(requestedFields, "byType") {
 		g.Go(func() error { return r.getActionsByType(ctx, actionResponse) })
 	}
+	if containField(requestedFields, "byVoter") {
+		g.Go(func() error { return r.getActionsByVoter(ctx, actionResponse) })
+	}
 	return actionResponse, g.Wait()
+}
+
+func convertBuckets(buckets map[int64]*iotextypes.VoteBucket) ([]*BucketInfo, error) {
+	bucketInfo := []*BucketInfo{}
+	for _, bucket := range buckets {
+		voterAddr, err := address.FromString(bucket.Owner)
+		if err != nil {
+			return nil, err
+		}
+		bucketInfo = append(bucketInfo, &BucketInfo{
+			VoterEthAddress:   HexPrefix + hex.EncodeToString(voterAddr.Bytes()),
+			VoterIotexAddress: bucket.Owner,
+			IsNative:          true,
+			Votes:             bucket.StakedAmount,
+			// TODO: calculate weighted votes
+			WeightedVotes:     "0",
+			RemainingDuration: ipvotings.CalcRemainingTime(bucket).String(),
+			StartTime:         bucket.StakeStartTime.String(),
+			Decay:             !bucket.AutoStake,
+		})
+	}
+	return bucketInfo, nil
+}
+
+func (r *queryResolver) BucketsByVoter(ctx context.Context, voter string, pagination *Pagination) ([]*BucketInfo, error) {
+	voterAddr, err := address.FromString(voter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse voter address")
+	}
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
+	}
+	buckets, err := r.VP.BucketsByVoter(voterAddr, uint64(pagination.Skip), uint64(pagination.First))
+	if err != nil {
+		return nil, err
+	}
+	return convertBuckets(buckets)
+}
+
+func (r *queryResolver) BucketsByCandidate(ctx context.Context, name string, pagination *Pagination) ([]*BucketInfo, error) {
+	if pagination.Skip < 0 {
+		return nil, ErrPaginationInvalidOffset
+	}
+	if pagination.First <= 0 || pagination.First > MaximumPageSize {
+		return nil, errors.Wrapf(ErrPaginationInvalidSize, "maximum page size %d", MaximumPageSize)
+	}
+	buckets, err := r.VP.BucketsByCandidate(name, uint64(pagination.Skip), uint64(pagination.First))
+	if err != nil {
+		return nil, err
+	}
+	return convertBuckets(buckets)
 }
 
 // Chain handles chain requests
@@ -797,6 +857,58 @@ func (r *queryResolver) getActionsByAddress(ctx context.Context, actionResponse 
 	}
 
 	actionResponse.ByAddress = &ActionList{Exist: true, Actions: actInfoList, Count: count}
+
+	return nil
+}
+
+func (r *queryResolver) getActionsByVoter(ctx context.Context, actionResponse *Action) error {
+	argsMap := parseFieldArguments(ctx, "byVoter", "actions")
+	voter, err := getStringArg(argsMap, "voter")
+	if err != nil {
+		return errors.Wrap(err, "failed to get voter address")
+	}
+
+	var offset, size uint64
+
+	paginationMap, err := getPaginationArgs(argsMap)
+	switch {
+	default:
+		offset = paginationMap["skip"]
+		size = paginationMap["first"]
+	case err == ErrPaginationNotFound:
+		offset = 0
+		size = DefaultPageSize
+	case err != nil:
+		return errors.Wrap(err, "failed to get pagination arguments for actions")
+	}
+	count, err := r.AP.GetBucketActionCountByVoter(voter)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the count of actions by voter address")
+	}
+	actionInfoList, err := r.AP.GetBucketActionsByVoter(voter, offset, size)
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		actionResponse.ByVoter = &ActionList{Exist: false}
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get actions' information")
+	}
+
+	actInfoList := make([]*ActionInfo, 0, len(actionInfoList))
+	for _, act := range actionInfoList {
+		actInfoList = append(actInfoList, &ActionInfo{
+			ActHash:   act.ActHash,
+			BlkHash:   act.BlkHash,
+			ActType:   act.ActType,
+			TimeStamp: int(act.TimeStamp),
+			Sender:    act.Sender,
+			Recipient: act.Recipient,
+			Amount:    act.Amount,
+			GasFee:    act.GasFee,
+		})
+	}
+
+	actionResponse.ByVoter = &ActionList{Exist: true, Actions: actInfoList, Count: count}
 
 	return nil
 }
@@ -1517,6 +1629,7 @@ func parseFieldArguments(ctx context.Context, fieldName string, selectedFieldNam
 	for _, f := range fields {
 		if f.Name == fieldName {
 			field = f
+			break
 		}
 	}
 	arguments := field.Arguments

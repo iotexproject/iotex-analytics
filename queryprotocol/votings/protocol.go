@@ -8,16 +8,19 @@ package votings
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/votings"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol/chainmeta/chainmetautil"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
 
 const (
@@ -29,6 +32,9 @@ const (
 	selectOperatorOfEpoch      = "SELECT operator_address FROM %s WHERE delegate_name=? and epoch_number<=? order by epoch_number DESC LIMIT 1"
 	selectProbationExist       = "select * from %s where epoch_number=%d and address='%s'"
 	selectAppearingCount       = "select count(epoch_number) from %s where epoch_number>=%d and epoch_number<%d and delegate_name=?"
+	selectBuckets              = "SELECT a.id, a.`index`, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake FROM %s AS a RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS b ON a.id = b.mid and a.index = b.index"
+	selectBucketsByCandidate   = selectBuckets + " WHERE candidate = ? ORDER BY `id` LIMIT ?, ?"
+	selectBucketsByVoter       = selectBuckets + " WHERE owner = ? ORDER BY `id` LIMIT ?, ?"
 )
 
 // Protocol defines the protocol of querying tables
@@ -64,6 +70,47 @@ type CandidateInfo struct {
 // NewProtocol creates a new protocol
 func NewProtocol(idx *indexservice.Indexer) *Protocol {
 	return &Protocol{indexer: idx}
+}
+
+// BucketsByVoter returns the buckets owned by the voter
+func (p *Protocol) BucketsByVoter(voter address.Address, offset uint64, size uint64) (map[int64]*iotextypes.VoteBucket, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("votings protocol is unregistered")
+	}
+	stmt, err := p.indexer.Store.GetDB().Prepare(fmt.Sprintf(selectBucketsByVoter, votings.StakingBucketInfoTableName, votings.StakingBucketInfoTableName))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare query")
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(voter.String(), offset, size)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute query")
+	}
+
+	return votings.ParseBuckets(rows)
+}
+
+// BucketsByCandidate returns the buckets voted to a candidate
+func (p *Protocol) BucketsByCandidate(candidate string, offset uint64, size uint64) (map[int64]*iotextypes.VoteBucket, error) {
+	if _, ok := p.indexer.Registry.Find(votings.ProtocolID); !ok {
+		return nil, errors.New("votings protocol is unregistered")
+	}
+	var candidateAddr string
+	if err := p.indexer.Store.GetDB().QueryRow("SELECT owner FROM "+votings.StakingCandidatesTableName+" WHERE hex(name) = ?", hex.EncodeToString([]byte(candidate))).Scan(&candidateAddr); err != nil {
+		return nil, errors.Wrap(err, "failed to query candidate address")
+	}
+	stmt, err := p.indexer.Store.GetDB().Prepare(fmt.Sprintf(selectBucketsByCandidate, votings.StakingBucketInfoTableName, votings.StakingBucketInfoTableName))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare query")
+	}
+	defer stmt.Close()
+	fmt.Println("candidate address", candidateAddr)
+	rows, err := stmt.Query(string(candidateAddr), offset, size)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute query")
+	}
+
+	return votings.ParseBuckets(rows)
 }
 
 // GetBucketInformation gets voting infos

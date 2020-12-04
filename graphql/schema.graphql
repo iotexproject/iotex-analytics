@@ -10,6 +10,8 @@ type Query {
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
     hermes2(startEpoch: Int!, epochCount: Int!): Hermes2
+    bucketsByVoter(address: String!, pagination: Pagination): [BucketInfo]!
+    bucketsByCandidate(name: String!, pagination: Pagination): [BucketInfo]!
 }
 
 type TopHolder{
@@ -58,6 +60,7 @@ type Action {
     byBucketIndex(bucketIndex: Int!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
+    byVoter(voter: String!): ActionList
 }
 
 type Delegate {

@@ -18,6 +18,7 @@ type Action struct {
 	ByBucketIndex         *ActionList      `json:"byBucketIndex"`
 	EvmTransfersByAddress *EvmTransferList `json:"evmTransfersByAddress"`
 	ByType                *ActionList      `json:"byType"`
+	ByVoter               *ActionList      `json:"byVoter"`
 }
 
 type ActionDetail struct {
