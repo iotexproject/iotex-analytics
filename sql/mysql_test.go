@@ -18,9 +18,6 @@ const (
 )
 
 func TestMySQLStorePutGet(t *testing.T) {
-	// TODO: fix test
-	t.Skip()
-
 	testutil.CleanupDatabase(t, connectStr, dbName)
 	testRDSStorePutGet := TestStorePutGet
 	t.Run("MySQL Store", func(t *testing.T) {
@@ -30,9 +27,6 @@ func TestMySQLStorePutGet(t *testing.T) {
 }
 
 func TestMySQLStoreTransaction(t *testing.T) {
-	// TODO: fix test
-	t.Skip()
-
 	testutil.CleanupDatabase(t, connectStr, dbName)
 	testSQLite3StoreTransaction := TestStoreTransaction
 	t.Run("MySQL Store", func(t *testing.T) {
