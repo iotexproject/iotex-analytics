@@ -24,8 +24,6 @@ const (
 )
 
 func TestProtocol(t *testing.T) {
-	// TODO: fix test
-	t.Skip()
 
 	// Creating temporary store
 	require := require.New(t)
