@@ -52,7 +52,7 @@ func TestProtocol(t *testing.T) {
 		require.NoError(store.Stop(ctx))
 	}()
 
-	p := NewProtocol(store, epochctx.NewEpochCtx(1, 1, 1, epochctx.FairbankHeight(100000)), indexprotocol.GravityChain{GravityChainStartHeight: 1})
+	p := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)), indexprotocol.GravityChain{GravityChainStartHeight: 1})
 
 	require.NoError(p.CreateTables(ctx))
 
@@ -67,15 +67,7 @@ func TestProtocol(t *testing.T) {
 		ConsensusScheme: "ROLLDPOS",
 	})
 
-	readStateRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(blk1.Height(), 10))},
-	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: []byte(strconv.FormatUint(1000, 10)),
-	}, nil)
-	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(2).Return(
+	electionClient.EXPECT().GetCandidates(gomock.Any(), gomock.Any()).Times(1).Return(
 		&api.CandidateResponse{
 			Candidates: []*api.Candidate{
 				{
@@ -89,7 +81,7 @@ func TestProtocol(t *testing.T) {
 			},
 		}, nil,
 	)
-	readStateRequest = &iotexapi.ReadStateRequest{
+	readStateRequest := &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
@@ -121,18 +113,9 @@ func TestProtocol(t *testing.T) {
 
 	readStateRequest = &iotexapi.ReadStateRequest{
 		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
-	}
-
-	readStateRequest = &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
 		MethodName: []byte("ActiveBlockProducersByEpoch"),
 		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
 	}
-	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: data,
-	}, nil)
 
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk2)
@@ -146,9 +129,4 @@ func TestProtocol(t *testing.T) {
 	require.Equal(hex.EncodeToString(blk1Hash[:]), blockHistory.BlockHash)
 	require.Equal("616c6661", blockHistory.ProducerName)
 	require.Equal("627261766f", blockHistory.ExpectedProducerName)
-
-	productivityHistory, err := p.getProductivityHistory(uint64(1), "627261766f")
-	require.NoError(err)
-	require.Equal(uint64(0), productivityHistory.Production)
-	require.Equal(uint64(1), productivityHistory.ExpectedProduction)
 }

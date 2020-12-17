@@ -16,10 +16,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 
+	"github.com/iotexproject/iotex-core/action/protocol/vote"
 	"github.com/iotexproject/iotex-core/test/mock/mock_apiserviceclient"
 	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-election/pb/api"
@@ -56,12 +56,24 @@ func TestProtocol(t *testing.T) {
 		require.NoError(err)
 		require.NoError(store.Stop(ctx))
 	}()
-	cfg := indexprotocol.VoteWeightCalConsts{}
-	p, err := NewProtocol(store, epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(100000)), indexprotocol.GravityChain{}, indexprotocol.Poll{
-		VoteThreshold:        "0",
-		ScoreThreshold:       "0",
-		SelfStakingThreshold: "0",
-	}, cfg, indexprotocol.RewardPortionCfg{"", 123})
+	cfg := indexprotocol.VoteWeightCalConsts{
+		DurationLg: 1.2,
+		AutoStake:  1,
+		SelfStake:  1.06,
+	}
+	p, err := NewProtocol(store,
+		epochctx.NewEpochCtx(36, 24, 15, epochctx.FairbankHeight(1000000)),
+		indexprotocol.GravityChain{},
+		indexprotocol.Poll{
+			VoteThreshold:        "0",
+			ScoreThreshold:       "0",
+			SelfStakingThreshold: "0",
+		},
+		cfg,
+		indexprotocol.RewardPortionCfg{
+			RewardPortionContract:             "",
+			RewardPortionContractDeployHeight: uint64(123),
+		})
 	require.NoError(err)
 	require.NoError(p.CreateTables(ctx))
 
@@ -75,41 +87,9 @@ func TestProtocol(t *testing.T) {
 		ElectionClient:  electionClient,
 		ConsensusScheme: "ROLLDPOS",
 	})
-	// first call GetGravityChainStartHeight
-	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("GetGravityChainStartHeight"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
-	}
-	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: []byte(strconv.FormatUint(1000, 10)),
-	}, nil)
-	// second call ProbationListByEpoch
-	probationListByEpochRequest := &iotexapi.ReadStateRequest{
-		ProtocolID: []byte(indexprotocol.PollProtocolID),
-		MethodName: []byte("ProbationListByEpoch"),
-		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
-	}
-	pb := &iotextypes.ProbationCandidateList{
-		IntensityRate: uint32(90),
-		ProbationList: []*iotextypes.ProbationCandidateList_Info{
-			{
-				Address: testutil.Addr1,
-				Count:   uint32(1),
-			},
-		},
-	}
-	data, err := proto.Marshal(pb)
-	second := chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
-		Data: data,
-	}, nil)
-	gomock.InOrder(
-		second,
-		first,
-	)
+
 	timestamp, err := ptypes.TimestampProto(time.Unix(1000, 0))
 	require.NoError(err)
-
 	chainClient.EXPECT().GetElectionBuckets(gomock.Any(), gomock.Any()).Times(1).Return(&iotexapi.GetElectionBucketsResponse{
 		Buckets: []*iotextypes.ElectionBucket{},
 	}, db.ErrNotExist)
@@ -173,6 +153,30 @@ func TestProtocol(t *testing.T) {
 		}, nil,
 	)
 
+	probationListByEpochRequest := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
+		MethodName: []byte("ProbationListByEpoch"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(2, 10))},
+	}
+
+	probationList := &vote.ProbationList{
+		IntensityRate: uint32(0),
+		ProbationInfo: make(map[string]uint32),
+	}
+
+	data, err := probationList.Serialize()
+	chainClient.EXPECT().ReadState(gomock.Any(), probationListByEpochRequest).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: data,
+	}, nil)
+
+	readStateRequestForGravityHeight := &iotexapi.ReadStateRequest{
+		ProtocolID: []byte(indexprotocol.PollProtocolID),
+		MethodName: []byte("GetGravityChainStartHeight"),
+		Arguments:  [][]byte{[]byte(strconv.FormatUint(1, 10))},
+	}
+	chainClient.EXPECT().ReadState(gomock.Any(), readStateRequestForGravityHeight).Times(1).Return(&iotexapi.ReadStateResponse{
+		Data: []byte(strconv.FormatUint(1000, 10)),
+	}, nil)
 	require.NoError(store.Transact(func(tx *sql.Tx) error {
 		return p.HandleBlock(ctx, tx, blk)
 	}))
@@ -184,7 +188,7 @@ func TestProtocol(t *testing.T) {
 	require.NoError(err)
 	require.Equal("abcd", res1.DelegateName)
 	require.Equal("1234", res2.DelegateName)
-	require.Equal("15", res1.TotalWeightedVotes) // (100 + 50) * 0.1
+	require.Equal("150", res1.TotalWeightedVotes)
 	require.Equal("100", res2.TotalWeightedVotes)
 
 	/*

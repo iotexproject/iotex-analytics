@@ -258,14 +258,16 @@ func mock(chainClient *mock_apiserviceclient.MockServiceClient, t *testing.T) {
 	vbl := &iotextypes.VoteBucketList{Buckets: buckets}
 	s, err := proto.Marshal(vbl)
 	require.NoError(err)
-	first := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).AnyTimes().Return(&iotexapi.ReadStateResponse{
+	ctx := context.WithValue(context.Background(), &iotexapi.ReadStateRequest{}, iotexapi.ReadStakingDataMethod_BUCKETS)
+	first := chainClient.EXPECT().ReadState(ctx, readStateRequest).AnyTimes().Return(&iotexapi.ReadStateResponse{
 		Data: s,
 	}, nil)
 
 	// mock candidate
-	methodNameBytes, _ = proto.Marshal(&iotexapi.ReadStakingDataMethod{
+	methodNameBytes, err = proto.Marshal(&iotexapi.ReadStakingDataMethod{
 		Method: iotexapi.ReadStakingDataMethod_CANDIDATES,
 	})
+	require.NoError(err)
 	arg, err = proto.Marshal(&iotexapi.ReadStakingDataRequest{
 		Request: &iotexapi.ReadStakingDataRequest_Candidates_{
 			Candidates: &iotexapi.ReadStakingDataRequest_Candidates{
@@ -286,7 +288,8 @@ func mock(chainClient *mock_apiserviceclient.MockServiceClient, t *testing.T) {
 	cl := &iotextypes.CandidateListV2{Candidates: candidates}
 	s, err = proto.Marshal(cl)
 	require.NoError(err)
-	second := chainClient.EXPECT().ReadState(gomock.Any(), readStateRequest).AnyTimes().Return(&iotexapi.ReadStateResponse{
+	ctx = context.WithValue(context.Background(), &iotexapi.ReadStateRequest{}, iotexapi.ReadStakingDataMethod_CANDIDATES)
+	second := chainClient.EXPECT().ReadState(ctx, readStateRequest).AnyTimes().Return(&iotexapi.ReadStateResponse{
 		Data: s,
 	}, nil)
 	third := chainClient.EXPECT().ReadState(gomock.Any(), gomock.Any()).AnyTimes().Return(&iotexapi.ReadStateResponse{
