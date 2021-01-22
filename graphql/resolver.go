@@ -369,6 +369,11 @@ func (r *queryResolver) Xrc20(ctx context.Context) (*Xrc20, error) {
 			return r.xrcTokenHolderAddresses(ctx, actionResponse)
 		})
 	}
+	if containField(requestedFields, "byContractAndAddress") {
+		g.Go(func() error {
+			return r.getXrcByContractAndAddress(ctx, actionResponse)
+		})
+	}
 	return actionResponse, g.Wait()
 }
 
@@ -1145,6 +1150,54 @@ func (r *queryResolver) getXrcByAddress(ctx context.Context, actionResponse inte
 	case *Xrc20:
 		output.Xrc20 = out
 	}
+	return nil
+}
+
+func (r *queryResolver) getXrcByContractAndAddress(ctx context.Context, actionResponse *Xrc20) error {
+	argsMap := parseFieldArguments(ctx, "byContractAndAddress", "")
+	contract, err := getStringArg(argsMap, "contract")
+	if err != nil {
+		return errors.Wrap(err, "failed to get contract")
+	}
+	address, err := getStringArg(argsMap, "address")
+	if err != nil {
+		return errors.Wrap(err, "failed to get address")
+	}
+	numPerPage, err := getIntArg(argsMap, "numPerPage")
+	if err != nil {
+		return errors.Wrap(err, "failed to get numPerPage")
+	}
+	page, err := getIntArg(argsMap, "page")
+	if err != nil {
+		return errors.Wrap(err, "failed to get page")
+	}
+	output := &XrcList{Exist: false}
+	actionResponse.ByContractAndAddress = output
+	count, err := r.AP.GetXrc20HistoryByContractCount(contract, address)
+	if err != nil {
+		return errors.Wrap(err, "failed to get contract transaction count")
+	}
+	output.Count = count
+	xrcInfoList, err := r.AP.GetXrc20ByContractAndAddress(contract, address, uint64(numPerPage), uint64(page))
+	switch {
+	case errors.Cause(err) == indexprotocol.ErrNotExist:
+		return nil
+	case err != nil:
+		return errors.Wrap(err, "failed to get contract information")
+	}
+	output.Exist = true
+	out := make([]*XrcInfo, 0, len(xrcInfoList))
+	for _, c := range xrcInfoList {
+		out = append(out, &XrcInfo{
+			Hash:      c.Hash,
+			Timestamp: c.Timestamp,
+			From:      c.From,
+			To:        c.To,
+			Quantity:  c.Quantity,
+			Contract:  c.Contract,
+		})
+	}
+	output.Xrc20 = out
 	return nil
 }
 

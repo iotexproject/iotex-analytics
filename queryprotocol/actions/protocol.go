@@ -50,26 +50,28 @@ const (
 	selectEvmTransferHistoryByAddress = "SELECT `from`, `to`, amount, action_hash, t1.block_height, timestamp " +
 		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height " +
 		"WHERE action_type = 'execution' AND (`from` = ? OR `to` = ?) ORDER BY `timestamp` desc limit ?,?"
-	selectEvmTransferCount         = "SELECT COUNT(*) FROM %s WHERE action_type='execution' AND (`from` = '%s' OR `to` = '%s')"
-	selectActionHistory            = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
-	selectXrc20History             = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectCount                    = "SELECT COUNT(*) FROM %s"
-	selectXrcHolderCount           = selectCount + " WHERE contract='%s'"
-	selectXrcTransactionCount      = selectCount + " WHERE address='%s'"
-	selectActionCountByDates       = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
-	selectActionCountByAddress     = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
-	selectBucketActionCountByVoter = "SELECT COUNT(*) FROM %s WHERE bucket_id in (SELECT t1.index FROM %s t1 RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS t2 ON t1.index = t2.index and t1.id = t2.mid WHERE t1.owner = '%s')"
-	selectActionCountByBucketIndex = selectCount + " WHERE bucket_id = %d"
-	selectActCntByAddrAndType      = selectCount + " WHERE (`from` = '%s' OR `to` = '%s') AND `action_type` = '%s'"
-	selectActionCountByType        = selectCount + " WHERE action_type = '%s'"
-	selectXrc20Holders             = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
-	selectXrc20HistoryByTopics     = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
-	selectXrcHistoryCount          = selectCount + " WHERE topics like %s"
-	selectXrc20AddressesByPage     = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
-	selectXrc20HistoryByPage       = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
-	selectAccountIncome            = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
-	selectTotalNumberOfHolders     = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
-	selectTotalAccountSupply       = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
+	selectEvmTransferCount                = "SELECT COUNT(*) FROM %s WHERE action_type='execution' AND (`from` = '%s' OR `to` = '%s')"
+	selectActionHistory                   = "SELECT DISTINCT `from`, block_height FROM %s ORDER BY block_height desc limit %d"
+	selectXrc20History                    = "SELECT * FROM %s WHERE address='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectCount                           = "SELECT COUNT(*) FROM %s"
+	selectXrcHolderCount                  = selectCount + " WHERE contract='%s'"
+	selectXrcTransactionCount             = selectCount + " WHERE address='%s'"
+	selectActionCountByDates              = selectCount + " WHERE timestamp >= %d AND timestamp <= %d"
+	selectActionCountByAddress            = selectCount + " WHERE `from` = '%s' OR `to` = '%s'"
+	selectBucketActionCountByVoter        = "SELECT COUNT(*) FROM %s WHERE bucket_id in (SELECT t1.index FROM %s t1 RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS t2 ON t1.index = t2.index and t1.id = t2.mid WHERE t1.owner = '%s')"
+	selectActionCountByBucketIndex        = selectCount + " WHERE bucket_id = %d"
+	selectActCntByAddrAndType             = selectCount + " WHERE (`from` = '%s' OR `to` = '%s') AND `action_type` = '%s'"
+	selectActionCountByType               = selectCount + " WHERE action_type = '%s'"
+	selectXrc20Holders                    = "SELECT holder FROM %s WHERE contract='%s' ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByTopics            = "SELECT * FROM %s WHERE topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20HistoryByContractAndTopics = "SELECT * FROM %s WHERE address = ? and topics like ? ORDER BY `timestamp` desc limit %d,%d"
+	selectXrc20CountByContractAndTopics   = selectCount + " WHERE  address = ? and topics like ?"
+	selectXrcHistoryCount                 = selectCount + " WHERE topics like %s"
+	selectXrc20AddressesByPage            = "SELECT address, MAX(`timestamp`) AS t FROM %s GROUP BY address ORDER BY t desc limit %d,%d"
+	selectXrc20HistoryByPage              = "SELECT * FROM %s ORDER BY `timestamp` desc limit %d,%d"
+	selectAccountIncome                   = "SELECT address,SUM(income) AS balance FROM %s WHERE epoch_number<=%d and address<>'' and address<>'%s' GROUP BY address ORDER BY balance DESC LIMIT %d,%d"
+	selectTotalNumberOfHolders            = "SELECT COUNT(DISTINCT address) FROM %s WHERE address<>''"
+	selectTotalAccountSupply              = "SELECT SUM(income) from %s WHERE epoch_number<>0 and address=''"
 )
 
 type activeAccount struct {
@@ -652,6 +654,81 @@ func (p *Protocol) getXrc(address, table string, numPerPage, page uint64) (cons 
 // GetXrc20ByAddress gets xrc20 transfer info by sender or recipient address
 func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	return p.getXrcByAddress(addr, actions.Xrc20HistoryTableName, numPerPage, page)
+}
+
+func (p *Protocol) GetXrc20HistoryByContractCount(contract string, addr string) (count int, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return 0, errors.New("actions protocol is unregistered")
+	}
+	a, err := address.FromString(addr)
+	if err != nil {
+		return 0, errors.New("address is invalid")
+	}
+
+	db := p.indexer.Store.GetDB()
+	getQuery := fmt.Sprintf(selectXrc20CountByContractAndTopics, actions.Xrc20HistoryTableName)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:] + "%"
+
+	if err = stmt.QueryRow(contract, like).Scan(&count); err != nil {
+		err = errors.Wrap(err, "failed to execute get query")
+		return
+	}
+	return
+}
+
+func (p *Protocol) GetXrc20ByContractAndAddress(contract string, addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
+	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
+		return nil, errors.New("actions protocol is unregistered")
+	}
+	a, err := address.FromString(addr)
+	if err != nil {
+		return nil, errors.New("address is invalid")
+	}
+
+	db := p.indexer.Store.GetDB()
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * numPerPage
+	getQuery := fmt.Sprintf(selectXrc20HistoryByContractAndTopics, actions.Xrc20HistoryTableName, offset, numPerPage)
+	stmt, err := db.Prepare(getQuery)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare get query")
+	}
+	defer stmt.Close()
+	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:] + "%"
+	rows, err := stmt.Query(contract, like)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute get query")
+	}
+
+	var ret actions.Xrc20History
+	parsedRows, err := s.ParseSQLRows(rows, &ret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse results")
+	}
+	if len(parsedRows) == 0 {
+		err = indexprotocol.ErrNotExist
+		return nil, err
+	}
+	for _, parsedRow := range parsedRows {
+		con := &Xrc20Info{}
+		r := parsedRow.(*actions.Xrc20History)
+		con.From, con.To, con.Quantity, err = actions.ParseContractData(r.Topics, r.Data)
+		if err != nil {
+			return
+		}
+		con.Hash = r.ActionHash
+		con.Timestamp = r.Timestamp
+		con.Contract = r.Address
+		cons = append(cons, con)
+	}
+	return
 }
 
 // GetXrc721ByAddress gets xrc721 transfer info by sender or recipient address

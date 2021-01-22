@@ -347,6 +347,7 @@ type ComplexityRoot struct {
 	Xrc20 struct {
 		ByAddress            func(childComplexity int, address string, numPerPage int, page int) int
 		ByContractAddress    func(childComplexity int, address string, numPerPage int, page int) int
+		ByContractAndAddress func(childComplexity int, contract string, address string, numPerPage int, page int) int
 		ByPage               func(childComplexity int, pagination Pagination) int
 		TokenHolderAddresses func(childComplexity int, tokenAddress string) int
 		Xrc20Addresses       func(childComplexity int, pagination Pagination) int
@@ -1828,6 +1829,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Xrc20.ByContractAddress(childComplexity, args["address"].(string), args["numPerPage"].(int), args["page"].(int)), true
 
+	case "Xrc20.ByContractAndAddress":
+		if e.complexity.Xrc20.ByContractAndAddress == nil {
+			break
+		}
+
+		args, err := ec.field_Xrc20_byContractAndAddress_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Xrc20.ByContractAndAddress(childComplexity, args["contract"].(string), args["address"].(string), args["numPerPage"].(int), args["page"].(int)), true
+
 	case "Xrc20.ByPage":
 		if e.complexity.Xrc20.ByPage == nil {
 			break
@@ -2149,6 +2162,7 @@ type Xrc20 {
     byPage(pagination: Pagination!): XrcList
     xrc20Addresses(pagination: Pagination!): XrcAddressList
     tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
+    byContractAndAddress(contract:String!,address:String!,numPerPage:Int!,page:Int!): XrcList
 }
 
 type Xrc721 {
@@ -3117,6 +3131,44 @@ func (ec *executionContext) field_Xrc20_byContractAddress_args(ctx context.Conte
 		}
 	}
 	args["page"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Xrc20_byContractAndAddress_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["contract"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["contract"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["address"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg1
+	var arg2 int
+	if tmp, ok := rawArgs["numPerPage"]; ok {
+		arg2, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["numPerPage"] = arg2
+	var arg3 int
+	if tmp, ok := rawArgs["page"]; ok {
+		arg3, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["page"] = arg3
 	return args, nil
 }
 
@@ -8409,6 +8461,37 @@ func (ec *executionContext) _Xrc20_tokenHolderAddresses(ctx context.Context, fie
 	return ec.marshalOXrcHolderAddressList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcHolderAddressList(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Xrc20_byContractAndAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc20) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Xrc20",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Xrc20_byContractAndAddress_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByContractAndAddress, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*XrcList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOXrcList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐXrcList(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Xrc721_byContractAddress(ctx context.Context, field graphql.CollectedField, obj *Xrc721) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -11749,6 +11832,8 @@ func (ec *executionContext) _Xrc20(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Xrc20_xrc20Addresses(ctx, field, obj)
 		case "tokenHolderAddresses":
 			out.Values[i] = ec._Xrc20_tokenHolderAddresses(ctx, field, obj)
+		case "byContractAndAddress":
+			out.Values[i] = ec._Xrc20_byContractAndAddress(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
