@@ -219,7 +219,7 @@ var (
 		"        WHERE `block_height` < ? " +
 		"        GROUP BY `exchange`,`provider`" +
 		"    ) h1 ON pb.exchange = h1.exchange AND pb.provider = h1.provider AND pb.block_height = h1.max_height" +
-		") AS `curr` RIGHT JOIN ((" +
+		") AS `curr` RIGHT JOIN (SELECT `exchange`, `provider`, SUM(`amount`) `amount` FROM ((" +
 		"    SELECT `exchange`, `sender` `provider`, SUM(-`amount`) `amount` " +
 		"    FROM `" + ExchangeTokenActionTableName + "` " +
 		"    WHERE `block_height` = ? AND `sender` != '" + address.ZeroAddress + "' " +
@@ -229,7 +229,7 @@ var (
 		"    FROM `" + ExchangeTokenActionTableName + "` " +
 		"    WHERE `block_height` = ? AND `recipient` != '" + address.ZeroAddress + "' " +
 		"    GROUP BY `exchange`,`recipient`" +
-		")) AS `delta` ON delta.exchange = curr.exchange AND delta.provider = curr.provider"
+		")) delta_union GROUP BY `exchange`, `provider`) AS `delta` ON delta.exchange = curr.exchange AND delta.provider = curr.provider"
 
 	updateSuppliesQuery = "INSERT INTO `" + SupplyTableName + "` (`block_height`,`exchange`,`supply`) " +
 		"SELECT ?, delta.exchange,  coalesce(curr.supply, 0)+coalesce(delta.amount, 0) " +
