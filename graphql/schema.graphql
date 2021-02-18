@@ -34,6 +34,7 @@ type Xrc20 {
     byPage(pagination: Pagination!): XrcList
     xrc20Addresses(pagination: Pagination!): XrcAddressList
     tokenHolderAddresses(tokenAddress:String!): XrcHolderAddressList
+    byContractAndAddress(contract:String!,address:String!,numPerPage:Int!,page:Int!): XrcList
 }
 
 type Xrc721 {

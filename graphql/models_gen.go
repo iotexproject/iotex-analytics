@@ -306,6 +306,7 @@ type Xrc20 struct {
 	ByPage               *XrcList              `json:"byPage"`
 	Xrc20Addresses       *XrcAddressList       `json:"xrc20Addresses"`
 	TokenHolderAddresses *XrcHolderAddressList `json:"tokenHolderAddresses"`
+	ByContractAndAddress *XrcList              `json:"byContractAndAddress"`
 }
 
 type Xrc721 struct {
