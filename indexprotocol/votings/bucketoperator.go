@@ -21,16 +21,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/go-pkgs/hash"
-	"github.com/iotexproject/iotex-election/committee"
-	"github.com/iotexproject/iotex-proto/golang/iotextypes"
-
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-election/committee"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
 )
 
 const (
-	bucketCreationSQLITE = "CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT UNIQUE, index DECIMAL(65, 0), candidate BLOB, owner BLOB, staked_amount BLOB, staked_duration TEXT, create_time TIMESTAMP NULL DEFAULT NULL, stake_start_time TIMESTAMP NULL DEFAULT NULL, unstake_start_time TIMESTAMP NULL DEFAULT NULL, auto_stake INTEGER)"
-	bucketCreationMySQL  = "CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY AUTO_INCREMENT, hash VARCHAR(64) UNIQUE, `index` DECIMAL(65, 0), candidate BLOB, owner BLOB, staked_amount BLOB, staked_duration TEXT, create_time TIMESTAMP NULL DEFAULT NULL, stake_start_time TIMESTAMP NULL DEFAULT NULL, unstake_start_time TIMESTAMP NULL DEFAULT NULL, auto_stake INTEGER)"
+	bucketCreationSQLITE = "CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT UNIQUE, index DECIMAL(65, 0), candidate TEXT, owner TEXT, staked_amount BLOB, staked_duration TEXT, create_time TIMESTAMP NULL DEFAULT NULL, stake_start_time TIMESTAMP NULL DEFAULT NULL, unstake_start_time TIMESTAMP NULL DEFAULT NULL, auto_stake INTEGER, KEY `owner_index` (`owner`), KEY `candidate_index` (`candidate`))"
+	bucketCreationMySQL  = "CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY AUTO_INCREMENT, hash VARCHAR(64) UNIQUE, `index` DECIMAL(65, 0), candidate VARCHAR(41), owner VARCHAR(41), staked_amount BLOB, staked_duration TEXT, create_time TIMESTAMP NULL DEFAULT NULL, stake_start_time TIMESTAMP NULL DEFAULT NULL, unstake_start_time TIMESTAMP NULL DEFAULT NULL, auto_stake INTEGER, KEY `owner_index` (`owner`), KEY `candidate_index` (`candidate`))"
 
 	// InsertVoteBucketsQuery is query to insert vote buckets for sqlite
 	InsertVoteBucketsQuery = "INSERT OR IGNORE INTO %s (hash, index, candidate, owner, staked_amount, staked_duration, create_time, stake_start_time, unstake_start_time, auto_stake) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -41,15 +40,20 @@ const (
 )
 
 type (
-	bucket struct {
+	// StakingBucket is the data structure of staking bucket
+	StakingBucket struct {
 		ID                                           int64
 		Index                                        uint64
-		Candidate, Owner, StakedAmount               []byte
+		Candidate, Owner                             string
+		StakedAmount                                 []byte
 		StakedDuration                               string
 		CreateTime, StakeStartTime, UnstakeStartTime time.Time
 		AutoStake                                    int64
 	}
 )
+
+// BucketRecordQuery is query to return buckets by ids
+const BucketRecordQuery = "SELECT id, start_time, duration, amount, decay, voter, candidate FROM %s WHERE id IN (%s)"
 
 // NewBucketTableOperator creates an operator for vote bucket table
 func NewBucketTableOperator(tableName string, driverName committee.DRIVERTYPE) (committee.Operator, error) {
@@ -92,7 +96,23 @@ func QueryVoteBuckets(tableName string, frequencies map[int64]int, sdb *sql.DB, 
 		return nil, err
 	}
 	defer rows.Close()
-	var b bucket
+	mp, err := ParseBuckets(rows)
+	if err != nil {
+		return nil, err
+	}
+	buckets := make([]*iotextypes.VoteBucket, 0)
+	for id, bucket := range mp {
+		for i := frequencies[id]; i > 0; i-- {
+			buckets = append(buckets, bucket)
+		}
+	}
+
+	return &iotextypes.VoteBucketList{Buckets: buckets}, nil
+}
+
+// ParseBuckets parse buckets to vote bucket list
+func ParseBuckets(rows *sql.Rows) (map[int64]*iotextypes.VoteBucket, error) {
+	var b StakingBucket
 	parsedRows, err := s.ParseSQLRows(rows, &b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse results")
@@ -101,10 +121,9 @@ func QueryVoteBuckets(tableName string, frequencies map[int64]int, sdb *sql.DB, 
 	if len(parsedRows) == 0 {
 		return nil, indexprotocol.ErrNotExist
 	}
-
-	buckets := make([]*iotextypes.VoteBucket, 0)
+	buckets := map[int64]*iotextypes.VoteBucket{}
 	for _, parsedRow := range parsedRows {
-		b, ok := parsedRow.(*bucket)
+		b, ok := parsedRow.(*StakingBucket)
 		if !ok {
 			return nil, errors.New("failed to convert")
 		}
@@ -135,12 +154,10 @@ func QueryVoteBuckets(tableName string, frequencies map[int64]int, sdb *sql.DB, 
 			UnstakeStartTime: unstakeTime,
 			AutoStake:        b.AutoStake == 1,
 		}
-		for i := frequencies[b.ID]; i > 0; i-- {
-			buckets = append(buckets, bucket)
-		}
+		buckets[b.ID] = bucket
 	}
 
-	return &iotextypes.VoteBucketList{Buckets: buckets}, nil
+	return buckets, nil
 }
 
 // InsertVoteBuckets inserts vote bucket records into table by tx
@@ -188,8 +205,8 @@ func InsertVoteBuckets(tableName string, driverName committee.DRIVERTYPE, record
 		if _, err = stmt.Exec(
 			hex.EncodeToString(h[:]),
 			bucket.Index,
-			[]byte(bucket.CandidateAddress),
-			[]byte(bucket.Owner),
+			bucket.CandidateAddress,
+			bucket.Owner,
 			[]byte(bucket.StakedAmount),
 			duration.String(),
 			ct,

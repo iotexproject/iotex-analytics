@@ -292,8 +292,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		return err
 	}
 
-	err = p.updateXrc20History(ctx, tx, blk)
-	if err != nil {
+	if err := p.updateXrc20History(ctx, tx, blk); err != nil {
+		return err
+	}
+
+	if err := p.updateBucketActions(ctx, tx, blk); err != nil {
 		return err
 	}
 

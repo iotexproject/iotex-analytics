@@ -132,7 +132,12 @@ func GetAllStakingBuckets(chainClient iotexapi.APIServiceClient, height uint64) 
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get bucket")
 		}
-		voteBucketListAll.Buckets = append(voteBucketListAll.Buckets, voteBucketList.Buckets...)
+		for _, bucket := range voteBucketList.Buckets {
+			if bucket.UnstakeStartTime.AsTime().After(bucket.StakeStartTime.AsTime()) {
+				continue
+			}
+			voteBucketListAll.Buckets = append(voteBucketListAll.Buckets, bucket)
+		}
 		if len(voteBucketList.Buckets) < readBucketsLimit {
 			break
 		}

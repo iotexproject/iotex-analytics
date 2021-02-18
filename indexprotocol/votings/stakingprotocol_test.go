@@ -177,7 +177,7 @@ func TestRemainingTime(t *testing.T) {
 		StakeStartTime: timestamp,
 		StakedDuration: 100,
 	}
-	remaining := remainingTime(bucket)
+	remaining := CalcRemainingTime(bucket)
 	require.Equal(time.Duration(0), remaining)
 
 	// case II: now is between start time and starttime+stakedduration
@@ -188,7 +188,7 @@ func TestRemainingTime(t *testing.T) {
 		StakedDuration: 100,
 		AutoStake:      false,
 	}
-	remaining = remainingTime(bucket)
+	remaining = CalcRemainingTime(bucket)
 	require.True(remaining > 0 && remaining < time.Duration(100*24*time.Hour))
 
 	// case III: AutoStake is true
@@ -199,7 +199,7 @@ func TestRemainingTime(t *testing.T) {
 		StakedDuration: 100,
 		AutoStake:      true,
 	}
-	remaining = remainingTime(bucket)
+	remaining = CalcRemainingTime(bucket)
 	require.Equal(time.Duration(100*24*time.Hour), remaining)
 
 	// case IV: now is after starttime+stakedduration
@@ -209,7 +209,7 @@ func TestRemainingTime(t *testing.T) {
 		StakeStartTime: timestamp,
 		StakedDuration: 1,
 	}
-	remaining = remainingTime(bucket)
+	remaining = CalcRemainingTime(bucket)
 	require.Equal(time.Duration(0), remaining)
 }
 

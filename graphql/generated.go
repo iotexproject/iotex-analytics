@@ -51,9 +51,11 @@ type ComplexityRoot struct {
 	Action struct {
 		ByAddress             func(childComplexity int, address string) int
 		ByAddressAndType      func(childComplexity int, address string, typeArg string) int
+		ByBucketIndex         func(childComplexity int, bucketIndex int) int
 		ByDates               func(childComplexity int, startDate int, endDate int) int
 		ByHash                func(childComplexity int, actHash string) int
 		ByType                func(childComplexity int, typeArg string) int
+		ByVoter               func(childComplexity int, voter string) int
 		EvmTransfersByAddress func(childComplexity int, address string) int
 	}
 
@@ -262,6 +264,8 @@ type ComplexityRoot struct {
 	Query struct {
 		Account            func(childComplexity int) int
 		Action             func(childComplexity int) int
+		BucketsByCandidate func(childComplexity int, name string, pagination *Pagination) int
+		BucketsByVoter     func(childComplexity int, address string, pagination *Pagination) int
 		Chain              func(childComplexity int) int
 		Delegate           func(childComplexity int, startEpoch int, epochCount int, delegateName string) int
 		Hermes             func(childComplexity int, startEpoch int, epochCount int, rewardAddress string, waiverThreshold int) int
@@ -396,6 +400,8 @@ type QueryResolver interface {
 	Action(ctx context.Context) (*Action, error)
 	TopHolders(ctx context.Context, endEpochNumber int, pagination Pagination) ([]*TopHolder, error)
 	Hermes2(ctx context.Context, startEpoch int, epochCount int) (*Hermes2, error)
+	BucketsByVoter(ctx context.Context, address string, pagination *Pagination) ([]*BucketInfo, error)
+	BucketsByCandidate(ctx context.Context, name string, pagination *Pagination) ([]*BucketInfo, error)
 }
 
 type executableSchema struct {
@@ -487,6 +493,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Action.ByAddressAndType(childComplexity, args["address"].(string), args["type"].(string)), true
 
+	case "Action.ByBucketIndex":
+		if e.complexity.Action.ByBucketIndex == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byBucketIndex_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByBucketIndex(childComplexity, args["bucketIndex"].(int)), true
+
 	case "Action.ByDates":
 		if e.complexity.Action.ByDates == nil {
 			break
@@ -522,6 +540,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Action.ByType(childComplexity, args["type"].(string)), true
+
+	case "Action.ByVoter":
+		if e.complexity.Action.ByVoter == nil {
+			break
+		}
+
+		args, err := ec.field_Action_byVoter_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Action.ByVoter(childComplexity, args["voter"].(string)), true
 
 	case "Action.EvmTransfersByAddress":
 		if e.complexity.Action.EvmTransfersByAddress == nil {
@@ -1414,6 +1444,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Action(childComplexity), true
 
+	case "Query.BucketsByCandidate":
+		if e.complexity.Query.BucketsByCandidate == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucketsByCandidate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.BucketsByCandidate(childComplexity, args["name"].(string), args["pagination"].(*Pagination)), true
+
+	case "Query.BucketsByVoter":
+		if e.complexity.Query.BucketsByVoter == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucketsByVoter_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.BucketsByVoter(childComplexity, args["address"].(string), args["pagination"].(*Pagination)), true
+
 	case "Query.Chain":
 		if e.complexity.Query.Chain == nil {
 			break
@@ -2071,6 +2125,8 @@ var parsedSchema = gqlparser.MustLoadSchema(
     action: Action
     topHolders(endEpochNumber: Int!, pagination: Pagination!):[TopHolder]!
     hermes2(startEpoch: Int!, epochCount: Int!): Hermes2
+    bucketsByVoter(address: String!, pagination: Pagination): [BucketInfo]!
+    bucketsByCandidate(name: String!, pagination: Pagination): [BucketInfo]!
 }
 
 type TopHolder{
@@ -2116,8 +2172,10 @@ type Action {
     byHash(actHash: String!): ActionDetail
     byAddress(address: String!): ActionList
     byAddressAndType(address: String!, type: String!): ActionList
+    byBucketIndex(bucketIndex: Int!): ActionList
     evmTransfersByAddress(address: String!): EvmTransferList
     byType(type: String!): ActionList
+    byVoter(voter: String!): ActionList
 }
 
 type Delegate {
@@ -2512,6 +2570,20 @@ func (ec *executionContext) field_Action_byAddress_args(ctx context.Context, raw
 	return args, nil
 }
 
+func (ec *executionContext) field_Action_byBucketIndex_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["bucketIndex"]; ok {
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["bucketIndex"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Action_byDates_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -2559,6 +2631,20 @@ func (ec *executionContext) field_Action_byType_args(ctx context.Context, rawArg
 		}
 	}
 	args["type"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Action_byVoter_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["voter"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["voter"] = arg0
 	return args, nil
 }
 
@@ -2749,6 +2835,50 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketsByCandidate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["name"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg0
+	var arg1 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg1, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketsByVoter_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
+	var arg1 *Pagination
+	if tmp, ok := rawArgs["pagination"]; ok {
+		arg1, err = ec.unmarshalOPagination2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐPagination(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pagination"] = arg1
 	return args, nil
 }
 
@@ -3493,6 +3623,37 @@ func (ec *executionContext) _Action_byAddressAndType(ctx context.Context, field 
 	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Action_byBucketIndex(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byBucketIndex_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByBucketIndex, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Action_evmTransfersByAddress(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -3545,6 +3706,37 @@ func (ec *executionContext) _Action_byType(ctx context.Context, field graphql.Co
 	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.ByType, nil
+	})
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ActionList)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOActionList2ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐActionList(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Action_byVoter(ctx context.Context, field graphql.CollectedField, obj *Action) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Action",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Action_byVoter_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, obj, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ByVoter, nil
 	})
 	if resTmp == nil {
 		return graphql.Null
@@ -7020,6 +7212,74 @@ func (ec *executionContext) _Query_hermes2(ctx context.Context, field graphql.Co
 	return ec.marshalOHermes22ᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐHermes2(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_bucketsByVoter(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_bucketsByVoter_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().BucketsByVoter(rctx, args["address"].(string), args["pagination"].(*Pagination))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*BucketInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBucketInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_bucketsByCandidate(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_bucketsByCandidate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp := ec.FieldMiddleware(ctx, nil, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().BucketsByCandidate(rctx, args["name"].(string), args["pagination"].(*Pagination))
+	})
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*BucketInfo)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBucketInfo2ᚕᚖgithubᚗcomᚋiotexprojectᚋiotexᚑanalyticsᚋgraphqlᚐBucketInfo(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) graphql.Marshaler {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() { ec.Tracer.EndFieldExecution(ctx) }()
@@ -9681,10 +9941,14 @@ func (ec *executionContext) _Action(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Action_byAddress(ctx, field, obj)
 		case "byAddressAndType":
 			out.Values[i] = ec._Action_byAddressAndType(ctx, field, obj)
+		case "byBucketIndex":
+			out.Values[i] = ec._Action_byBucketIndex(ctx, field, obj)
 		case "evmTransfersByAddress":
 			out.Values[i] = ec._Action_evmTransfersByAddress(ctx, field, obj)
 		case "byType":
 			out.Values[i] = ec._Action_byType(ctx, field, obj)
+		case "byVoter":
+			out.Values[i] = ec._Action_byVoter(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11013,6 +11277,34 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_hermes2(ctx, field)
+				return res
+			})
+		case "bucketsByVoter":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucketsByVoter(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
+				return res
+			})
+		case "bucketsByCandidate":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucketsByCandidate(ctx, field)
+				if res == graphql.Null {
+					invalid = true
+				}
 				return res
 			})
 		case "__type":

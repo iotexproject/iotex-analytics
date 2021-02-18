@@ -143,7 +143,7 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if _, ok := selfStakeIndex[vote.Index]; ok {
 			selfStake = true
 		}
-		weightedAmount, err := calculateVoteWeight(p.voteCfg, vote, selfStake)
+		weightedAmount, err := CalculateVoteWeight(p.voteCfg, vote, selfStake)
 		if err != nil {
 			return errors.Wrap(err, "failed to calculate vote weight")
 		}
@@ -257,12 +257,15 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 	var votinginfoList []*VotingInfo
 	selfStakeIndex := selfStakeIndexMap(candidateList)
 	for _, vote := range bucketList.Buckets {
+		if vote.UnstakeStartTime.AsTime().After(vote.StakeStartTime.AsTime()) {
+			continue
+		}
 		if vote.CandidateAddress == candidateAddress {
 			selfStake := false
 			if _, ok := selfStakeIndex[vote.Index]; ok {
 				selfStake = true
 			}
-			weightedVotes, err := calculateVoteWeight(p.voteCfg, vote, selfStake)
+			weightedVotes, err := CalculateVoteWeight(p.voteCfg, vote, selfStake)
 			if err != nil {
 				return nil, errors.Wrap(err, "calculate vote weight error")
 			}
@@ -281,7 +284,7 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 				IsNative:          true,
 				Votes:             vote.StakedAmount,
 				WeightedVotes:     weightedVotes.Text(10),
-				RemainingDuration: remainingTime(vote).String(),
+				RemainingDuration: CalcRemainingTime(vote).String(),
 				StartTime:         time.Unix(vote.StakeStartTime.Seconds, int64(vote.StakeStartTime.Nanos)).String(),
 				Decay:             !vote.AutoStake,
 			}
@@ -351,7 +354,9 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 	return
 }
 
-func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) (*big.Int, error) {
+// CalculateVoteWeight calculates the weighted votes
+func CalculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.VoteBucket, selfStake bool) (*big.Int, error) {
+	// TODO: calculation of remaining time is wrong
 	remainingTime := float64(v.StakedDuration * 86400)
 	weight := float64(1)
 	var m float64
@@ -375,7 +380,8 @@ func calculateVoteWeight(cfg indexprotocol.VoteWeightCalConsts, v *iotextypes.Vo
 	return weightedAmount, nil
 }
 
-func remainingTime(bucket *iotextypes.VoteBucket) time.Duration {
+// CalcRemainingTime calculates the remaining time of a bucket
+func CalcRemainingTime(bucket *iotextypes.VoteBucket) time.Duration {
 	now := time.Now()
 	startTime := time.Unix(bucket.StakeStartTime.Seconds, int64(bucket.StakeStartTime.Nanos))
 	if now.Before(startTime) {

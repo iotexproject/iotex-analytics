@@ -55,25 +55,41 @@ const (
 	selectBlockHistoryInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
 	createIndex    = "CREATE INDEX %s ON %s (epoch_number, producer_name, expected_producer_name)"
-	createProducer = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"producer_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, producer_name))"
-	createExpectedProducer = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"expected_producer_name VARCHAR(24) NOT NULL, expected_production DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, expected_producer_name))"
-	createProductivity = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"delegate_name VARCHAR(24) NOT NULL, production DECIMAL(65, 0) NOT NULL, expected_production DECIMAL(65, 0) " +
-		"NOT NULL, UNIQUE KEY %s (epoch_number, delegate_name))"
+	createProducer = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"producer_name VARCHAR(24) NOT NULL, " +
+		"production DECIMAL(65, 0) NOT NULL, " +
+		"UNIQUE KEY %s (epoch_number, producer_name), " +
+		"KEY epoch_number_index (epoch_number), " +
+		"KEY producer_name_index (producer_name))"
+	createExpectedProducer = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"expected_producer_name VARCHAR(24) NOT NULL, " +
+		"expected_production DECIMAL(65, 0) NOT NULL, " +
+		"UNIQUE KEY %s (epoch_number, expected_producer_name), " +
+		"KEY epoch_number_index (epoch_number), " +
+		"KEY expected_producer_name_index (expected_producer_name))"
+	createProductivity = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"delegate_name VARCHAR(24) NOT NULL, " +
+		"production DECIMAL(65, 0) NOT NULL, " +
+		"expected_production DECIMAL(65, 0) NOT NULL, " +
+		"KEY epoch_number_index (epoch_number), " +
+		"KEY delegate_name_index (delegate_name), " +
+		"UNIQUE KEY %s (epoch_number, delegate_name))"
 	selectBlockHistory = "SELECT * FROM %s WHERE block_height=?"
 	selectProductivity = "SELECT * FROM %s WHERE epoch_number=? AND delegate_name=?"
 	insertBlockHistory = "INSERT INTO %s (epoch_number, block_height, block_hash, transfer, execution, " +
 		"depositToRewardingFund, claimFromRewardingFund, grantReward, putPollResult,stakeCreate,stakeUnstake,stakeWithdraw,stakeAddDeposit,stakeRestake,stakeChangeCandidate,stakeTransferOwnership,candidateRegister,candidateUpdate,gas_consumed, producer_address, " +
 		"producer_name, expected_producer_address, expected_producer_name, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 	insertExpectedProducer = "INSERT IGNORE INTO %s SELECT epoch_number, expected_producer_name, " +
-		"COUNT(expected_producer_address) AS expected_production FROM %s GROUP BY epoch_number, expected_producer_name"
+		"COUNT(expected_producer_address) AS expected_production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, expected_producer_name"
 	insertProducer = "INSERT IGNORE INTO %s SELECT epoch_number, producer_name, " +
-		"COUNT(producer_address) AS production FROM %s GROUP BY epoch_number, producer_name"
+		"COUNT(producer_address) AS production FROM %s WHERE epoch_number = ? GROUP BY epoch_number, producer_name"
 	insertProductivity = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.expected_producer_name AS delegate_name, " +
 		"CAST(IFNULL(production, 0) AS DECIMAL(65, 0)) AS production, CAST(expected_production AS DECIMAL(65, 0)) AS expected_production " +
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name"
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.expected_producer_name=t2.producer_name " +
+		"WHERE t1.epoch_number = ?"
 	backoffInterval = 1
 	numOfRetry      = 1000
 )
@@ -193,7 +209,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		}
 	}
 	if height == epochHeight {
-		if err := p.rebuildProductivityTable(tx); err != nil {
+		if err := p.rebuildProductivityTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild productivity table")
 		}
 	}
@@ -467,21 +483,27 @@ func (p *Protocol) updateActiveBlockProducers(chainClient iotexapi.APIServiceCli
 	return nil
 }
 
-func (p *Protocol) rebuildProductivityTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf(insertExpectedProducer,
-		ExpectedProducerTableName, BlockHistoryTableName)); err != nil {
+func (p *Protocol) rebuildProductivityTable(tx *sql.Tx, epochNumber uint64) error {
+	if epochNumber == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(
+		fmt.Sprintf(insertExpectedProducer, ExpectedProducerTableName, BlockHistoryTableName),
+		epochNumber,
+	); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf(insertProducer,
-		ProducerTableName, BlockHistoryTableName)); err != nil {
+	if _, err := tx.Exec(
+		fmt.Sprintf(insertProducer, ProducerTableName, BlockHistoryTableName),
+		epochNumber,
+	); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf(insertProductivity, ProductivityTableName,
-		ExpectedProducerTableName, ProducerTableName)); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := tx.Exec(
+		fmt.Sprintf(insertProductivity, ProductivityTableName, ExpectedProducerTableName, ProducerTableName),
+		epochNumber,
+	)
+	return err
 }

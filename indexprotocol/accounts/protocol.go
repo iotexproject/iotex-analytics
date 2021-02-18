@@ -34,13 +34,31 @@ const (
 	// EpochAddressIndexName is the index name of epoch number and account address
 	EpochAddressIndexName = "epoch_address_index"
 
-	createBalanceHistory = "CREATE TABLE IF NOT EXISTS %s " +
-		"(epoch_number DECIMAL(65, 0) NOT NULL, block_height DECIMAL(65, 0) NOT NULL, action_hash VARCHAR(64) NOT NULL, " +
-		"action_type TEXT NOT NULL, `from` VARCHAR(41) NOT NULL, `to` VARCHAR(41) NOT NULL, amount DECIMAL(65, 0) NOT NULL)"
-	createAccountInflow = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"address VARCHAR(41) NOT NULL, inflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))"
-	createAccountOutflow = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
-		"address VARCHAR(41) NOT NULL, outflow DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))"
+	createBalanceHistory = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"block_height DECIMAL(65, 0) NOT NULL, " +
+		"action_hash VARCHAR(64) NOT NULL, " +
+		"action_type TEXT NOT NULL, " +
+		"`from` VARCHAR(41) NOT NULL, " +
+		"`to` VARCHAR(41) NOT NULL, " +
+		"KEY from_index (`from`), " +
+		"KEY to_index (`to`), " +
+		"KEY epoch_number_index (`epoch_number`), " +
+		"amount DECIMAL(65, 0) NOT NULL)"
+	createAccountInflow = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"address VARCHAR(41) NOT NULL, " +
+		"inflow DECIMAL(65, 0) NOT NULL, " +
+		"KEY epoch_number_index (epoch_number), " +
+		"KEY address_index (address), " +
+		"UNIQUE KEY %s (epoch_number, address))"
+	createAccountOutflow = "CREATE TABLE IF NOT EXISTS %s (" +
+		"epoch_number DECIMAL(65, 0) NOT NULL, " +
+		"address VARCHAR(41) NOT NULL, " +
+		"outflow DECIMAL(65, 0) NOT NULL, " +
+		"KEY epoch_number_index (epoch_number), " +
+		"KEY address_index (address), " +
+		"UNIQUE KEY %s (epoch_number, address))"
 	createAccountIncome = "CREATE TABLE IF NOT EXISTS %s (epoch_number DECIMAL(65, 0) NOT NULL, " +
 		"address VARCHAR(41) NOT NULL, income DECIMAL(65, 0) NOT NULL, UNIQUE KEY %s (epoch_number, address))"
 	rowExists            = "SELECT * FROM %s WHERE action_hash = ?"
@@ -48,14 +66,16 @@ const (
 	selectBalanceHistory = "SELECT * FROM %s WHERE `from`=? OR `to`=?"
 	selectAccountIncome  = "SELECT * FROM %s WHERE epoch_number = ? AND address = ?"
 	insertAccountInflow  = "INSERT IGNORE INTO %s SELECT epoch_number, `to` AS address, " +
-		"SUM(amount) AS inflow FROM %s GROUP BY epoch_number, `to`"
+		"SUM(amount) AS inflow FROM %s WHERE epoch_number = ? GROUP BY epoch_number, `to`"
 	insertAccountOutflow = "INSERT IGNORE INTO %s SELECT epoch_number, `from` AS address, " +
-		"SUM(amount) AS outflow FROM %s GROUP BY epoch_number, `from`"
+		"SUM(amount) AS outflow FROM %s WHERE epoch_number = ? GROUP BY epoch_number, `from`"
 	insertAccountIncome = "INSERT IGNORE INTO %s SELECT t1.epoch_number, t1.address, " +
 		"CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income " +
-		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address UNION " +
+		"FROM %s AS t1 LEFT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address " +
+		"WHERE t1.epoch_number = ? UNION " +
 		"SELECT t2.epoch_number, t2.address, CAST(IFNULL(inflow, 0) AS DECIMAL(65, 0)) - CAST(IFNULL(outflow, 0) AS DECIMAL(65, 0)) AS income " +
-		"FROM %s AS t1 RIGHT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address"
+		"FROM %s AS t1 RIGHT JOIN %s AS t2 ON t1.epoch_number = t2.epoch_number AND t1.address=t2.address " +
+		"WHERE t2.epoch_number = ?"
 
 	selectIndexInfo = "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = " +
 		"DATABASE() AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'"
@@ -168,7 +188,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	// Special handling for epoch start height
 	epochHeight := p.epochCtx.GetEpochHeight(epochNumber)
 	if height == epochHeight {
-		if err := p.rebuildAccountIncomeTable(tx); err != nil {
+		if err := p.rebuildAccountIncomeTable(tx, epochNumber-1); err != nil {
 			return errors.Wrap(err, "failed to rebuild account income table")
 		}
 	}
@@ -280,21 +300,37 @@ func (p *Protocol) updateBalanceHistory(
 	return nil
 }
 
-func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx) error {
-	if _, err := tx.Exec(fmt.Sprintf(insertAccountInflow, AccountInflowTableName, BalanceHistoryTableName)); err != nil {
+func (p *Protocol) rebuildAccountIncomeTable(tx *sql.Tx, epochNumber uint64) error {
+	if epochNumber == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(
+		fmt.Sprintf(insertAccountInflow, AccountInflowTableName, BalanceHistoryTableName),
+		epochNumber,
+	); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf(insertAccountOutflow, AccountOutflowTableName, BalanceHistoryTableName)); err != nil {
+	if _, err := tx.Exec(
+		fmt.Sprintf(insertAccountOutflow, AccountOutflowTableName, BalanceHistoryTableName),
+		epochNumber,
+	); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(fmt.Sprintf(insertAccountIncome, AccountIncomeTableName,
-		AccountInflowTableName, AccountOutflowTableName, AccountInflowTableName, AccountOutflowTableName)); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := tx.Exec(
+		fmt.Sprintf(
+			insertAccountIncome,
+			AccountIncomeTableName,
+			AccountInflowTableName,
+			AccountOutflowTableName,
+			AccountInflowTableName,
+			AccountOutflowTableName,
+		),
+		epochNumber,
+		epochNumber,
+	)
+	return err
 }
 
 func getTransactionLog(ctx context.Context, height uint64, client iotexapi.APIServiceClient) (
