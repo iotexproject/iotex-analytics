@@ -257,6 +257,9 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 	var votinginfoList []*VotingInfo
 	selfStakeIndex := selfStakeIndexMap(candidateList)
 	for _, vote := range bucketList.Buckets {
+		if vote.UnstakeStartTime.AsTime().After(vote.StakeStartTime.AsTime()) {
+			continue
+		}
 		if vote.CandidateAddress == candidateAddress {
 			selfStake := false
 			if _, ok := selfStakeIndex[vote.Index]; ok {

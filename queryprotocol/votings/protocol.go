@@ -110,7 +110,18 @@ func (p *Protocol) BucketsByCandidate(candidate string, offset uint64, size uint
 		return nil, errors.Wrap(err, "failed to execute query")
 	}
 
-	return votings.ParseBuckets(rows)
+	buckets, err := votings.ParseBuckets(rows)
+	if err != nil {
+		return nil, err
+	}
+	retval := map[int64]*iotextypes.VoteBucket{}
+	for index, bucket := range buckets {
+		if bucket.UnstakeStartTime.AsTime().After(bucket.StakeStartTime.AsTime()) {
+			continue
+		}
+		retval[index] = bucket
+	}
+	return retval, nil
 }
 
 // GetBucketInformation gets voting infos
