@@ -9,6 +9,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"sync"
 
@@ -18,25 +19,53 @@ import (
 	"github.com/iotexproject/iotex-core/pkg/lifecycle"
 )
 
-// Store is the interface of KV store.
-type Store interface {
-	lifecycle.StartStopper
+var (
+	// ErrNoStoreContext no store in the context
+	ErrNoStoreContext = errors.New("no store in context")
+)
 
-	// Get DB instance
-	GetDB() *sql.DB
-
-	// Transact wrap the transaction
-	Transact(txFunc func(*sql.Tx) error) (err error)
+func WithStore(ctx context.Context, store Store) context.Context {
+	return context.WithValue(ctx, storeKey{}, store)
 }
 
-// storebase is a MySQL instance
-type storeBase struct {
-	mutex      sync.RWMutex
-	db         *sql.DB
-	connectStr string
-	dbName     string
-	driverName string
+func ExtractStore(ctx context.Context) (Store, bool) {
+	store, ok := ctx.Value(storeKey{}).(Store)
+	return store, ok
 }
+
+func WithTx(ctx context.Context, tx *sql.Tx) context.Context {
+	return context.WithValue(ctx, txKey{}, tx)
+}
+
+func ExtractTx(ctx context.Context) (*sql.Tx, bool) {
+	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
+	return tx, ok
+}
+
+type (
+	txKey    struct{}
+	storeKey struct{}
+
+	// Store is the interface of KV store.
+	Store interface {
+		lifecycle.StartStopper
+
+		// Get DB instance
+		GetDB() *sql.DB
+
+		// Transact wrap the transaction
+		Transact(txFunc func(*sql.Tx) error) (err error)
+	}
+
+	// storebase is a MySQL instance
+	storeBase struct {
+		mutex      sync.RWMutex
+		db         *sql.DB
+		connectStr string
+		dbName     string
+		driverName string
+	}
+)
 
 // logger is initialized with default settings
 var logger = zerolog.New(os.Stderr).Level(zerolog.InfoLevel).With().Timestamp().Logger()
