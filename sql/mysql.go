@@ -8,10 +8,18 @@ package sql
 
 import (
 	// this is required for mysql usage
+	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
 // NewMySQL instantiates a mysql
 func NewMySQL(connectStr string, dbName string) Store {
+	return newStoreBase("mysql", connectStr, dbName)
+}
+
+// CreateMySQLStore instantiates a mysql
+func CreateMySQLStore(username, password, host, port, dbName string) Store {
+	connectStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, host, port)
 	return newStoreBase("mysql", connectStr, dbName)
 }

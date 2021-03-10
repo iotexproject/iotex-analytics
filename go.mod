@@ -15,6 +15,7 @@ require (
 	github.com/iotexproject/iotex-core v1.1.4-0.20210309070336-f9809474d1f4
 	github.com/iotexproject/iotex-election v0.3.5-0.20201031050050-c3ab4f339a54
 	github.com/iotexproject/iotex-proto v0.4.7
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.3.0
 	github.com/rs/zerolog v1.18.0

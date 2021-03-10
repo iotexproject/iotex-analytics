@@ -7,7 +7,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
-	"github.com/iotexproject/iotex-analytics/cmd/demo"
+	"github.com/iotexproject/iotex-analytics/cmd/server"
 )
 
 var (
@@ -20,7 +20,7 @@ func main() {
 	app.Usage = "iotex-analytics is Analytics Platform for Iotex Smart Chain"
 	app.Version = version
 	app.Commands = []*cli.Command{
-		demo.Demo,
+		server.Commands,
 	}
 	if err := app.Run(os.Args); err != nil {
 		log.L().Fatal("Failed to start application", zap.Error(err))
