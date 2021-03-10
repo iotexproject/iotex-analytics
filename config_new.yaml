@@ -1,0 +1,10 @@
+server:
+  port: 8883
+database:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: root
+  dbname: iotex_analytics
+iotex:
+  chainEndPoint: api.testnet.iotex.one:80
