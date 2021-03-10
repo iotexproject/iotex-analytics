@@ -34,7 +34,7 @@ type (
 )
 
 // NewIndexService creates a new indexer service
-func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc blockdao.BlockDAO, indexers []AsyncIndexer) *IndexService {
+func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc blockdao.BlockDAO, indexers []indexer.AsyncIndexer) *IndexService {
 	return &IndexService{
 		dao:          bc,
 		indexers:     indexers,
