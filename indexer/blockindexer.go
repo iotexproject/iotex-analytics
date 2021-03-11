@@ -38,16 +38,19 @@ type blockIndexer struct {
 }
 
 // NewBlockIndexer returns the
-func NewBlockIndexer(store s.Store, iht *IndexHeightTable) AsyncIndexer {
+func NewBlockIndexer(store s.Store) AsyncIndexer {
 	return &blockIndexer{
-		iht: iht,
+		iht: &IndexHeightTable{
+			Name: "blockindexer",
+		},
 		log: log.Logger("blockindexer"),
 	}
 }
 
 func (bi *blockIndexer) Start(ctx context.Context) error {
 	bi.log.Debug("blockindex start")
-	return nil
+
+	return bi.iht.Init(ctx)
 }
 
 func (bi *blockIndexer) Stop(ctx context.Context) error {
@@ -57,11 +60,17 @@ func (bi *blockIndexer) Stop(ctx context.Context) error {
 }
 
 func (bi *blockIndexer) NextHeight(ctx context.Context) (uint64, error) {
-	log.L().Info("NextHeight")
-	return 0, nil
+	height, err := bi.iht.Height(ctx)
+	if err != nil {
+		return 0, err
+	}
+	nextHeight := height + 1
+	bi.log.Debug("blockIndexer nextHeight", zap.Uint64("nextHeight", nextHeight))
+	return nextHeight, nil
 }
 
 func (bi *blockIndexer) PutBlock(ctx context.Context, blk *block.Block) error {
+	bi.iht.Upsert(ctx, blk.Height())
 	bi.log.Debug("blockindexer putblock", zap.Any("block", blk))
 	return nil
 }

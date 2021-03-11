@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"sync"
+	"sync/atomic"
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-analytics/indexer"
@@ -16,17 +17,33 @@ import (
 	"go.uber.org/zap"
 )
 
+type AtomBool struct{ flag int32 }
+
+func (b *AtomBool) Set(value bool) {
+	var i int32 = 0
+	if value {
+		i = 1
+	}
+	atomic.StoreInt32(&(b.flag), int32(i))
+}
+
+func (b *AtomBool) Get() bool {
+	if atomic.LoadInt32(&(b.flag)) != 0 {
+		return true
+	}
+	return false
+}
+
 type (
 
 	// IndexService is the main indexer service, which coordinates the building of all indexers
 	IndexService struct {
 		dao          blockdao.BlockDAO
 		indexers     []indexer.AsyncIndexer
-		mutex        sync.RWMutex
 		terminate    chan bool
 		wg           sync.WaitGroup
 		subscribers  []chan uint64
-		indexerLocks []bool
+		indexerLocks []AtomBool
 
 		chainClient iotexapi.APIServiceClient
 		batchSize   uint64
@@ -37,7 +54,7 @@ type (
 func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc blockdao.BlockDAO, indexers []indexer.AsyncIndexer) *IndexService {
 	subscribers := make([]chan uint64, len(indexers))
 	for i := range indexers {
-		subscribers[i] = make(chan uint64)
+		subscribers[i] = make(chan uint64, 0)
 	}
 	return &IndexService{
 		dao:          bc,
@@ -45,7 +62,7 @@ func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc
 		subscribers:  subscribers,
 		terminate:    make(chan bool),
 		wg:           sync.WaitGroup{},
-		indexerLocks: make([]bool, len(indexers)),
+		indexerLocks: make([]AtomBool, len(indexers)),
 
 		chainClient: chainClient,
 		batchSize:   batchSize,
@@ -64,23 +81,17 @@ func (is *IndexService) startIndex(ctx context.Context, i int) error {
 			case <-is.terminate:
 				return
 			case tipHeight := <-is.subscribers[i]:
-				{
-					is.mutex.Lock()
-					defer is.mutex.Unlock()
-					if is.indexerLocks[i] {
-						continue
-					}
-					is.indexerLocks[i] = true
+
+				if is.indexerLocks[i].Get() {
+					continue
 				}
-				defer func() {
-					is.mutex.Lock()
-					is.indexerLocks[i] = false
-					is.mutex.Unlock()
-				}()
+				is.indexerLocks[i].Set(true)
+
 				nextHeight, err := is.indexers[i].NextHeight(ctx)
 				if err != nil {
 					log.S().Panic("failed to get next height", zap.Error(err))
 				}
+
 				for nextHeight < tipHeight {
 					blk, err := is.dao.GetBlockByHeight(nextHeight)
 					if err != nil {
@@ -120,6 +131,7 @@ func (is *IndexService) startIndex(ctx context.Context, i int) error {
 					}
 					nextHeight++
 				}
+				is.indexerLocks[i].Set(false)
 			}
 		}
 	}()
@@ -181,11 +193,13 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 		if count > tipHeight-startHeight+1 {
 			count = tipHeight - startHeight + 1
 		}
-		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), &iotexapi.GetRawBlocksRequest{
+		rawRequest := &iotexapi.GetRawBlocksRequest{
 			StartHeight:  startHeight,
 			Count:        count,
 			WithReceipts: true,
-		})
+		}
+
+		getRawBlocksRes, err := chainClient.GetRawBlocks(context.Background(), rawRequest)
 		if err != nil {
 			return errors.Wrap(err, "failed to get raw blocks from the chain")
 		}
@@ -231,8 +245,8 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 				return errors.Wrap(err, "failed to build index for the block")
 			}
 			blkHeight := blk.Height()
-			for i := 0; i < len(is.subscribers); i++ {
-				is.subscribers[i] <- blkHeight
+			for _, subscriber := range is.subscribers {
+				subscriber <- blkHeight
 			}
 		}
 		startHeight += count

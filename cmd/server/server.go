@@ -61,7 +61,11 @@ func runServer(c *cli.Context) error {
 		cfg.Mysql.Port,
 		cfg.Mysql.DBName,
 	)
-
+	go func() {
+		if err := store.Start(c.Context); err != nil {
+			log.L().Fatal("Failed to start mysql store", zap.Error(err))
+		}
+	}()
 	ctx := sql.WithStore(c.Context, store)
 
 	grpcCtx1, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -88,15 +92,15 @@ func runServer(c *cli.Context) error {
 		},
 	)
 	var asyncindexers []indexer.AsyncIndexer
-	iht := &indexer.IndexHeightTable{}
-	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer(store, iht))
-	ids := indexservice.NewIndexService(chainClient, 1, dao, asyncindexers)
+
+	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer(store))
+	ids := indexservice.NewIndexService(chainClient, 64, dao, asyncindexers)
 	go func() {
 		if err := ids.Start(ctx); err != nil {
 			log.L().Fatal("Failed to start the indexer", zap.Error(err))
 		}
 	}()
-	handleShutdown(ids)
+	handleShutdown(store, ids)
 
 	return nil
 }

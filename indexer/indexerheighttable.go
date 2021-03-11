@@ -15,19 +15,31 @@ CREATE TABLE `index_heights` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 */
 type IndexHeightTable struct {
+	Name string
 }
 
-func (iht *IndexHeightTable) Upsert(ctx context.Context, name string, height uint64) error {
+func (iht *IndexHeightTable) Init(ctx context.Context) error {
+	height, err := iht.Height(ctx)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if height == 0 {
+		return iht.Upsert(ctx, 0)
+	}
+	return nil
+}
+
+func (iht *IndexHeightTable) Upsert(ctx context.Context, height uint64) error {
 	tx, ok := s.ExtractTx(ctx)
 	if ok {
-		return upsert(tx, name, height)
+		return upsert(tx, iht.Name, height)
 	}
 	store, ok := s.ExtractStore(ctx)
 	if !ok {
 		return s.ErrNoStoreContext
 	}
 	return store.Transact(func(tx *sql.Tx) error {
-		return upsert(tx, name, height)
+		return upsert(tx, iht.Name, height)
 	})
 }
 
@@ -40,17 +52,17 @@ func upsert(tx *sql.Tx, name string, height uint64) error {
 	return err
 }
 
-func (iht *IndexHeightTable) Height(ctx context.Context, name string) (uint64, error) {
+func (iht *IndexHeightTable) Height(ctx context.Context) (uint64, error) {
 	var row *sql.Row
 	tx, ok := s.ExtractTx(ctx)
 	if ok {
-		row = tx.QueryRow("SELECT height FROM index_heights WHERE name = ?", name)
+		row = tx.QueryRow("SELECT height FROM index_heights WHERE name = ?", iht.Name)
 	} else {
 		store, ok := s.ExtractStore(ctx)
 		if !ok {
 			return 0, s.ErrNoStoreContext
 		}
-		row = store.GetDB().QueryRow("SELECT height FROM index_heights WHERE name = ?", name)
+		row = store.GetDB().QueryRow("SELECT height FROM index_heights WHERE name = ?", iht.Name)
 	}
 	var h sql.NullInt64
 	if err := row.Scan(&h); err != nil {
