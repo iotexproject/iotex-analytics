@@ -161,6 +161,11 @@ func (is *IndexService) Start(ctx context.Context) error {
 // Stop stops the index service
 func (is *IndexService) Stop(ctx context.Context) error {
 	close(is.terminate)
+	for i := 0; i < len(is.indexers); i++ {
+		if err := is.indexers[i].Stop(ctx); err != nil {
+			return err
+		}
+	}
 	return is.dao.Stop(ctx)
 }
 
