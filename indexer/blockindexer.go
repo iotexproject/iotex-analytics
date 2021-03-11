@@ -71,6 +71,6 @@ func (bi *blockIndexer) NextHeight(ctx context.Context) (uint64, error) {
 
 func (bi *blockIndexer) PutBlock(ctx context.Context, blk *block.Block) error {
 	bi.iht.Upsert(ctx, blk.Height())
-	bi.log.Debug("blockindexer putblock", zap.Any("block", blk))
+	bi.log.Debug("blockindexer putblock", zap.Any("block", blk), zap.Time("blockTime", blk.Header.Timestamp()))
 	return nil
 }

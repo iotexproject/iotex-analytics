@@ -17,9 +17,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type AtomBool struct{ flag int32 }
+type AtomicBool struct{ flag int32 }
 
-func (b *AtomBool) Set(value bool) {
+func (b *AtomicBool) Set(value bool) {
 	var i int32 = 0
 	if value {
 		i = 1
@@ -27,11 +27,8 @@ func (b *AtomBool) Set(value bool) {
 	atomic.StoreInt32(&(b.flag), int32(i))
 }
 
-func (b *AtomBool) Get() bool {
-	if atomic.LoadInt32(&(b.flag)) != 0 {
-		return true
-	}
-	return false
+func (b *AtomicBool) Get() bool {
+	return atomic.LoadInt32(&(b.flag)) != 0
 }
 
 type (
@@ -43,7 +40,7 @@ type (
 		terminate    chan bool
 		wg           sync.WaitGroup
 		subscribers  []chan uint64
-		indexerLocks []AtomBool
+		indexerLocks []AtomicBool
 
 		chainClient iotexapi.APIServiceClient
 		batchSize   uint64
@@ -62,7 +59,7 @@ func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc
 		subscribers:  subscribers,
 		terminate:    make(chan bool),
 		wg:           sync.WaitGroup{},
-		indexerLocks: make([]AtomBool, len(indexers)),
+		indexerLocks: make([]AtomicBool, len(indexers)),
 
 		chainClient: chainClient,
 		batchSize:   batchSize,
