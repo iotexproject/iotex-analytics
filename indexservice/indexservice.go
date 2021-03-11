@@ -58,7 +58,6 @@ func (is *IndexService) startIndex(ctx context.Context, i int) error {
 			select {
 			case <-is.terminate:
 				is.wg.Done()
-				is.terminate <- true
 				return
 			case tipHeight := <-is.subscribers[i]:
 				{
@@ -138,7 +137,6 @@ func (is *IndexService) Start(ctx context.Context) error {
 		for {
 			select {
 			case <-is.terminate:
-				is.terminate <- true
 				return
 			default:
 				res, err := is.chainClient.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})
@@ -158,9 +156,8 @@ func (is *IndexService) Start(ctx context.Context) error {
 
 // Stop stops the index service
 func (is *IndexService) Stop(ctx context.Context) error {
-	is.terminate <- true
+	close(is.terminate)
 	is.wg.Wait()
-
 	return is.dao.Stop(ctx)
 }
 
@@ -169,6 +166,7 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 	if err != nil {
 		return errors.Wrap(err, "failed to get tip height from block dao")
 	}
+	log.L().Debug("fetch dao height", zap.Uint64("height", lastHeight))
 	chainClient := is.chainClient
 	for startHeight := lastHeight + 1; startHeight <= tipHeight; {
 		count := is.batchSize

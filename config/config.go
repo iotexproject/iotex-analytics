@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	coreconfig "github.com/iotexproject/iotex-core/config"
+	"github.com/iotexproject/iotex-core/pkg/log"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -17,29 +19,43 @@ var (
 			Host: "127.0.0.1",
 			Port: "8113",
 		},
+		BlockDB: coreconfig.DB{
+			NumRetries:            3,
+			MaxCacheSize:          64,
+			BlockStoreBatchSize:   16,
+			V2BlocksToSplitDB:     1000000,
+			Compressor:            "Snappy",
+			CompressLegacy:        false,
+			SplitDBSizeMB:         0,
+			SplitDBHeight:         900000,
+			HistoryStateRetention: 2000,
+		},
+		SubLogs: make(map[string]log.GlobalConfig),
 	}
 )
 
 type (
 	Server struct {
-		Host string `yaml:"host" json:"host"`
-		Port string `yaml:"port" json:"port"`
+		Host string `yaml:"host"`
+		Port string `yaml:"port"`
 	}
-	Database struct {
-		DBName   string `yaml:"dbname" json:"dbname"`
-		UserName string `yaml:"username" json:"username"`
-		Password string `yaml:"password" json:"password"`
-		Host     string `yaml:"host" json:"host"`
-		Port     string `yaml:"port" json:"port"`
+	Mysql struct {
+		DBName   string `yaml:"dbname"`
+		UserName string `yaml:"username"`
+		Password string `yaml:"password"`
+		Host     string `yaml:"host"`
+		Port     string `yaml:"port"`
 	}
 	Iotex struct {
-		ChainEndPoint string `yaml:"chainEndPoint" json:"chainEndPoint"`
+		ChainEndPoint string `yaml:"chainEndPoint"`
 	}
 	Config struct {
-		Server   Server   `yaml:"server" json:"server"`
-		Database Database `yaml:"database" json:"database"`
-		Iotex    Iotex    `yaml:"iotex" json:"iotex"`
-		//Index    indexservice.Config `yaml:"indexer" json:"indexer"`
+		Server  Server                      `yaml:"server"`
+		Mysql   Mysql                       `yaml:"mysql"`
+		Iotex   Iotex                       `yaml:"iotex"`
+		BlockDB coreconfig.DB               `yaml:"blockDB"`
+		Log     log.GlobalConfig            `yaml:"log"`
+		SubLogs map[string]log.GlobalConfig `yaml:"subLogs" json:"subLogs"`
 	}
 )
 
