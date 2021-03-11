@@ -1,6 +1,6 @@
 server:
   port: 8883
-database:
+mysql:
   host: 127.0.0.1
   port: 3306
   username: root
@@ -8,3 +8,16 @@ database:
   dbname: iotex_analytics
 iotex:
   chainEndPoint: api.testnet.iotex.one:80
+blockDB:
+  dbPath: chain.db
+log:
+  zap:
+    development: true
+    level: debug
+    encoding: console
+    disableCaller: true
+    disableStacktrace: false
+    outputPaths: ["stdout"]
+    errorOutputPaths: ["stderr"]
+  stderrRedirectFile: error.log
+  stdLogRedirect: false

@@ -2,13 +2,18 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/iotexproject/iotex-analytics/config"
+	"github.com/iotexproject/iotex-analytics/indexer"
 	"github.com/iotexproject/iotex-analytics/indexservice"
 	"github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-core/action/protocol"
+	"github.com/iotexproject/iotex-core/blockchain/blockdao"
+	"github.com/iotexproject/iotex-core/blockchain/genesis"
 	"github.com/iotexproject/iotex-core/pkg/log"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/urfave/cli/v2"
@@ -44,13 +49,17 @@ func runServer(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := log.InitLoggers(cfg.Log, cfg.SubLogs); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to init logger: %v\n", err)
+		os.Exit(1)
+	}
 
 	store := sql.CreateMySQLStore(
-		cfg.Database.UserName,
-		cfg.Database.Password,
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.DBName,
+		cfg.Mysql.UserName,
+		cfg.Mysql.Password,
+		cfg.Mysql.Host,
+		cfg.Mysql.Port,
+		cfg.Mysql.DBName,
 	)
 
 	ctx := sql.WithStore(c.Context, store)
@@ -62,12 +71,31 @@ func runServer(c *cli.Context) error {
 		log.L().Error("Failed to connect to chain's API server.")
 	}
 	chainClient := iotexapi.NewAPIServiceClient(conn1)
-	ids := indexservice.NewIndexService(chainClient, 1, nil, nil)
 
-	if err := ids.Start(ctx); err != nil {
-		log.L().Fatal("Failed to start the indexer", zap.Error(err))
+	var indexers []blockdao.BlockIndexer
+	var dao blockdao.BlockDAO
+	if false {
+		dao = blockdao.NewBlockDAOInMemForTest(indexers)
+	} else {
+		dao = blockdao.NewBlockDAO(indexers, cfg.BlockDB)
 	}
-
+	var tip protocol.TipInfo
+	ctx = protocol.WithBlockchainCtx(
+		ctx,
+		protocol.BlockchainCtx{
+			Genesis: genesis.Default,
+			Tip:     tip,
+		},
+	)
+	var asyncindexers []indexer.AsyncIndexer
+	iht := &indexer.IndexHeightTable{}
+	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer(store, iht))
+	ids := indexservice.NewIndexService(chainClient, 1, dao, asyncindexers)
+	go func() {
+		if err := ids.Start(ctx); err != nil {
+			log.L().Fatal("Failed to start the indexer", zap.Error(err))
+		}
+	}()
 	handleShutdown(ids)
 
 	return nil

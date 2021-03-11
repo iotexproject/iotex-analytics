@@ -7,6 +7,13 @@ import (
 	s "github.com/iotexproject/iotex-analytics/sql"
 )
 
+/*
+CREATE TABLE `index_heights` (
+  `name` varchar(128) NOT NULL,
+  `height` bigint(20) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+*/
 type IndexHeightTable struct {
 }
 
