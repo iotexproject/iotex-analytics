@@ -56,12 +56,12 @@ func (is *IndexService) startIndex(ctx context.Context, i int) error {
 	if err := is.indexers[i].Start(ctx); err != nil {
 		return err
 	}
+	is.wg.Add(1)
 	go func() {
-		is.wg.Add(1)
+		defer is.wg.Done()
 		for {
 			select {
 			case <-is.terminate:
-				is.wg.Done()
 				return
 			case tipHeight := <-is.subscribers[i]:
 				{
@@ -153,6 +153,7 @@ func (is *IndexService) Start(ctx context.Context) error {
 			}
 		}
 	}()
+	is.wg.Wait()
 
 	return nil
 }
@@ -160,7 +161,6 @@ func (is *IndexService) Start(ctx context.Context) error {
 // Stop stops the index service
 func (is *IndexService) Stop(ctx context.Context) error {
 	close(is.terminate)
-	is.wg.Wait()
 	return is.dao.Stop(ctx)
 }
 
@@ -169,7 +169,7 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 	if err != nil {
 		return errors.Wrap(err, "failed to get tip height from block dao")
 	}
-	log.L().Debug("fetch dao height", zap.Uint64("height", lastHeight))
+	log.L().Debug("fetch height", zap.Uint64("daoHeight", lastHeight), zap.Uint64("tipHeight", tipHeight))
 	chainClient := is.chainClient
 	for startHeight := lastHeight + 1; startHeight <= tipHeight; {
 		count := is.batchSize
