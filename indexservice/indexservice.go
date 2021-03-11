@@ -35,10 +35,14 @@ type (
 
 // NewIndexService creates a new indexer service
 func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc blockdao.BlockDAO, indexers []indexer.AsyncIndexer) *IndexService {
+	subscribers := make([]chan uint64, len(indexers))
+	for i := range indexers {
+		subscribers[i] = make(chan uint64)
+	}
 	return &IndexService{
 		dao:          bc,
 		indexers:     indexers,
-		subscribers:  make([]chan uint64, len(indexers)),
+		subscribers:  subscribers,
 		terminate:    make(chan bool),
 		wg:           sync.WaitGroup{},
 		indexerLocks: make([]bool, len(indexers)),
@@ -127,7 +131,6 @@ func (is *IndexService) Start(ctx context.Context) error {
 	if err := is.dao.Start(ctx); err != nil {
 		return err
 	}
-
 	for i := 0; i < len(is.indexers); i++ {
 		if err := is.startIndex(ctx, i); err != nil {
 			return err
