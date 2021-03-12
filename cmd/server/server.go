@@ -94,6 +94,7 @@ func runServer(c *cli.Context) error {
 	var asyncindexers []indexer.AsyncIndexer
 
 	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer(store))
+	asyncindexers = append(asyncindexers, indexer.NewBlockMetaIndexer(store))
 	ids := indexservice.NewIndexService(chainClient, 64, dao, asyncindexers)
 	go func() {
 		if err := ids.Start(ctx); err != nil {

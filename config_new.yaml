@@ -9,7 +9,7 @@ mysql:
 iotex:
   chainEndPoint: api.testnet.iotex.one:80
 blockDB:
-  dbPath: chain.db
+  dbPath: /media/millken/SAMSUNG/iotex-var/data/chain.db
 log:
   zap:
     development: true
