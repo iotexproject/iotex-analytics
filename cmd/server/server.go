@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/iotexproject/iotex-analytics/config"
@@ -61,11 +62,9 @@ func runServer(c *cli.Context) error {
 		cfg.Mysql.Port,
 		cfg.Mysql.DBName,
 	)
-	go func() {
-		if err := store.Start(c.Context); err != nil {
-			log.L().Fatal("Failed to start mysql store", zap.Error(err))
-		}
-	}()
+	if err := store.Start(c.Context); err != nil {
+		log.L().Fatal("Failed to start mysql store", zap.Error(err))
+	}
 	ctx := sql.WithStore(c.Context, store)
 
 	grpcCtx1, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -93,15 +92,15 @@ func runServer(c *cli.Context) error {
 	)
 	var asyncindexers []indexer.AsyncIndexer
 
-	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer(store))
-	asyncindexers = append(asyncindexers, indexer.NewBlockMetaIndexer(store))
+	asyncindexers = append(asyncindexers, indexer.NewBlockIndexer())
+	//asyncindexers = append(asyncindexers, indexer.NewBlockMetaIndexer(store))
 	ids := indexservice.NewIndexService(chainClient, 64, dao, asyncindexers)
 	go func() {
 		if err := ids.Start(ctx); err != nil {
 			log.L().Fatal("Failed to start the indexer", zap.Error(err))
 		}
 	}()
-	handleShutdown(store, ids)
+	handleShutdown(ctx, ids)
 
 	return nil
 }
@@ -110,14 +109,14 @@ type Stopper interface {
 	Stop(context.Context) error
 }
 
-func handleShutdown(service ...Stopper) {
-	stop := make(chan os.Signal)
-	signal.Notify(stop, os.Interrupt, os.Kill)
+func handleShutdown(ctx context.Context, service ...Stopper) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	// wait INT or KILL
 	<-stop
 	log.L().Info("shutting down ...")
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	for _, s := range service {
 		if err := s.Stop(ctx); err != nil {

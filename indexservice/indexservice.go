@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-analytics/indexer"
@@ -51,7 +52,7 @@ type (
 func NewIndexService(chainClient iotexapi.APIServiceClient, batchSize uint64, bc blockdao.BlockDAO, indexers []indexer.AsyncIndexer) *IndexService {
 	subscribers := make([]chan uint64, len(indexers))
 	for i := range indexers {
-		subscribers[i] = make(chan uint64, 0)
+		subscribers[i] = make(chan uint64)
 	}
 	return &IndexService{
 		dao:          bc,
@@ -159,6 +160,7 @@ func (is *IndexService) Start(ctx context.Context) error {
 						log.L().Error("failed to index blocks", zap.Error(err))
 					}
 				}
+				time.Sleep(5 * time.Second)
 			}
 		}
 	}()
@@ -183,7 +185,7 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 	if err != nil {
 		return errors.Wrap(err, "failed to get tip height from block dao")
 	}
-	log.L().Debug("fetch height", zap.Uint64("daoHeight", lastHeight), zap.Uint64("tipHeight", tipHeight))
+	log.L().Debug("indexService: fetchAndBuild", zap.Uint64("daoHeight", lastHeight), zap.Uint64("tipHeight", tipHeight))
 	chainClient := is.chainClient
 	for startHeight := lastHeight + 1; startHeight <= tipHeight; {
 		count := is.batchSize
@@ -212,6 +214,7 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 				receipts[receipt.ActionHash] = receipt
 				blk.Receipts = append(blk.Receipts, receipt)
 			}
+			log.L().Debug("get transaction log by block height", zap.Uint64("BlockHeight", blk.Header.Height()))
 			transactionLogs, err := chainClient.GetTransactionLogByBlockHeight(
 				context.Background(),
 				&iotexapi.GetTransactionLogByBlockHeightRequest{
@@ -242,9 +245,11 @@ func (is *IndexService) fetchAndBuild(ctx context.Context, tipHeight uint64) err
 				return errors.Wrap(err, "failed to build index for the block")
 			}
 			blkHeight := blk.Height()
+			log.L().Debug("start push block to subscribers", zap.Any("block", blk))
 			for _, subscriber := range is.subscribers {
 				subscriber <- blkHeight
 			}
+			log.L().Debug("end push block to subscribers", zap.Any("block", blk))
 		}
 		startHeight += count
 	}

@@ -1,4 +1,4 @@
-package model
+package indexer
 
 import "database/sql"
 
@@ -11,7 +11,7 @@ type Transaction interface {
 
 type TxFn func(Transaction) error
 
-func WithTransaction(db *sql.DB, fn TxFn) (err error) {
+func withTransaction(db *sql.DB, fn TxFn) (err error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return
