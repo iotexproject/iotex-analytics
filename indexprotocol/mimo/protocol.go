@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 
@@ -345,7 +346,8 @@ func (p *Protocol) HandleBlockData(ctx context.Context, tx *sql.Tx, data *indexp
 					}
 					decimals, err := indexprotocol.ReadContract(client, token.String(), tokenDecimals)
 					if err != nil {
-						return err
+						log.Printf("fetch contract %s decimals error: %v\n", token.String(), err)
+						decimals = big.NewInt(18).Bytes()
 					}
 					exchange, err := indexprotocol.ConvertTopicToAddress(l.Topics[2])
 					if err != nil {
