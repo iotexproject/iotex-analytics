@@ -323,6 +323,10 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		// get from mysql first
 		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getLastEpochPortion(p.Store.GetDB(), epochNumber-1)
 		if err != nil {
+			if err.Error() == "not exist in DB" {
+				err = nil
+				return
+			}
 			err = errors.Wrap(err, "failed to get last epoch portion")
 			return
 		}
