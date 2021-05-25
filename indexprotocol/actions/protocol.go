@@ -195,8 +195,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	hermesHashes := make(map[hash.Hash256]bool)
 
 	// log action index
-	for _, selp := range blk.Actions {
-		actionHash := selp.Hash()
+	for i, selp := range blk.Actions {
+		actionHash := blk.Receipts[i].ActionHash
 		callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
 		if err != nil {
 			return err
@@ -351,8 +351,8 @@ func (p *Protocol) updateActionHistory(
 ) error {
 	valStrs := make([]string, 0, len(block.Actions))
 	valArgs := make([]interface{}, 0, len(block.Actions)*11)
-	for _, selp := range block.Actions {
-		actionInfo := hashToActionInfo[selp.Hash()]
+	for i := range block.Actions {
+		actionInfo := hashToActionInfo[block.Receipts[i].ActionHash]
 		if actionInfo.ReceiptHash == hash.ZeroHash256 {
 			return errors.New("action receipt is missing")
 		}
