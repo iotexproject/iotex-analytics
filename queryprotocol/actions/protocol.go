@@ -656,6 +656,7 @@ func (p *Protocol) GetXrc20ByAddress(addr string, numPerPage, page uint64) (cons
 	return p.getXrcByAddress(addr, actions.Xrc20HistoryTableName, numPerPage, page)
 }
 
+// GetXrc20HistoryByContractCount gets xrc20 history by contract
 func (p *Protocol) GetXrc20HistoryByContractCount(contract string, addr string) (count int, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return 0, errors.New("actions protocol is unregistered")
@@ -681,6 +682,7 @@ func (p *Protocol) GetXrc20HistoryByContractCount(contract string, addr string) 
 	return
 }
 
+// GetXrc20ByContractAndAddress gets xrc20 by contract and address
 func (p *Protocol) GetXrc20ByContractAndAddress(contract string, addr string, numPerPage, page uint64) (cons []*Xrc20Info, err error) {
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
