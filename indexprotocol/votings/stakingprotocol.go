@@ -48,17 +48,18 @@ func (p *Protocol) processStaking(tx *sql.Tx, chainClient iotexapi.APIServiceCli
 	}
 	// after get and clean data,the following code is for writing mysql
 	// update staking_bucket and height_to_staking_bucket table
-	if len(voteBucketList.Buckets) != 0 {
-		if err = p.stakingBucketTableOperator.Put(epochStartheight, voteBucketList, tx); err != nil {
-			return
-		}
-	}
+	// FIX_TESTNET: ignore testnet
+	// if len(voteBucketList.Buckets) != 0 {
+	// 	if err = p.stakingBucketTableOperator.Put(epochStartheight, voteBucketList, tx); err != nil {
+	// 		return
+	// 	}
+	// }
 	// update staking_candidate and height_to_staking_candidate table
-	if len(candidateList.Candidates) != 0 {
-		if err = p.stakingCandidateTableOperator.Put(epochStartheight, candidateList, tx); err != nil {
-			return
-		}
-	}
+	// if len(candidateList.Candidates) != 0 {
+	// 	if err = p.stakingCandidateTableOperator.Put(epochStartheight, candidateList, tx); err != nil {
+	// 		return
+	// 	}
+	// }
 	if probationList != nil {
 		candidateList, err = filterStakingCandidates(candidateList, probationList, epochStartheight)
 		if err != nil {
