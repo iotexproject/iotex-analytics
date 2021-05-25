@@ -195,8 +195,8 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	hermesHashes := make(map[hash.Hash256]bool)
 
 	// log action index
-	for _, selp := range blk.Actions {
-		actionHash := selp.Hash()
+	for i, selp := range blk.Actions {
+		actionHash := blk.Receipts[i].ActionHash
 		callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
 		if err != nil {
 			return err
