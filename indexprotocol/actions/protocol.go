@@ -13,12 +13,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
+	"github.com/golang/protobuf/proto"
 	"github.com/iotexproject/go-pkgs/hash"
 	"github.com/iotexproject/iotex-address/address"
 	"github.com/iotexproject/iotex-core/action"
 	"github.com/iotexproject/iotex-core/blockchain/block"
+	"github.com/iotexproject/iotex-proto/golang/iotextypes"
+	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-analytics/epochctx"
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
@@ -122,14 +123,16 @@ type (
 
 // Protocol defines the protocol of indexing blocks
 type Protocol struct {
+	evmNetworkID uint32
 	Store        s.Store
 	hermesConfig indexprotocol.HermesConfig
 	epochCtx     *epochctx.EpochCtx
 }
 
 // NewProtocol creates a new protocol
-func NewProtocol(store s.Store, cfg indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
+func NewProtocol(id uint32, store s.Store, cfg indexprotocol.HermesConfig, epochCtx *epochctx.EpochCtx) *Protocol {
 	return &Protocol{
+		evmNetworkID: id,
 		Store:        store,
 		hermesConfig: cfg,
 		epochCtx:     epochCtx,
@@ -196,7 +199,6 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 
 	// log action index
 	for _, selp := range blk.Actions {
-		actionHash := selp.Hash()
 		callerAddr, err := address.FromBytes(selp.SrcPubkey().Hash())
 		if err != nil {
 			return err
@@ -247,9 +249,13 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 		case *action.PutPollResult:
 			actionType = PutPollResult
 		}
-		hashToActionInfo[actionHash] = &ActionInfo{
+		actHash, err := ActionHash(selp.Proto(), p.evmNetworkID)
+		if err != nil {
+			return err
+		}
+		hashToActionInfo[actHash] = &ActionInfo{
 			ActionType: actionType,
-			ActionHash: hex.EncodeToString(actionHash[:]),
+			ActionHash: hex.EncodeToString(actHash[:]),
 			From:       callerAddr.String(),
 			To:         dst,
 			GasPrice:   gasPrice,
@@ -257,7 +263,7 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			Amount:     amount,
 		}
 		if strings.Compare(dst, p.hermesConfig.HermesContractAddress) == 0 {
-			hermesHashes[actionHash] = true
+			hermesHashes[actHash] = true
 		}
 	}
 
@@ -351,8 +357,7 @@ func (p *Protocol) updateActionHistory(
 ) error {
 	valStrs := make([]string, 0, len(block.Actions))
 	valArgs := make([]interface{}, 0, len(block.Actions)*11)
-	for _, selp := range block.Actions {
-		actionInfo := hashToActionInfo[selp.Hash()]
+	for _, actionInfo := range hashToActionInfo {
 		if actionInfo.ReceiptHash == hash.ZeroHash256 {
 			return errors.New("action receipt is missing")
 		}
@@ -369,4 +374,28 @@ func (p *Protocol) updateActionHistory(
 		return err
 	}
 	return nil
+}
+
+// ActionHash computes the hash of an action
+func ActionHash(act *iotextypes.Action, chainid uint32) (hash.Hash256, error) {
+	switch act.Encoding {
+	case iotextypes.Encoding_IOTEX_PROTOBUF:
+		ser, err := proto.Marshal(act)
+		if err != nil {
+			return hash.ZeroHash256, err
+		}
+		return hash.Hash256b(ser), nil
+	case iotextypes.Encoding_ETHEREUM_RLP:
+		tx, err := actionToRLP(act.Core)
+		if err != nil {
+			return hash.ZeroHash256, err
+		}
+		h, err := rlpSignedHash(tx, chainid, act.GetSignature())
+		if err != nil {
+			return hash.ZeroHash256, err
+		}
+		return h, nil
+	default:
+		return hash.ZeroHash256, fmt.Errorf("invalid encoding type = %v", act.Encoding)
+	}
 }

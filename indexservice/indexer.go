@@ -59,6 +59,7 @@ type Indexer struct {
 
 // Config contains indexer configs
 type Config struct {
+	EvmNetworkID            uint32                            `yaml:"evmNetworkID"`
 	NumDelegates            uint64                            `yaml:"numDelegates"`
 	NumCandidateDelegates   uint64                            `yaml:"numCandidateDelegates"`
 	NumSubEpochs            uint64                            `yaml:"numSubEpochs"`
@@ -202,7 +203,7 @@ func (idx *Indexer) RegisterProtocol(protocolID string, protocol indexprotocol.P
 
 // RegisterDefaultProtocols registers default protocols to the indexer
 func (idx *Indexer) RegisterDefaultProtocols() error {
-	actionsProtocol := actions.NewProtocol(idx.Store, idx.hermesConfig, idx.epochCtx)
+	actionsProtocol := actions.NewProtocol(idx.Config.EvmNetworkID, idx.Store, idx.hermesConfig, idx.epochCtx)
 	blocksProtocol := blocks.NewProtocol(idx.Store, idx.epochCtx, idx.Config.GravityChain)
 	rewardsProtocol := rewards.NewProtocol(idx.Store, idx.epochCtx, idx.Config.Rewarding, idx.Config.GravityChain)
 	accountsProtocol := accounts.NewProtocol(idx.Store, idx.epochCtx)
