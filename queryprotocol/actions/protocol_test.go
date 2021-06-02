@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	connectStr             = "be10c04ac183b5:0a8f49f9@tcp(us-cdbr-east-02.cleardb.com:3306)/"
-	dbName                 = "heroku_88b589bc76fadbc"
+	connectStr             = "bfe10c7cf8aa29:8bed5959@tcp(us-cdbr-east-04.cleardb.com:3306)/"
+	dbName                 = "heroku_067cec75e0ba5ba"
 	ActionHistoryTableName = "action_history"
 	Xrc20HistoryTableName  = "xrc20_history"
 	Xrc721HistoryTableName = "xrc721_history"
@@ -68,11 +68,11 @@ func TestProtocol(t *testing.T) {
 	t.Run("Testing no table", func(t *testing.T) {
 		_, errA = p.GetActiveAccount(1)
 		require.EqualError(errA, "failed to prepare get query: "+
-			"Error 1146: Table 'heroku_88b589bc76fadbc.action_history' doesn't exist")
+			"Error 1146: Table 'heroku_067cec75e0ba5ba.action_history' doesn't exist")
 
 		_, errXrc = p.GetXrc20("", 1, 1)
 		require.Error(errXrc)
-		require.EqualError(errXrc, "failed to prepare get query: Error 1146: Table 'heroku_88b589bc76fadbc.xrc20_history' doesn't exist")
+		require.EqualError(errXrc, "failed to prepare get query: Error 1146: Table 'heroku_067cec75e0ba5ba.xrc20_history' doesn't exist")
 	})
 
 	// Testing empty tables
