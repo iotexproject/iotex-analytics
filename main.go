@@ -78,6 +78,10 @@ func main() {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		log.L().Fatal("failed to unmarshal config", zap.Error(err))
 	}
+	readOnly := os.Getenv("READ_ONLY")
+	if readOnly != "" {
+		cfg.ReadOnly = readOnly == "true"
+	}
 
 	store := sql.NewMySQL(connectionStr, dbName)
 
