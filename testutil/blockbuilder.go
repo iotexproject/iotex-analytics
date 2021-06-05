@@ -38,6 +38,8 @@ var (
 	RewardAddr2 = identityset.Address(3).String()
 	// RewardAddr3 is a testing reward address
 	RewardAddr3 = identityset.Address(4).String()
+	// SigPlaceholder is a placeholder signature
+	SigPlaceholder = make([]byte, 65)
 )
 
 // BuildCompleteBlock builds a complete block
@@ -64,6 +66,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   101,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -74,6 +77,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   102,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -84,6 +88,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   103,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -110,6 +115,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   104,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -123,6 +129,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   105,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -136,6 +143,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   106,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -146,6 +154,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   107,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 				{
 					Core: &iotextypes.ActionCore{
@@ -156,6 +165,7 @@ func BuildCompleteBlock(height uint64, nextEpochHeight uint64) (*block.Block, er
 						Nonce:   108,
 					},
 					SenderPubKey: PubKey1.Bytes(),
+					Signature: SigPlaceholder,
 				},
 			},
 		},
