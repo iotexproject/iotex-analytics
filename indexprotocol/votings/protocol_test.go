@@ -36,8 +36,8 @@ import (
 )
 
 const (
-	connectStr            = "be10c04ac183b5:0a8f49f9@tcp(us-cdbr-east-02.cleardb.com:3306)/"
-	dbName                = "heroku_88b589bc76fadbc"
+	connectStr            = "bfe10c7cf8aa29:8bed5959@tcp(us-cdbr-east-04.cleardb.com:3306)/"
+	dbName                = "heroku_067cec75e0ba5ba"
 	selectAggregateVoting = "SELECT aggregate_votes FROM %s WHERE epoch_number=? AND candidate_name=? AND voter_address=?"
 	selectVotingMeta      = "SELECT total_weighted FROM %s WHERE epoch_number=?"
 )

@@ -75,6 +75,7 @@ type Config struct {
 	HermesConfig            indexprotocol.HermesConfig        `yaml:"hermesConfig"`
 	VoteWeightCalConsts     indexprotocol.VoteWeightCalConsts `yaml:"voteWeightCalConsts"`
 	RewardPortionCfg        indexprotocol.RewardPortionCfg    `yaml:"rewardPortionCfg"`
+	ReadOnly                bool                              `yaml:"readOnly"`
 }
 
 // NewIndexer creates a new indexer
@@ -124,6 +125,10 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get current epoch and tip height")
 	}
 	idx.lastHeight = lastHeight
+	if idx.Config.ReadOnly {
+		log.L().Info("Read only mode, skip indexing")
+		return nil
+	}
 
 	log.L().Info("Catching up via network")
 	getChainMetaRes, err := chainClient.GetChainMeta(ctx, &iotexapi.GetChainMetaRequest{})

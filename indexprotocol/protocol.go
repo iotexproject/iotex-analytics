@@ -194,7 +194,12 @@ func GetAllStakingCandidates(chainClient iotexapi.APIServiceClient, height uint6
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get candidates")
 		}
-		candidateListAll.Candidates = append(candidateListAll.Candidates, candidateList.Candidates...)
+		// filter out candidates whose master bucket are unstaked/withdrawn
+		for _, c := range candidateList.Candidates {
+			if c.SelfStakingTokens != "0" {
+				candidateListAll.Candidates = append(candidateListAll.Candidates, c)
+			}
+		}
 		if len(candidateList.Candidates) < readCandidatesLimit {
 			break
 		}
