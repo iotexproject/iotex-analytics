@@ -132,6 +132,11 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 	totalVoted := big.NewInt(0)
 	selfStakeIndex := selfStakeIndexMap(delegates)
 	for _, vote := range votes.Buckets {
+		if _, ok := nameMap[vote.CandidateAddress]; !ok {
+			// the candidate is no longer active (and non-eligible for reward)
+			// vote is not counted
+			continue
+		}
 		//for sumOfWeightedVotes
 		key := aggregateKey{
 			epochNumber:   epochNumber,
