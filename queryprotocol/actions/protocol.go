@@ -32,8 +32,15 @@ const (
 	selectActionHistoryByType = "SELECT t1.action_hash, t2.block_hash, t2.timestamp, t1.action_type, t1.from, t1.to, t1.amount, t1.gas_price*t1.gas_consumed FROM %s AS t1 LEFT JOIN %s t2 ON t1.block_height=t2.block_height WHERE t1.action_type =? ORDER BY t1.block_height DESC limit ?,?"
 	selectActionHistoryByHash = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash = ?"
-	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
-		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? ORDER BY `timestamp` desc limit ?,?"
+	selectActionHistoryByAddress = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s AS t1 " +
+		"LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE `from` = ? OR `to` = ? UNION" +
+		"SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+		"WHERE topics like ? UNION" +
+		"SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
+		"WHERE topics like ? UNION" +
+		"SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s AS t3 " +
+		"LEFT JOIN %s AS t4 ON t3.block_height=t4.block_height WHERE `from` = ? OR `to` = ? " +
+		"ORDER BY `timestamp` desc limit ?,?"
 	selectBucketActionHistoryByVoter = "SELECT action_hash, block_hash, timestamp, action_type, `from`, `to`, amount, t1.gas_price*t1.gas_consumed FROM %s " +
 		"AS t1 LEFT JOIN %s AS t2 ON t1.block_height=t2.block_height WHERE action_hash in (" +
 		"	SELECT action_hash FROM %s WHERE bucket_id in (SELECT t1.index FROM %s t1 RIGHT JOIN (SELECT `index`, MAX(`id`) AS mid FROM %s GROUP BY `index`) AS t2 ON t1.index = t2.index and t1.id = t2.mid WHERE t1.owner = ?)" +
@@ -359,14 +366,19 @@ func (p *Protocol) GetActionsByAddress(address string, offset, size uint64) ([]*
 
 	db := p.indexer.Store.GetDB()
 
-	getQuery := fmt.Sprintf(selectActionHistoryByAddress, actions.ActionHistoryTableName, blocks.BlockHistoryTableName)
+	getQuery := fmt.Sprintf(selectActionHistoryByAddress, blocks.BlockHistoryTableName, actions.ActionHistoryTableName,
+		actions.Xrc20HistoryTableName, actions.Xrc721HistoryTableName,
+		blocks.BlockHistoryTableName, accounts.BalanceHistoryTableName)
 
 	stmt, err := db.Prepare(getQuery)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
-
-	rows, err := stmt.Query(address, address, offset, size)
+	like := "%" + address[2:] + "%"
+	rows, err := stmt.Query(address, address,
+		like, like,
+		address, address,
+		offset, size)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
 	}
@@ -743,7 +755,6 @@ func (p *Protocol) getXrcByAddress(addr, table string, numPerPage, page uint64) 
 	if _, ok := p.indexer.Registry.Find(actions.ProtocolID); !ok {
 		return nil, errors.New("actions protocol is unregistered")
 	}
-	a, err := address.FromString(addr)
 	if err != nil {
 		return nil, errors.New("address is invalid")
 	}
@@ -759,7 +770,7 @@ func (p *Protocol) getXrcByAddress(addr, table string, numPerPage, page uint64) 
 		return nil, errors.Wrap(err, "failed to prepare get query")
 	}
 	defer stmt.Close()
-	like := "%" + common.BytesToAddress(a.Bytes()).String()[2:] + "%"
+	like := "%" + addr[2:] + "%"
 	rows, err := stmt.Query(like)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute get query")
