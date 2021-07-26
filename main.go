@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/99designs/gqlgen/handler"
@@ -84,6 +85,14 @@ func main() {
 	}
 
 	store := sql.NewMySQL(connectionStr, dbName)
+	maxOpenConnsStr := os.Getenv("MAX_OPEN_CONNECTIONS")
+	if maxOpenConnsStr != "" {
+		maxOpenConns, err := strconv.Atoi(maxOpenConnsStr)
+		if err != nil {
+			log.L().Info("failed to parse parameter", zap.String("MAX_OPEN_CONNECTIONS", maxOpenConnsStr), zap.Error(err))
+		}
+		store.SetMaxOpenConns(maxOpenConns)
+	}
 
 	idx := indexservice.NewIndexer(store, cfg)
 	if err := idx.RegisterDefaultProtocols(); err != nil {

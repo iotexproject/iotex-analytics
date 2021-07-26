@@ -25,11 +25,17 @@ type RDS struct {
 	AwsPass string `yaml:"awsPass"`
 	// AwsDBName is the db name of aws rds
 	AwsDBName string `yaml:"awsDBName"`
+	// AwsMaxConns is the max num of connections
+	AwsMaxConns uint16 `yaml:"awsMaxConn"`
 }
 
 // NewAwsRDS instantiates an aws rds
 func NewAwsRDS(cfg RDS) Store {
 	connectStr := fmt.Sprintf("%s:%s@tcp(%s:%d)/",
 		cfg.AwsRDSUser, cfg.AwsPass, cfg.AwsRDSEndpoint, cfg.AwsRDSPort)
-	return newStoreBase("mysql", connectStr, cfg.AwsDBName)
+	store := newStoreBase("mysql", connectStr, cfg.AwsDBName)
+	if cfg.AwsMaxConns > 0 {
+		store.SetMaxOpenConns(int(cfg.AwsMaxConns))
+	}
+	return store
 }

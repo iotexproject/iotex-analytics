@@ -28,12 +28,16 @@ type Store interface {
 
 	// Transact wrap the transaction
 	Transact(txFunc func(*sql.Tx) error) (err error)
+
+	// SetMaxOpenConns sets the max number of open connections
+	SetMaxOpenConns(int)
 }
 
 // storebase is a MySQL instance
 type storeBase struct {
 	mutex      sync.RWMutex
 	db         *sql.DB
+	maxConns   int
 	connectStr string
 	dbName     string
 	driverName string
@@ -71,7 +75,7 @@ func (s *storeBase) Start(ctx context.Context) error {
 		return err
 	}
 	s.db = db
-	s.db.SetMaxOpenConns(400)
+	s.db.SetMaxOpenConns(s.maxConns)
 	s.db.SetMaxIdleConns(10)
 	s.db.SetConnMaxLifetime(5 * time.Minute)
 
@@ -91,7 +95,10 @@ func (s *storeBase) Stop(_ context.Context) error {
 	return nil
 }
 
-// Stop closes the SQL
+func (s *storeBase) SetMaxOpenConns(size int) {
+	s.maxConns = size
+}
+
 func (s *storeBase) GetDB() *sql.DB {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
