@@ -11,7 +11,6 @@ import (
 	"database/sql"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/rs/zerolog"
 
@@ -71,10 +70,6 @@ func (s *storeBase) Start(ctx context.Context) error {
 		return err
 	}
 	s.db = db
-	s.db.SetMaxOpenConns(400)
-	s.db.SetMaxIdleConns(10)
-	s.db.SetConnMaxLifetime(5 * time.Minute)
-
 	return nil
 }
 
