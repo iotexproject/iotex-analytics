@@ -74,6 +74,7 @@ func (s *storeBase) Start(ctx context.Context) error {
 	s.db.SetMaxOpenConns(400)
 	s.db.SetMaxIdleConns(10)
 	s.db.SetConnMaxLifetime(5 * time.Minute)
+
 	return nil
 }
 
