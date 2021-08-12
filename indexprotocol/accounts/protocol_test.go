@@ -32,7 +32,7 @@ func TestProtocol(t *testing.T) {
 
 	testutil.CleanupDatabase(t, connectStr, dbName)
 
-	store := s.NewMySQL(connectStr, dbName)
+	store := s.NewMySQL(connectStr, dbName, false)
 	require.NoError(store.Start(ctx))
 	defer func() {
 		_, err := store.GetDB().Exec("DROP DATABASE " + dbName)

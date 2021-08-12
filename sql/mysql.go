@@ -12,6 +12,6 @@ import (
 )
 
 // NewMySQL instantiates a mysql
-func NewMySQL(connectStr string, dbName string) Store {
-	return newStoreBase("mysql", connectStr, dbName)
+func NewMySQL(connectStr string, dbName string, readOnly bool) Store {
+	return newStoreBase("mysql", connectStr, dbName, readOnly)
 }

@@ -41,14 +41,15 @@ type storeBase struct {
 	connectStr string
 	dbName     string
 	driverName string
+	readOnly   bool
 }
 
 // logger is initialized with default settings
 var logger = zerolog.New(os.Stderr).Level(zerolog.InfoLevel).With().Timestamp().Logger()
 
 // NewStoreBase instantiates an store base
-func newStoreBase(driverName string, connectStr string, dbName string) Store {
-	return &storeBase{db: nil, connectStr: connectStr, dbName: dbName, driverName: driverName}
+func newStoreBase(driverName string, connectStr string, dbName string, readOnly bool) Store {
+	return &storeBase{db: nil, connectStr: connectStr, dbName: dbName, driverName: driverName, readOnly: readOnly}
 }
 
 // Start opens the SQL (creates new file if not existing yet)
@@ -60,17 +61,19 @@ func (s *storeBase) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// Use db to perform SQL operations on database
-	db, err := sql.Open(s.driverName, s.connectStr)
-	if err != nil {
-		return err
+	if !s.readOnly {
+		// Use db to perform SQL operations on database
+		db, err := sql.Open(s.driverName, s.connectStr)
+		if err != nil {
+			return err
+		}
+		if _, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + s.dbName); err != nil {
+			return err
+		}
+		db.Close()
 	}
-	if _, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + s.dbName); err != nil {
-		return err
-	}
-	db.Close()
 
-	db, err = sql.Open(s.driverName, s.connectStr+s.dbName+"?autocommit=false&parseTime=true")
+	db, err := sql.Open(s.driverName, s.connectStr+s.dbName+"?autocommit=false&parseTime=true")
 	if err != nil {
 		return err
 	}

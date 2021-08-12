@@ -113,8 +113,10 @@ func (idx *Indexer) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to start db")
 	}
 
-	if err := idx.CreateTablesIfNotExist(); err != nil {
-		return errors.Wrap(err, "failed to create tables")
+	if !idx.Config.ReadOnly {
+		if err := idx.CreateTablesIfNotExist(); err != nil {
+			return errors.Wrap(err, "failed to create tables")
+		}
 	}
 
 	if err := idx.Initialize(ctx, &idx.Config.Genesis); err != nil {

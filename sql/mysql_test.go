@@ -21,7 +21,7 @@ func TestMySQLStorePutGet(t *testing.T) {
 	testutil.CleanupDatabase(t, connectStr, dbName)
 	testRDSStorePutGet := TestStorePutGet
 	t.Run("MySQL Store", func(t *testing.T) {
-		testRDSStorePutGet(NewMySQL(connectStr, dbName), t)
+		testRDSStorePutGet(NewMySQL(connectStr, dbName, false), t)
 	})
 	testutil.CleanupDatabase(t, connectStr, dbName)
 }
@@ -30,7 +30,7 @@ func TestMySQLStoreTransaction(t *testing.T) {
 	testutil.CleanupDatabase(t, connectStr, dbName)
 	testSQLite3StoreTransaction := TestStoreTransaction
 	t.Run("MySQL Store", func(t *testing.T) {
-		testSQLite3StoreTransaction(NewMySQL(connectStr, dbName), t)
+		testSQLite3StoreTransaction(NewMySQL(connectStr, dbName, false), t)
 	})
 	testutil.CleanupDatabase(t, connectStr, dbName)
 }
