@@ -91,7 +91,7 @@ func TestStaking(t *testing.T) {
 	ctx := context.Background()
 	//use for remote database
 	testutil.CleanupDatabase(t, connectStr, dbName)
-	store := s.NewMySQL(connectStr, dbName)
+	store := s.NewMySQL(connectStr, dbName, false)
 	require.NoError(store.Start(ctx))
 	defer func() {
 		//use for remote database
