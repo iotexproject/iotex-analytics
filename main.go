@@ -84,7 +84,7 @@ func main() {
 		cfg.ReadOnly = readOnly == "true"
 	}
 
-	store := sql.NewMySQL(connectionStr, dbName)
+	store := sql.NewMySQL(connectionStr, dbName, cfg.ReadOnly)
 	maxOpenConnsStr := os.Getenv("MAX_OPEN_CONNECTIONS")
 	if maxOpenConnsStr != "" {
 		maxOpenConns, err := strconv.Atoi(maxOpenConnsStr)

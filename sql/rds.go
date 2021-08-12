@@ -33,7 +33,7 @@ type RDS struct {
 func NewAwsRDS(cfg RDS) Store {
 	connectStr := fmt.Sprintf("%s:%s@tcp(%s:%d)/",
 		cfg.AwsRDSUser, cfg.AwsPass, cfg.AwsRDSEndpoint, cfg.AwsRDSPort)
-	store := newStoreBase("mysql", connectStr, cfg.AwsDBName)
+	store := newStoreBase("mysql", connectStr, cfg.AwsDBName, false)
 	if cfg.AwsMaxConns > 0 {
 		store.SetMaxOpenConns(int(cfg.AwsMaxConns))
 	}
