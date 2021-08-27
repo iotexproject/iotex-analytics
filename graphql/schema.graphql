@@ -67,7 +67,7 @@ type Action {
 type Delegate {
     reward: Reward
     productivity: Productivity
-    bookkeeping(percentage: Int!, includeFoundationBonus: Boolean!): Bookkeeping
+    bookkeeping(percentage: Int!, includeBlockReward: Boolean!, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
     staking: StakingOutput
     probationHistoricalRate: String!

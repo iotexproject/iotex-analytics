@@ -31,7 +31,7 @@ const (
 	selectAccountRewardSum = "SELECT SUM(block_reward), SUM(epoch_reward), SUM(foundation_bonus) FROM %s " +
 		"WHERE epoch_number >= %d  AND epoch_number <= %d AND candidate_name=?"
 	selectVotingResult  = "SELECT epoch_number, total_weighted_votes FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND delegate_name = ?"
-	selectAccountReward = "SELECT epoch_number, epoch_reward, foundation_bonus FROM %s " +
+	selectAccountReward = "SELECT epoch_number, epoch_reward, foundation_bonus,block_reward FROM %s " +
 		"WHERE epoch_number >= ?  AND epoch_number <= ? AND candidate_name= ? "
 	selectAggregateVoting    = "SELECT * FROM %s WHERE epoch_number >= ? AND epoch_number <= ? AND candidate_name=?"
 	selectAccountRewardIn    = "SELECT * FROM %s WHERE (epoch_number, candidate_name) IN (%s)"
@@ -94,6 +94,7 @@ type EpochFoundationReward struct {
 	EpochNumber     uint64
 	EpochReward     string
 	FoundationBonus string
+	BlockReward     string
 }
 
 // HermesDistributionPlan defines the distribution plan of delegates registering in Hermes
@@ -151,10 +152,10 @@ func (p *Protocol) GetAccountReward(startEpoch uint64, epochCount uint64, candid
 }
 
 // GetBookkeeping gets reward distribution info
-func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegateName string, percentage int, includeFoundationBonus bool) ([]*RewardDistribution, error) {
+func (p *Protocol) GetBookkeeping(startEpoch uint64, epochCount uint64, delegateName string, percentage int, includeBlockReward, includeFoundationBonus bool) ([]*RewardDistribution, error) {
 	endEpoch := startEpoch + epochCount - 1
 
-	distrRewardMap, err := p.rewardsToSplit(startEpoch, endEpoch, delegateName, percentage, includeFoundationBonus)
+	distrRewardMap, err := p.rewardsToSplit(startEpoch, endEpoch, delegateName, percentage, includeBlockReward, includeFoundationBonus)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get reward distribution map")
 	}
@@ -448,7 +449,7 @@ func (p *Protocol) totalWeightedVotes(startEpoch uint64, endEpoch uint64, delega
 }
 
 // rewardToSplit gets the reward to split from the given delegate from start epoch to end epoch
-func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateName string, percentage int, includeFoundationBonus bool) (map[uint64]*big.Int, error) {
+func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateName string, percentage int, includeBlockReward, includeFoundationBonus bool) (map[uint64]*big.Int, error) {
 	if _, ok := p.indexer.Registry.Find(rewards.ProtocolID); !ok {
 		return nil, errors.New("rewards protocol is unregistered")
 	}
@@ -489,6 +490,13 @@ func (p *Protocol) rewardsToSplit(startEpoch uint64, endEpoch uint64, delegateNa
 				return nil, errors.New("failed to covert string to big int")
 			}
 			distrReward.Add(distrReward, foundationBonus)
+		}
+		if includeBlockReward {
+			blockRward, err := stringToBigInt(rewards.BlockReward)
+			if err != nil {
+				return nil, errors.New("failed to covert string to big int")
+			}
+			distrReward.Add(distrReward, blockRward)
 		}
 		distrRewardMap[rewards.EpochNumber] = distrReward.Mul(distrReward, big.NewInt(int64(percentage))).Div(distrReward, big.NewInt(100))
 	}
