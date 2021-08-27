@@ -1547,8 +1547,11 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	if percentage < 0 || percentage > 100 {
 		return errors.New("percentage should be 0-100")
 	}
-
-	rets, err := r.RP.GetBookkeeping(uint64(startEpoch), uint64(epochCount), delegateName, percentage, includeFoundationBonus)
+	includeBlockReward, err := getBoolArg(argsMap, "includeBlockReward")
+	if err != nil {
+		return errors.Wrap(err, "failed to get includeBlockReward for bookkeeping")
+	}
+	rets, err := r.RP.GetBookkeeping(uint64(startEpoch), uint64(epochCount), delegateName, percentage, includeBlockReward, includeFoundationBonus)
 	switch {
 	case errors.Cause(err) == indexprotocol.ErrNotExist:
 		delegateResponse.Bookkeeping = &Bookkeeping{Exist: false}
