@@ -1549,7 +1549,7 @@ func (r *queryResolver) getBookkeeping(ctx context.Context, delegateResponse *De
 	}
 	includeBlockReward, err := getBoolArg(argsMap, "includeBlockReward")
 	if err != nil {
-		return errors.Wrap(err, "failed to get includeBlockReward for bookkeeping")
+		includeBlockReward = false
 	}
 	rets, err := r.RP.GetBookkeeping(uint64(startEpoch), uint64(epochCount), delegateName, percentage, includeBlockReward, includeFoundationBonus)
 	switch {
