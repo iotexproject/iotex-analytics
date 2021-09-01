@@ -169,7 +169,7 @@ type ComplexityRoot struct {
 	}
 
 	Delegate struct {
-		Bookkeeping             func(childComplexity int, percentage int, includeBlockReward bool, includeFoundationBonus bool) int
+		Bookkeeping             func(childComplexity int, percentage int, includeBlockReward *bool, includeFoundationBonus bool) int
 		BucketInfo              func(childComplexity int) int
 		ProbationHistoricalRate func(childComplexity int) int
 		Productivity            func(childComplexity int) int
@@ -1064,7 +1064,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Delegate.Bookkeeping(childComplexity, args["percentage"].(int), args["includeBlockReward"].(bool), args["includeFoundationBonus"].(bool)), true
+		return e.complexity.Delegate.Bookkeeping(childComplexity, args["percentage"].(int), args["includeBlockReward"].(*bool), args["includeFoundationBonus"].(bool)), true
 
 	case "Delegate.BucketInfo":
 		if e.complexity.Delegate.BucketInfo == nil {
@@ -2195,7 +2195,7 @@ type Action {
 type Delegate {
     reward: Reward
     productivity: Productivity
-    bookkeeping(percentage: Int!, includeBlockReward: Boolean!, includeFoundationBonus: Boolean!): Bookkeeping
+    bookkeeping(percentage: Int!, includeBlockReward: Boolean, includeFoundationBonus: Boolean!): Bookkeeping
     bucketInfo: BucketInfoOutput
     staking: StakingOutput
     probationHistoricalRate: String!
@@ -2785,9 +2785,9 @@ func (ec *executionContext) field_Delegate_bookkeeping_args(ctx context.Context,
 		}
 	}
 	args["percentage"] = arg0
-	var arg1 bool
+	var arg1 *bool
 	if tmp, ok := rawArgs["includeBlockReward"]; ok {
-		arg1, err = ec.unmarshalNBoolean2bool(ctx, tmp)
+		arg1, err = ec.unmarshalOBoolean2ᚖbool(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
