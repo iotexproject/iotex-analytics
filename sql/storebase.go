@@ -73,10 +73,21 @@ func (s *storeBase) Start(ctx context.Context) error {
 		db.Close()
 	}
 
-	db, err := sql.Open(s.driverName, s.connectStr+s.dbName+"?autocommit=false&parseTime=true")
-	if err != nil {
-		return err
+	var db *sql.DB
+	var err error
+
+	if !s.readOnly {
+		db, err = sql.Open(s.driverName, s.connectStr+s.dbName+"?autocommit=false&parseTime=true")
+		if err != nil {
+			return err
+		}
+	} else {
+		db, err = sql.Open(s.driverName, s.connectStr+s.dbName+"?parseTime=true")
+		if err != nil {
+			return err
+		}
 	}
+
 	s.db = db
 	s.db.SetMaxOpenConns(s.maxConns)
 	s.db.SetMaxIdleConns(10)
