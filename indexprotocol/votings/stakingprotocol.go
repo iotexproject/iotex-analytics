@@ -326,11 +326,11 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		}
 	} else {
 		// get from mysql first
-		blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getLastEpochPortion(p.Store.GetDB(), epochNumber-1)
-		if err != nil {
-			err = errors.Wrap(err, "failed to get last epoch portion")
-			return
-		}
+		// blockRewardPercentage, epochRewardPercentage, foundationBonusPercentage, err = getLastEpochPortion(p.Store.GetDB(), epochNumber-1)
+		// if err != nil {
+		// 	err = errors.Wrap(err, "failed to get last epoch portion")
+		// 	return
+		// }
 
 		//and then update from contract from last epochstartHeight to this epochStartheight-1
 		lastEpochStartHeight := p.epochCtx.GetEpochHeight(epochNumber - 1)
@@ -338,7 +338,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 			err = errors.Wrap(err, "epoch start height less than last epoch start height")
 			return
 		}
-		count := epochStartHeight - lastEpochStartHeight
+		count := p.rewardPortionCfg.RewardPortionContractDeployHeight - lastEpochStartHeight
 		var blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog map[string]float64
 		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getLog(p.rewardPortionCfg.RewardPortionContract, lastEpochStartHeight, count, chainClient, delegateABI)
 		if err != nil {
