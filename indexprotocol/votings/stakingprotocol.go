@@ -340,7 +340,7 @@ func (p *Protocol) getAllStakingDelegateRewardPortions(epochStartHeight, epochNu
 		}
 		count := p.rewardPortionCfg.RewardPortionContractDeployHeight - lastEpochStartHeight
 		var blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog map[string]float64
-		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getLog(p.rewardPortionCfg.RewardPortionContract, lastEpochStartHeight, count, chainClient, delegateABI)
+		blockRewardFromLog, epochRewardFromLog, foundationBonusFromLog, err = getLog(p.rewardPortionCfg.RewardPortionContract, p.rewardPortionCfg.RewardPortionContractDeployHeight, count, chainClient, delegateABI)
 		if err != nil {
 			err = errors.Wrap(err, "failed to get log from chain")
 			return
