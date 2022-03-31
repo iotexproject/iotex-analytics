@@ -6,7 +6,11 @@ import (
 )
 
 func FixErrorAddress(addr string) (address.Address, error) {
-	_, payload, err := bech32.Decode(addr)
+	_, grouped, err := bech32.Decode(addr)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := bech32.ConvertBits(grouped, 5, 8, false)
 	if err != nil || len(payload) < 20 {
 		return nil, err
 	}
