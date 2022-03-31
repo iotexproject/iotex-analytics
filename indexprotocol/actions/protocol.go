@@ -202,6 +202,10 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return err
 		}
 		dst, _ := selp.Destination()
+		// TODO fix error address
+		if len(dst) > 41 {
+			dst = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc96xkxh5"
+		}
 		gasPrice := selp.GasPrice().String()
 		nonce := selp.Nonce()
 

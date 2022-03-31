@@ -292,6 +292,10 @@ func (p *Protocol) updateBalanceHistory(
 	from string,
 	amount string,
 ) error {
+	// TODO fix error address
+	if len(to) > 41 {
+		to = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc96xkxh5"
+	}
 	insertQuery := fmt.Sprintf(insertBalanceHistory,
 		BalanceHistoryTableName)
 	if _, err := tx.Exec(insertQuery, epochNumber, blockHeight, actionHash, actionType, from, to, amount); err != nil {
