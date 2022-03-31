@@ -7,7 +7,7 @@ import (
 
 func FixErrorAddress(addr string) (address.Address, error) {
 	_, payload, err := bech32.Decode(addr)
-	if err != nil {
+	if err != nil || len(payload) < 20 {
 		return nil, err
 	}
 
