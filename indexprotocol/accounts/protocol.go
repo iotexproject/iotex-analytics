@@ -18,6 +18,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/queryprotocol"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/utils"
 )
 
 const (
@@ -292,9 +293,13 @@ func (p *Protocol) updateBalanceHistory(
 	from string,
 	amount string,
 ) error {
-	// TODO fix error address
 	if len(to) > 41 {
-		to = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc96xkxh5"
+		addr, err := utils.FixErrorAddress(to)
+		if err != nil {
+			to = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc96xkxh5"
+		} else {
+			to = addr.String()
+		}
 	}
 	insertQuery := fmt.Sprintf(insertBalanceHistory,
 		BalanceHistoryTableName)
