@@ -12,7 +12,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -204,7 +203,7 @@ func statsHandler(ctx context.Context, r *http.Request) {
 	}
 	var body []byte
 	if r.Body != nil {
-		body, _ = io.ReadAll(r.Body)
+		body, _ = ioutil.ReadAll(r.Body)
 	}
 	log.L().Info("request stat", zap.String("clientIP", clientIP), zap.String("clientID", clientID), zap.ByteString("body", body))
 }
