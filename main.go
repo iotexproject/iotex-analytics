@@ -10,7 +10,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -22,6 +24,7 @@ import (
 	"github.com/iotexproject/iotex-election/pb/api"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
 
@@ -77,6 +80,23 @@ func main() {
 	var cfg indexservice.Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		log.L().Fatal("failed to unmarshal config", zap.Error(err))
+	}
+
+	if cfg.Zap == nil {
+		zapCfg := zap.NewProductionConfig()
+		cfg.Zap = &zapCfg
+	} else {
+		if cfg.Zap.Development {
+			cfg.Zap.EncoderConfig = zap.NewDevelopmentEncoderConfig()
+		} else {
+			cfg.Zap.EncoderConfig = zap.NewProductionEncoderConfig()
+		}
+	}
+	cfg.Zap.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.Zap.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	logger, err := cfg.Zap.Build()
+	if err == nil {
+		zap.ReplaceGlobals(logger)
 	}
 	readOnly := os.Getenv("READ_ONLY")
 	if readOnly != "" {
@@ -156,6 +176,35 @@ func graphqlHandler(playgroundHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "*")
+		if r.Method == "POST" {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				log.L().Error("Failed to read request body", zap.Error(err))
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r1 := r.Clone(r.Context())
+			// clone body
+			r.Body = ioutil.NopCloser(bytes.NewReader(body))
+			r1.Body = ioutil.NopCloser(bytes.NewReader(body))
+			statsHandler(r1.Context(), r1)
+		}
 		playgroundHandler.ServeHTTP(w, r)
 	})
+}
+
+func statsHandler(ctx context.Context, r *http.Request) {
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
+	clientID := r.Header.Get("x-iotex-client-id")
+	if clientID == "" {
+		clientID = "unknown"
+	}
+	var body []byte
+	if r.Body != nil {
+		body, _ = io.ReadAll(r.Body)
+	}
+	log.L().Info("request stat", zap.String("clientIP", clientIP), zap.String("clientID", clientID), zap.ByteString("body", body))
 }
