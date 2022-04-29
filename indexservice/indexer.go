@@ -76,6 +76,7 @@ type Config struct {
 	VoteWeightCalConsts     indexprotocol.VoteWeightCalConsts `yaml:"voteWeightCalConsts"`
 	RewardPortionCfg        indexprotocol.RewardPortionCfg    `yaml:"rewardPortionCfg"`
 	ReadOnly                bool                              `yaml:"readOnly"`
+	Zap                     *zap.Config                       `json:"zap" yaml:"zap"`
 }
 
 // NewIndexer creates a new indexer
