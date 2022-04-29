@@ -111,3 +111,4 @@ zap:
   disableStacktrace: false
   outputPaths: ["analytics.log"]
   errorOutputPaths: ["stderr"]
+  
