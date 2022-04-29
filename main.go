@@ -182,28 +182,26 @@ func graphqlHandler(playgroundHandler http.Handler) http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			r1 := r.Clone(r.Context())
 			// clone body
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
-			r1.Body = ioutil.NopCloser(bytes.NewReader(body))
-			statsHandler(r1.Context(), r1)
+			clientIP, clientID := getIPID(r)
+			log.L().Info("request stat",
+				zap.String("clientIP", clientIP),
+				zap.String("clientID", clientID),
+				zap.ByteString("body", body))
 		}
 		playgroundHandler.ServeHTTP(w, r)
 	})
 }
 
-func statsHandler(ctx context.Context, r *http.Request) {
-	clientIP := r.Header.Get("X-Forwarded-For")
-	if clientIP == "" {
-		clientIP = r.RemoteAddr
+func getIPID(r *http.Request) (ip, id string) {
+	ip = r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.RemoteAddr
 	}
-	clientID := r.Header.Get("x-iotex-client-id")
-	if clientID == "" {
-		clientID = "unknown"
+	id = r.Header.Get("x-iotex-client-id")
+	if id == "" {
+		id = "unknown"
 	}
-	var body []byte
-	if r.Body != nil {
-		body, _ = ioutil.ReadAll(r.Body)
-	}
-	log.L().Info("request stat", zap.String("clientIP", clientIP), zap.String("clientID", clientID), zap.ByteString("body", body))
+	return
 }
