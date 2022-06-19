@@ -15,6 +15,17 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
+// Reference imports to suppress errors if they are not otherwise used.
+var (
+	_ = big.NewInt
+	_ = strings.NewReader
+	_ = ethereum.NotFound
+	_ = bind.Bind
+	_ = common.Big1
+	_ = types.BloomLookup
+	_ = event.NewSubscription
+)
+
 // DelegateProfileABI is the input ABI used to generate the binding from.
 const DelegateProfileABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_delegate\",\"type\":\"address\"},{\"name\":\"_name\",\"type\":\"string\"},{\"name\":\"_value\",\"type\":\"bytes\"}],\"name\":\"updateProfileForDelegate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"register\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_delegate\",\"type\":\"address\"}],\"name\":\"getEncodedProfile\",\"outputs\":[{\"name\":\"code_\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"isOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_name\",\"type\":\"string\"}],\"name\":\"getFieldByName\",\"outputs\":[{\"name\":\"verifier_\",\"type\":\"address\"},{\"name\":\"deprecated_\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_byteCode\",\"type\":\"bytes\"}],\"name\":\"updateProfileWithByteCode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"withdraw\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"unpause\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"paused\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_name\",\"type\":\"string\"},{\"name\":\"_verifierAddr\",\"type\":\"address\"}],\"name\":\"newField\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_name\",\"type\":\"string\"},{\"name\":\"_value\",\"type\":\"bytes\"}],\"name\":\"updateProfile\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"pause\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_idx\",\"type\":\"uint256\"}],\"name\":\"getFieldByIndex\",\"outputs\":[{\"name\":\"name_\",\"type\":\"string\"},{\"name\":\"verifier_\",\"type\":\"address\"},{\"name\":\"deprecated_\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_delegate\",\"type\":\"address\"},{\"name\":\"_byteCode\",\"type\":\"bytes\"}],\"name\":\"updateProfileWithByteCodeForDelegate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"fieldNames\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"name\":\"registered\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_delegate\",\"type\":\"address\"},{\"name\":\"_field\",\"type\":\"string\"}],\"name\":\"getProfileByField\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_name\",\"type\":\"string\"}],\"name\":\"deprecateField\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"numOfFields\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"registerAddr\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"fee\",\"type\":\"uint256\"}],\"name\":\"FeeUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"delegate\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"bytes\"}],\"name\":\"ProfileUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"}],\"name\":\"FieldDeprecated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"name\",\"type\":\"string\"}],\"name\":\"NewField\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"Pause\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"Unpause\",\"type\":\"event\"}]"
 
@@ -126,7 +137,7 @@ func bindDelegateProfile(address common.Address, caller bind.ContractCaller, tra
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_DelegateProfile *DelegateProfileRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_DelegateProfile *DelegateProfileRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _DelegateProfile.Contract.DelegateProfileCaller.contract.Call(opts, result, method, params...)
 }
 
@@ -145,7 +156,7 @@ func (_DelegateProfile *DelegateProfileRaw) Transact(opts *bind.TransactOpts, me
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_DelegateProfile *DelegateProfileCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+func (_DelegateProfile *DelegateProfileCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
 	return _DelegateProfile.Contract.contract.Call(opts, result, method, params...)
 }
 
@@ -162,77 +173,97 @@ func (_DelegateProfile *DelegateProfileTransactorRaw) Transact(opts *bind.Transa
 
 // FieldNames is a free data retrieval call binding the contract method 0xb2d3dd66.
 //
-// Solidity: function fieldNames( uint256) constant returns(string)
+// Solidity: function fieldNames(uint256 ) view returns(string)
 func (_DelegateProfile *DelegateProfileCaller) FieldNames(opts *bind.CallOpts, arg0 *big.Int) (string, error) {
-	var (
-		ret0 = new(string)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "fieldNames", arg0)
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "fieldNames", arg0)
+
+	if err != nil {
+		return *new(string), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(string)).(*string)
+
+	return out0, err
+
 }
 
 // FieldNames is a free data retrieval call binding the contract method 0xb2d3dd66.
 //
-// Solidity: function fieldNames( uint256) constant returns(string)
+// Solidity: function fieldNames(uint256 ) view returns(string)
 func (_DelegateProfile *DelegateProfileSession) FieldNames(arg0 *big.Int) (string, error) {
 	return _DelegateProfile.Contract.FieldNames(&_DelegateProfile.CallOpts, arg0)
 }
 
 // FieldNames is a free data retrieval call binding the contract method 0xb2d3dd66.
 //
-// Solidity: function fieldNames( uint256) constant returns(string)
+// Solidity: function fieldNames(uint256 ) view returns(string)
 func (_DelegateProfile *DelegateProfileCallerSession) FieldNames(arg0 *big.Int) (string, error) {
 	return _DelegateProfile.Contract.FieldNames(&_DelegateProfile.CallOpts, arg0)
 }
 
 // GetEncodedProfile is a free data retrieval call binding the contract method 0x2652877e.
 //
-// Solidity: function getEncodedProfile(_delegate address) constant returns(code_ bytes)
+// Solidity: function getEncodedProfile(address _delegate) view returns(bytes code_)
 func (_DelegateProfile *DelegateProfileCaller) GetEncodedProfile(opts *bind.CallOpts, _delegate common.Address) ([]byte, error) {
-	var (
-		ret0 = new([]byte)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "getEncodedProfile", _delegate)
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "getEncodedProfile", _delegate)
+
+	if err != nil {
+		return *new([]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+
+	return out0, err
+
 }
 
 // GetEncodedProfile is a free data retrieval call binding the contract method 0x2652877e.
 //
-// Solidity: function getEncodedProfile(_delegate address) constant returns(code_ bytes)
+// Solidity: function getEncodedProfile(address _delegate) view returns(bytes code_)
 func (_DelegateProfile *DelegateProfileSession) GetEncodedProfile(_delegate common.Address) ([]byte, error) {
 	return _DelegateProfile.Contract.GetEncodedProfile(&_DelegateProfile.CallOpts, _delegate)
 }
 
 // GetEncodedProfile is a free data retrieval call binding the contract method 0x2652877e.
 //
-// Solidity: function getEncodedProfile(_delegate address) constant returns(code_ bytes)
+// Solidity: function getEncodedProfile(address _delegate) view returns(bytes code_)
 func (_DelegateProfile *DelegateProfileCallerSession) GetEncodedProfile(_delegate common.Address) ([]byte, error) {
 	return _DelegateProfile.Contract.GetEncodedProfile(&_DelegateProfile.CallOpts, _delegate)
 }
 
 // GetFieldByIndex is a free data retrieval call binding the contract method 0x8ac834a3.
 //
-// Solidity: function getFieldByIndex(_idx uint256) constant returns(name_ string, verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByIndex(uint256 _idx) view returns(string name_, address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileCaller) GetFieldByIndex(opts *bind.CallOpts, _idx *big.Int) (struct {
 	Name       string
 	Verifier   common.Address
 	Deprecated bool
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "getFieldByIndex", _idx)
+
+	outstruct := new(struct {
 		Name       string
 		Verifier   common.Address
 		Deprecated bool
 	})
-	out := ret
-	err := _DelegateProfile.contract.Call(opts, out, "getFieldByIndex", _idx)
-	return *ret, err
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.Name = *abi.ConvertType(out[0], new(string)).(*string)
+	outstruct.Verifier = *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
+	outstruct.Deprecated = *abi.ConvertType(out[2], new(bool)).(*bool)
+
+	return *outstruct, err
+
 }
 
 // GetFieldByIndex is a free data retrieval call binding the contract method 0x8ac834a3.
 //
-// Solidity: function getFieldByIndex(_idx uint256) constant returns(name_ string, verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByIndex(uint256 _idx) view returns(string name_, address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileSession) GetFieldByIndex(_idx *big.Int) (struct {
 	Name       string
 	Verifier   common.Address
@@ -243,7 +274,7 @@ func (_DelegateProfile *DelegateProfileSession) GetFieldByIndex(_idx *big.Int) (
 
 // GetFieldByIndex is a free data retrieval call binding the contract method 0x8ac834a3.
 //
-// Solidity: function getFieldByIndex(_idx uint256) constant returns(name_ string, verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByIndex(uint256 _idx) view returns(string name_, address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileCallerSession) GetFieldByIndex(_idx *big.Int) (struct {
 	Name       string
 	Verifier   common.Address
@@ -254,23 +285,32 @@ func (_DelegateProfile *DelegateProfileCallerSession) GetFieldByIndex(_idx *big.
 
 // GetFieldByName is a free data retrieval call binding the contract method 0x363d62dd.
 //
-// Solidity: function getFieldByName(_name string) constant returns(verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByName(string _name) view returns(address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileCaller) GetFieldByName(opts *bind.CallOpts, _name string) (struct {
 	Verifier   common.Address
 	Deprecated bool
 }, error) {
-	ret := new(struct {
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "getFieldByName", _name)
+
+	outstruct := new(struct {
 		Verifier   common.Address
 		Deprecated bool
 	})
-	out := ret
-	err := _DelegateProfile.contract.Call(opts, out, "getFieldByName", _name)
-	return *ret, err
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.Verifier = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	outstruct.Deprecated = *abi.ConvertType(out[1], new(bool)).(*bool)
+
+	return *outstruct, err
+
 }
 
 // GetFieldByName is a free data retrieval call binding the contract method 0x363d62dd.
 //
-// Solidity: function getFieldByName(_name string) constant returns(verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByName(string _name) view returns(address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileSession) GetFieldByName(_name string) (struct {
 	Verifier   common.Address
 	Deprecated bool
@@ -280,7 +320,7 @@ func (_DelegateProfile *DelegateProfileSession) GetFieldByName(_name string) (st
 
 // GetFieldByName is a free data retrieval call binding the contract method 0x363d62dd.
 //
-// Solidity: function getFieldByName(_name string) constant returns(verifier_ address, deprecated_ bool)
+// Solidity: function getFieldByName(string _name) view returns(address verifier_, bool deprecated_)
 func (_DelegateProfile *DelegateProfileCallerSession) GetFieldByName(_name string) (struct {
 	Verifier   common.Address
 	Deprecated bool
@@ -290,224 +330,259 @@ func (_DelegateProfile *DelegateProfileCallerSession) GetFieldByName(_name strin
 
 // GetProfileByField is a free data retrieval call binding the contract method 0xcdcb1d52.
 //
-// Solidity: function getProfileByField(_delegate address, _field string) constant returns(bytes)
+// Solidity: function getProfileByField(address _delegate, string _field) view returns(bytes)
 func (_DelegateProfile *DelegateProfileCaller) GetProfileByField(opts *bind.CallOpts, _delegate common.Address, _field string) ([]byte, error) {
-	var (
-		ret0 = new([]byte)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "getProfileByField", _delegate, _field)
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "getProfileByField", _delegate, _field)
+
+	if err != nil {
+		return *new([]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+
+	return out0, err
+
 }
 
 // GetProfileByField is a free data retrieval call binding the contract method 0xcdcb1d52.
 //
-// Solidity: function getProfileByField(_delegate address, _field string) constant returns(bytes)
+// Solidity: function getProfileByField(address _delegate, string _field) view returns(bytes)
 func (_DelegateProfile *DelegateProfileSession) GetProfileByField(_delegate common.Address, _field string) ([]byte, error) {
 	return _DelegateProfile.Contract.GetProfileByField(&_DelegateProfile.CallOpts, _delegate, _field)
 }
 
 // GetProfileByField is a free data retrieval call binding the contract method 0xcdcb1d52.
 //
-// Solidity: function getProfileByField(_delegate address, _field string) constant returns(bytes)
+// Solidity: function getProfileByField(address _delegate, string _field) view returns(bytes)
 func (_DelegateProfile *DelegateProfileCallerSession) GetProfileByField(_delegate common.Address, _field string) ([]byte, error) {
 	return _DelegateProfile.Contract.GetProfileByField(&_DelegateProfile.CallOpts, _delegate, _field)
 }
 
 // IsOwner is a free data retrieval call binding the contract method 0x2f54bf6e.
 //
-// Solidity: function isOwner(_address address) constant returns(bool)
+// Solidity: function isOwner(address _address) view returns(bool)
 func (_DelegateProfile *DelegateProfileCaller) IsOwner(opts *bind.CallOpts, _address common.Address) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "isOwner", _address)
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "isOwner", _address)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // IsOwner is a free data retrieval call binding the contract method 0x2f54bf6e.
 //
-// Solidity: function isOwner(_address address) constant returns(bool)
+// Solidity: function isOwner(address _address) view returns(bool)
 func (_DelegateProfile *DelegateProfileSession) IsOwner(_address common.Address) (bool, error) {
 	return _DelegateProfile.Contract.IsOwner(&_DelegateProfile.CallOpts, _address)
 }
 
 // IsOwner is a free data retrieval call binding the contract method 0x2f54bf6e.
 //
-// Solidity: function isOwner(_address address) constant returns(bool)
+// Solidity: function isOwner(address _address) view returns(bool)
 func (_DelegateProfile *DelegateProfileCallerSession) IsOwner(_address common.Address) (bool, error) {
 	return _DelegateProfile.Contract.IsOwner(&_DelegateProfile.CallOpts, _address)
 }
 
 // NumOfFields is a free data retrieval call binding the contract method 0xe6ce112f.
 //
-// Solidity: function numOfFields() constant returns(uint256)
+// Solidity: function numOfFields() view returns(uint256)
 func (_DelegateProfile *DelegateProfileCaller) NumOfFields(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "numOfFields")
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "numOfFields")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
 }
 
 // NumOfFields is a free data retrieval call binding the contract method 0xe6ce112f.
 //
-// Solidity: function numOfFields() constant returns(uint256)
+// Solidity: function numOfFields() view returns(uint256)
 func (_DelegateProfile *DelegateProfileSession) NumOfFields() (*big.Int, error) {
 	return _DelegateProfile.Contract.NumOfFields(&_DelegateProfile.CallOpts)
 }
 
 // NumOfFields is a free data retrieval call binding the contract method 0xe6ce112f.
 //
-// Solidity: function numOfFields() constant returns(uint256)
+// Solidity: function numOfFields() view returns(uint256)
 func (_DelegateProfile *DelegateProfileCallerSession) NumOfFields() (*big.Int, error) {
 	return _DelegateProfile.Contract.NumOfFields(&_DelegateProfile.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function owner() constant returns(address)
+// Solidity: function owner() view returns(address)
 func (_DelegateProfile *DelegateProfileCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "owner")
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "owner")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function owner() constant returns(address)
+// Solidity: function owner() view returns(address)
 func (_DelegateProfile *DelegateProfileSession) Owner() (common.Address, error) {
 	return _DelegateProfile.Contract.Owner(&_DelegateProfile.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
-// Solidity: function owner() constant returns(address)
+// Solidity: function owner() view returns(address)
 func (_DelegateProfile *DelegateProfileCallerSession) Owner() (common.Address, error) {
 	return _DelegateProfile.Contract.Owner(&_DelegateProfile.CallOpts)
 }
 
 // Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function paused() constant returns(bool)
+// Solidity: function paused() view returns(bool)
 func (_DelegateProfile *DelegateProfileCaller) Paused(opts *bind.CallOpts) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "paused")
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "paused")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function paused() constant returns(bool)
+// Solidity: function paused() view returns(bool)
 func (_DelegateProfile *DelegateProfileSession) Paused() (bool, error) {
 	return _DelegateProfile.Contract.Paused(&_DelegateProfile.CallOpts)
 }
 
 // Paused is a free data retrieval call binding the contract method 0x5c975abb.
 //
-// Solidity: function paused() constant returns(bool)
+// Solidity: function paused() view returns(bool)
 func (_DelegateProfile *DelegateProfileCallerSession) Paused() (bool, error) {
 	return _DelegateProfile.Contract.Paused(&_DelegateProfile.CallOpts)
 }
 
 // Register is a free data retrieval call binding the contract method 0x1aa3a008.
 //
-// Solidity: function register() constant returns(address)
+// Solidity: function register() view returns(address)
 func (_DelegateProfile *DelegateProfileCaller) Register(opts *bind.CallOpts) (common.Address, error) {
-	var (
-		ret0 = new(common.Address)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "register")
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "register")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
 // Register is a free data retrieval call binding the contract method 0x1aa3a008.
 //
-// Solidity: function register() constant returns(address)
+// Solidity: function register() view returns(address)
 func (_DelegateProfile *DelegateProfileSession) Register() (common.Address, error) {
 	return _DelegateProfile.Contract.Register(&_DelegateProfile.CallOpts)
 }
 
 // Register is a free data retrieval call binding the contract method 0x1aa3a008.
 //
-// Solidity: function register() constant returns(address)
+// Solidity: function register() view returns(address)
 func (_DelegateProfile *DelegateProfileCallerSession) Register() (common.Address, error) {
 	return _DelegateProfile.Contract.Register(&_DelegateProfile.CallOpts)
 }
 
 // Registered is a free data retrieval call binding the contract method 0xb2dd5c07.
 //
-// Solidity: function registered(_addr address) constant returns(bool)
+// Solidity: function registered(address _addr) view returns(bool)
 func (_DelegateProfile *DelegateProfileCaller) Registered(opts *bind.CallOpts, _addr common.Address) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _DelegateProfile.contract.Call(opts, out, "registered", _addr)
-	return *ret0, err
+	var out []interface{}
+	err := _DelegateProfile.contract.Call(opts, &out, "registered", _addr)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
 }
 
 // Registered is a free data retrieval call binding the contract method 0xb2dd5c07.
 //
-// Solidity: function registered(_addr address) constant returns(bool)
+// Solidity: function registered(address _addr) view returns(bool)
 func (_DelegateProfile *DelegateProfileSession) Registered(_addr common.Address) (bool, error) {
 	return _DelegateProfile.Contract.Registered(&_DelegateProfile.CallOpts, _addr)
 }
 
 // Registered is a free data retrieval call binding the contract method 0xb2dd5c07.
 //
-// Solidity: function registered(_addr address) constant returns(bool)
+// Solidity: function registered(address _addr) view returns(bool)
 func (_DelegateProfile *DelegateProfileCallerSession) Registered(_addr common.Address) (bool, error) {
 	return _DelegateProfile.Contract.Registered(&_DelegateProfile.CallOpts, _addr)
 }
 
 // DeprecateField is a paid mutator transaction binding the contract method 0xe0adf839.
 //
-// Solidity: function deprecateField(_name string) returns()
+// Solidity: function deprecateField(string _name) returns()
 func (_DelegateProfile *DelegateProfileTransactor) DeprecateField(opts *bind.TransactOpts, _name string) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "deprecateField", _name)
 }
 
 // DeprecateField is a paid mutator transaction binding the contract method 0xe0adf839.
 //
-// Solidity: function deprecateField(_name string) returns()
+// Solidity: function deprecateField(string _name) returns()
 func (_DelegateProfile *DelegateProfileSession) DeprecateField(_name string) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.DeprecateField(&_DelegateProfile.TransactOpts, _name)
 }
 
 // DeprecateField is a paid mutator transaction binding the contract method 0xe0adf839.
 //
-// Solidity: function deprecateField(_name string) returns()
+// Solidity: function deprecateField(string _name) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) DeprecateField(_name string) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.DeprecateField(&_DelegateProfile.TransactOpts, _name)
 }
 
 // NewField is a paid mutator transaction binding the contract method 0x68beafc8.
 //
-// Solidity: function newField(_name string, _verifierAddr address) returns()
+// Solidity: function newField(string _name, address _verifierAddr) returns()
 func (_DelegateProfile *DelegateProfileTransactor) NewField(opts *bind.TransactOpts, _name string, _verifierAddr common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "newField", _name, _verifierAddr)
 }
 
 // NewField is a paid mutator transaction binding the contract method 0x68beafc8.
 //
-// Solidity: function newField(_name string, _verifierAddr address) returns()
+// Solidity: function newField(string _name, address _verifierAddr) returns()
 func (_DelegateProfile *DelegateProfileSession) NewField(_name string, _verifierAddr common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.NewField(&_DelegateProfile.TransactOpts, _name, _verifierAddr)
 }
 
 // NewField is a paid mutator transaction binding the contract method 0x68beafc8.
 //
-// Solidity: function newField(_name string, _verifierAddr address) returns()
+// Solidity: function newField(string _name, address _verifierAddr) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) NewField(_name string, _verifierAddr common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.NewField(&_DelegateProfile.TransactOpts, _name, _verifierAddr)
 }
@@ -535,21 +610,21 @@ func (_DelegateProfile *DelegateProfileTransactorSession) Pause() (*types.Transa
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(_newOwner address) returns()
+// Solidity: function transferOwnership(address _newOwner) returns()
 func (_DelegateProfile *DelegateProfileTransactor) TransferOwnership(opts *bind.TransactOpts, _newOwner common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "transferOwnership", _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(_newOwner address) returns()
+// Solidity: function transferOwnership(address _newOwner) returns()
 func (_DelegateProfile *DelegateProfileSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.TransferOwnership(&_DelegateProfile.TransactOpts, _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(_newOwner address) returns()
+// Solidity: function transferOwnership(address _newOwner) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.TransferOwnership(&_DelegateProfile.TransactOpts, _newOwner)
 }
@@ -577,84 +652,84 @@ func (_DelegateProfile *DelegateProfileTransactorSession) Unpause() (*types.Tran
 
 // UpdateProfile is a paid mutator transaction binding the contract method 0x6eeb9b10.
 //
-// Solidity: function updateProfile(_name string, _value bytes) returns()
+// Solidity: function updateProfile(string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileTransactor) UpdateProfile(opts *bind.TransactOpts, _name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "updateProfile", _name, _value)
 }
 
 // UpdateProfile is a paid mutator transaction binding the contract method 0x6eeb9b10.
 //
-// Solidity: function updateProfile(_name string, _value bytes) returns()
+// Solidity: function updateProfile(string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileSession) UpdateProfile(_name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfile(&_DelegateProfile.TransactOpts, _name, _value)
 }
 
 // UpdateProfile is a paid mutator transaction binding the contract method 0x6eeb9b10.
 //
-// Solidity: function updateProfile(_name string, _value bytes) returns()
+// Solidity: function updateProfile(string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) UpdateProfile(_name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfile(&_DelegateProfile.TransactOpts, _name, _value)
 }
 
 // UpdateProfileForDelegate is a paid mutator transaction binding the contract method 0x199baa71.
 //
-// Solidity: function updateProfileForDelegate(_delegate address, _name string, _value bytes) returns()
+// Solidity: function updateProfileForDelegate(address _delegate, string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileTransactor) UpdateProfileForDelegate(opts *bind.TransactOpts, _delegate common.Address, _name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "updateProfileForDelegate", _delegate, _name, _value)
 }
 
 // UpdateProfileForDelegate is a paid mutator transaction binding the contract method 0x199baa71.
 //
-// Solidity: function updateProfileForDelegate(_delegate address, _name string, _value bytes) returns()
+// Solidity: function updateProfileForDelegate(address _delegate, string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileSession) UpdateProfileForDelegate(_delegate common.Address, _name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileForDelegate(&_DelegateProfile.TransactOpts, _delegate, _name, _value)
 }
 
 // UpdateProfileForDelegate is a paid mutator transaction binding the contract method 0x199baa71.
 //
-// Solidity: function updateProfileForDelegate(_delegate address, _name string, _value bytes) returns()
+// Solidity: function updateProfileForDelegate(address _delegate, string _name, bytes _value) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) UpdateProfileForDelegate(_delegate common.Address, _name string, _value []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileForDelegate(&_DelegateProfile.TransactOpts, _delegate, _name, _value)
 }
 
 // UpdateProfileWithByteCode is a paid mutator transaction binding the contract method 0x37d1f437.
 //
-// Solidity: function updateProfileWithByteCode(_byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCode(bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileTransactor) UpdateProfileWithByteCode(opts *bind.TransactOpts, _byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "updateProfileWithByteCode", _byteCode)
 }
 
 // UpdateProfileWithByteCode is a paid mutator transaction binding the contract method 0x37d1f437.
 //
-// Solidity: function updateProfileWithByteCode(_byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCode(bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileSession) UpdateProfileWithByteCode(_byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileWithByteCode(&_DelegateProfile.TransactOpts, _byteCode)
 }
 
 // UpdateProfileWithByteCode is a paid mutator transaction binding the contract method 0x37d1f437.
 //
-// Solidity: function updateProfileWithByteCode(_byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCode(bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) UpdateProfileWithByteCode(_byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileWithByteCode(&_DelegateProfile.TransactOpts, _byteCode)
 }
 
 // UpdateProfileWithByteCodeForDelegate is a paid mutator transaction binding the contract method 0xac468ebc.
 //
-// Solidity: function updateProfileWithByteCodeForDelegate(_delegate address, _byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCodeForDelegate(address _delegate, bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileTransactor) UpdateProfileWithByteCodeForDelegate(opts *bind.TransactOpts, _delegate common.Address, _byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.contract.Transact(opts, "updateProfileWithByteCodeForDelegate", _delegate, _byteCode)
 }
 
 // UpdateProfileWithByteCodeForDelegate is a paid mutator transaction binding the contract method 0xac468ebc.
 //
-// Solidity: function updateProfileWithByteCodeForDelegate(_delegate address, _byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCodeForDelegate(address _delegate, bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileSession) UpdateProfileWithByteCodeForDelegate(_delegate common.Address, _byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileWithByteCodeForDelegate(&_DelegateProfile.TransactOpts, _delegate, _byteCode)
 }
 
 // UpdateProfileWithByteCodeForDelegate is a paid mutator transaction binding the contract method 0xac468ebc.
 //
-// Solidity: function updateProfileWithByteCodeForDelegate(_delegate address, _byteCode bytes) returns()
+// Solidity: function updateProfileWithByteCodeForDelegate(address _delegate, bytes _byteCode) returns()
 func (_DelegateProfile *DelegateProfileTransactorSession) UpdateProfileWithByteCodeForDelegate(_delegate common.Address, _byteCode []byte) (*types.Transaction, error) {
 	return _DelegateProfile.Contract.UpdateProfileWithByteCodeForDelegate(&_DelegateProfile.TransactOpts, _delegate, _byteCode)
 }
@@ -755,7 +830,7 @@ type DelegateProfileFeeUpdated struct {
 
 // FilterFeeUpdated is a free log retrieval operation binding the contract event 0x8c4d35e54a3f2ef1134138fd8ea3daee6a3c89e10d2665996babdf70261e2c76.
 //
-// Solidity: e FeeUpdated(fee uint256)
+// Solidity: event FeeUpdated(uint256 fee)
 func (_DelegateProfile *DelegateProfileFilterer) FilterFeeUpdated(opts *bind.FilterOpts) (*DelegateProfileFeeUpdatedIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "FeeUpdated")
@@ -767,7 +842,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterFeeUpdated(opts *bind.Fil
 
 // WatchFeeUpdated is a free log subscription operation binding the contract event 0x8c4d35e54a3f2ef1134138fd8ea3daee6a3c89e10d2665996babdf70261e2c76.
 //
-// Solidity: e FeeUpdated(fee uint256)
+// Solidity: event FeeUpdated(uint256 fee)
 func (_DelegateProfile *DelegateProfileFilterer) WatchFeeUpdated(opts *bind.WatchOpts, sink chan<- *DelegateProfileFeeUpdated) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "FeeUpdated")
@@ -800,6 +875,18 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchFeeUpdated(opts *bind.Watc
 			}
 		}
 	}), nil
+}
+
+// ParseFeeUpdated is a log parse operation binding the contract event 0x8c4d35e54a3f2ef1134138fd8ea3daee6a3c89e10d2665996babdf70261e2c76.
+//
+// Solidity: event FeeUpdated(uint256 fee)
+func (_DelegateProfile *DelegateProfileFilterer) ParseFeeUpdated(log types.Log) (*DelegateProfileFeeUpdated, error) {
+	event := new(DelegateProfileFeeUpdated)
+	if err := _DelegateProfile.contract.UnpackLog(event, "FeeUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // DelegateProfileFieldDeprecatedIterator is returned from FilterFieldDeprecated and is used to iterate over the raw logs and unpacked data for FieldDeprecated events raised by the DelegateProfile contract.
@@ -877,7 +964,7 @@ type DelegateProfileFieldDeprecated struct {
 
 // FilterFieldDeprecated is a free log retrieval operation binding the contract event 0xf47b35d35c737e18368ebfa5496bc97dabcea3e7b0075269da84fc32d0f201b8.
 //
-// Solidity: e FieldDeprecated(name string)
+// Solidity: event FieldDeprecated(string name)
 func (_DelegateProfile *DelegateProfileFilterer) FilterFieldDeprecated(opts *bind.FilterOpts) (*DelegateProfileFieldDeprecatedIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "FieldDeprecated")
@@ -889,7 +976,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterFieldDeprecated(opts *bin
 
 // WatchFieldDeprecated is a free log subscription operation binding the contract event 0xf47b35d35c737e18368ebfa5496bc97dabcea3e7b0075269da84fc32d0f201b8.
 //
-// Solidity: e FieldDeprecated(name string)
+// Solidity: event FieldDeprecated(string name)
 func (_DelegateProfile *DelegateProfileFilterer) WatchFieldDeprecated(opts *bind.WatchOpts, sink chan<- *DelegateProfileFieldDeprecated) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "FieldDeprecated")
@@ -922,6 +1009,18 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchFieldDeprecated(opts *bind
 			}
 		}
 	}), nil
+}
+
+// ParseFieldDeprecated is a log parse operation binding the contract event 0xf47b35d35c737e18368ebfa5496bc97dabcea3e7b0075269da84fc32d0f201b8.
+//
+// Solidity: event FieldDeprecated(string name)
+func (_DelegateProfile *DelegateProfileFilterer) ParseFieldDeprecated(log types.Log) (*DelegateProfileFieldDeprecated, error) {
+	event := new(DelegateProfileFieldDeprecated)
+	if err := _DelegateProfile.contract.UnpackLog(event, "FieldDeprecated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // DelegateProfileNewFieldIterator is returned from FilterNewField and is used to iterate over the raw logs and unpacked data for NewField events raised by the DelegateProfile contract.
@@ -999,7 +1098,7 @@ type DelegateProfileNewField struct {
 
 // FilterNewField is a free log retrieval operation binding the contract event 0x53096991d49a1876b3be4d7f3d107f7f92043e0fceec1e81b5ba38841d78123b.
 //
-// Solidity: e NewField(name string)
+// Solidity: event NewField(string name)
 func (_DelegateProfile *DelegateProfileFilterer) FilterNewField(opts *bind.FilterOpts) (*DelegateProfileNewFieldIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "NewField")
@@ -1011,7 +1110,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterNewField(opts *bind.Filte
 
 // WatchNewField is a free log subscription operation binding the contract event 0x53096991d49a1876b3be4d7f3d107f7f92043e0fceec1e81b5ba38841d78123b.
 //
-// Solidity: e NewField(name string)
+// Solidity: event NewField(string name)
 func (_DelegateProfile *DelegateProfileFilterer) WatchNewField(opts *bind.WatchOpts, sink chan<- *DelegateProfileNewField) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "NewField")
@@ -1044,6 +1143,18 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchNewField(opts *bind.WatchO
 			}
 		}
 	}), nil
+}
+
+// ParseNewField is a log parse operation binding the contract event 0x53096991d49a1876b3be4d7f3d107f7f92043e0fceec1e81b5ba38841d78123b.
+//
+// Solidity: event NewField(string name)
+func (_DelegateProfile *DelegateProfileFilterer) ParseNewField(log types.Log) (*DelegateProfileNewField, error) {
+	event := new(DelegateProfileNewField)
+	if err := _DelegateProfile.contract.UnpackLog(event, "NewField", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // DelegateProfilePauseIterator is returned from FilterPause and is used to iterate over the raw logs and unpacked data for Pause events raised by the DelegateProfile contract.
@@ -1120,7 +1231,7 @@ type DelegateProfilePause struct {
 
 // FilterPause is a free log retrieval operation binding the contract event 0x6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff625.
 //
-// Solidity: e Pause()
+// Solidity: event Pause()
 func (_DelegateProfile *DelegateProfileFilterer) FilterPause(opts *bind.FilterOpts) (*DelegateProfilePauseIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "Pause")
@@ -1132,7 +1243,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterPause(opts *bind.FilterOp
 
 // WatchPause is a free log subscription operation binding the contract event 0x6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff625.
 //
-// Solidity: e Pause()
+// Solidity: event Pause()
 func (_DelegateProfile *DelegateProfileFilterer) WatchPause(opts *bind.WatchOpts, sink chan<- *DelegateProfilePause) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "Pause")
@@ -1165,6 +1276,18 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchPause(opts *bind.WatchOpts
 			}
 		}
 	}), nil
+}
+
+// ParsePause is a log parse operation binding the contract event 0x6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff625.
+//
+// Solidity: event Pause()
+func (_DelegateProfile *DelegateProfileFilterer) ParsePause(log types.Log) (*DelegateProfilePause, error) {
+	event := new(DelegateProfilePause)
+	if err := _DelegateProfile.contract.UnpackLog(event, "Pause", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // DelegateProfileProfileUpdatedIterator is returned from FilterProfileUpdated and is used to iterate over the raw logs and unpacked data for ProfileUpdated events raised by the DelegateProfile contract.
@@ -1244,7 +1367,7 @@ type DelegateProfileProfileUpdated struct {
 
 // FilterProfileUpdated is a free log retrieval operation binding the contract event 0x217aa5ef0b78f028d51fd573433bdbe2daf6f8505e6a71f3af1393c8440b341b.
 //
-// Solidity: e ProfileUpdated(delegate address, name string, value bytes)
+// Solidity: event ProfileUpdated(address delegate, string name, bytes value)
 func (_DelegateProfile *DelegateProfileFilterer) FilterProfileUpdated(opts *bind.FilterOpts) (*DelegateProfileProfileUpdatedIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "ProfileUpdated")
@@ -1256,7 +1379,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterProfileUpdated(opts *bind
 
 // WatchProfileUpdated is a free log subscription operation binding the contract event 0x217aa5ef0b78f028d51fd573433bdbe2daf6f8505e6a71f3af1393c8440b341b.
 //
-// Solidity: e ProfileUpdated(delegate address, name string, value bytes)
+// Solidity: event ProfileUpdated(address delegate, string name, bytes value)
 func (_DelegateProfile *DelegateProfileFilterer) WatchProfileUpdated(opts *bind.WatchOpts, sink chan<- *DelegateProfileProfileUpdated) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "ProfileUpdated")
@@ -1289,6 +1412,18 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchProfileUpdated(opts *bind.
 			}
 		}
 	}), nil
+}
+
+// ParseProfileUpdated is a log parse operation binding the contract event 0x217aa5ef0b78f028d51fd573433bdbe2daf6f8505e6a71f3af1393c8440b341b.
+//
+// Solidity: event ProfileUpdated(address delegate, string name, bytes value)
+func (_DelegateProfile *DelegateProfileFilterer) ParseProfileUpdated(log types.Log) (*DelegateProfileProfileUpdated, error) {
+	event := new(DelegateProfileProfileUpdated)
+	if err := _DelegateProfile.contract.UnpackLog(event, "ProfileUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // DelegateProfileUnpauseIterator is returned from FilterUnpause and is used to iterate over the raw logs and unpacked data for Unpause events raised by the DelegateProfile contract.
@@ -1365,7 +1500,7 @@ type DelegateProfileUnpause struct {
 
 // FilterUnpause is a free log retrieval operation binding the contract event 0x7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33.
 //
-// Solidity: e Unpause()
+// Solidity: event Unpause()
 func (_DelegateProfile *DelegateProfileFilterer) FilterUnpause(opts *bind.FilterOpts) (*DelegateProfileUnpauseIterator, error) {
 
 	logs, sub, err := _DelegateProfile.contract.FilterLogs(opts, "Unpause")
@@ -1377,7 +1512,7 @@ func (_DelegateProfile *DelegateProfileFilterer) FilterUnpause(opts *bind.Filter
 
 // WatchUnpause is a free log subscription operation binding the contract event 0x7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33.
 //
-// Solidity: e Unpause()
+// Solidity: event Unpause()
 func (_DelegateProfile *DelegateProfileFilterer) WatchUnpause(opts *bind.WatchOpts, sink chan<- *DelegateProfileUnpause) (event.Subscription, error) {
 
 	logs, sub, err := _DelegateProfile.contract.WatchLogs(opts, "Unpause")
@@ -1410,4 +1545,16 @@ func (_DelegateProfile *DelegateProfileFilterer) WatchUnpause(opts *bind.WatchOp
 			}
 		}
 	}), nil
+}
+
+// ParseUnpause is a log parse operation binding the contract event 0x7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33.
+//
+// Solidity: event Unpause()
+func (_DelegateProfile *DelegateProfileFilterer) ParseUnpause(log types.Log) (*DelegateProfileUnpause, error) {
+	event := new(DelegateProfileUnpause)
+	if err := _DelegateProfile.contract.UnpackLog(event, "Unpause", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }

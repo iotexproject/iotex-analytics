@@ -139,7 +139,7 @@ func getDistributeEventFromLog(logs []*action.Log) (uint64, uint64, string, bool
 			NumOfRecipients *big.Int
 			TotalAmount     *big.Int
 		}{}
-		if err := hermesABI.Unpack(&event, DistributeEventName, log.Data); err != nil {
+		if err := hermesABI.UnpackIntoInterface(&event, DistributeEventName, log.Data); err != nil {
 			return 0, 0, "", false, err
 		}
 

@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/iotex-core/ioctl/util"
+	"github.com/iotexproject/iotex-core/pkg/util/addrutil"
 	"github.com/iotexproject/iotex-election/db"
 	"github.com/iotexproject/iotex-proto/golang/iotexapi"
 	"github.com/iotexproject/iotex-proto/golang/iotextypes"
@@ -91,7 +91,7 @@ func (p *Protocol) updateStakingResult(tx *sql.Tx, candidates *iotextypes.Candid
 	}
 
 	for _, candidate := range candidates.Candidates {
-		stakingAddress, err := util.IoAddrToEvmAddr(candidate.OwnerAddress)
+		stakingAddress, err := addrutil.IoAddrToEvmAddr(candidate.OwnerAddress)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 		}
@@ -183,7 +183,7 @@ func (p *Protocol) updateAggregateStaking(tx *sql.Tx, votes *iotextypes.VoteBuck
 		if _, ok := nameMap[key.candidateName]; !ok {
 			return errors.New("candidate cannot find name through owner address")
 		}
-		voterAddress, err := util.IoAddrToEvmAddr(key.voterAddress)
+		voterAddress, err := addrutil.IoAddrToEvmAddr(key.voterAddress)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 		}
@@ -279,7 +279,7 @@ func (p *Protocol) getStakingBucketInfoByEpoch(height, epochNum uint64, delegate
 				votingPower := new(big.Float).SetInt(weightedVotes)
 				weightedVotes, _ = votingPower.Mul(votingPower, big.NewFloat(intensityRate)).Int(nil)
 			}
-			voteOwnerAddress, err := util.IoAddrToEvmAddr(vote.Owner)
+			voteOwnerAddress, err := addrutil.IoAddrToEvmAddr(vote.Owner)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 			}
@@ -454,7 +454,7 @@ func getLog(contractAddress string, from, count uint64, chainClient iotexapi.API
 			switch hex.EncodeToString(topic) {
 			case topicProfileUpdated:
 				event := new(contract.DelegateProfileProfileUpdated)
-				if err := delegateProfileABI.Unpack(event, "ProfileUpdated", l.Data); err != nil {
+				if err := delegateProfileABI.UnpackIntoInterface(event, "ProfileUpdated", l.Data); err != nil {
 					continue
 				}
 				switch event.Name {

@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/iotex-address/address"
-	"github.com/iotexproject/iotex-core/ioctl/util"
+	"github.com/iotexproject/iotex-core/pkg/util/addrutil"
 
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/rewards"
@@ -331,7 +331,7 @@ func (p *Protocol) GetAverageHermesStats(startEpoch uint64, epochCount uint64, r
 
 // GetRewardSources gets reward sources given a voter's IoTeX address
 func (p *Protocol) GetRewardSources(startEpoch uint64, epochCount uint64, voterIotexAddress string) ([]*DelegateAmount, error) {
-	voterEthAddress, err := util.IoAddrToEvmAddr(voterIotexAddress)
+	voterEthAddress, err := addrutil.IoAddrToEvmAddr(voterIotexAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert IoTeX address to ETH address")
 	}
