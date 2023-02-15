@@ -16,12 +16,12 @@ require (
 	github.com/iotexproject/iotex-election v0.3.5-0.20201031050050-c3ab4f339a54
 	github.com/iotexproject/iotex-proto v0.5.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.3.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/rs/zerolog v1.18.0
 	github.com/stretchr/testify v1.6.1
 	github.com/vektah/gqlparser v1.1.2
 	go.uber.org/zap v1.14.0
-	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	golang.org/x/tools v0.0.0-20200318150045-ba25ddc85566 // indirect
 	google.golang.org/grpc v1.33.1
 	gopkg.in/yaml.v2 v2.4.0
