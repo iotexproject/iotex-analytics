@@ -1,3 +1,5 @@
+# This repo is not actively maintained. Please refer to https://github.com/iotexproject/iotex-analyser-api
+
 <p align="center">
   <img src="https://github.com/iotexproject/iotex-analytics/blob/master/analytics.png" width="480px">
 </p>
