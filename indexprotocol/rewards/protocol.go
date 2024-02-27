@@ -184,7 +184,11 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 	// log action index
 	for _, selp := range blk.Actions {
 		if _, ok := selp.Action().(*action.GrantReward); ok {
-			grantRewardActs[selp.Hash()] = true
+			hash, err := selp.Hash()
+			if err != nil {
+				return errors.Wrap(err, "fetch hash error")
+			}
+			grantRewardActs[hash] = true
 		}
 	}
 	// log receipt index

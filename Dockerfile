@@ -1,4 +1,4 @@
-FROM golang:1.13.4-stretch
+FROM golang:1.18.3-stretch
 
 WORKDIR apps/iotex-analytics/
 
