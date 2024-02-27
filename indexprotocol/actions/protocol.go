@@ -24,6 +24,7 @@ import (
 	"github.com/iotexproject/iotex-analytics/indexprotocol"
 	"github.com/iotexproject/iotex-analytics/indexprotocol/blocks"
 	s "github.com/iotexproject/iotex-analytics/sql"
+	"github.com/iotexproject/iotex-analytics/utils"
 )
 
 const (
@@ -202,6 +203,14 @@ func (p *Protocol) HandleBlock(ctx context.Context, tx *sql.Tx, blk *block.Block
 			return err
 		}
 		dst, _ := selp.Destination()
+		if len(dst) > 41 {
+			addr, err := utils.FixErrorAddress(dst)
+			if err != nil {
+				dst = "io1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc96xkxh5"
+			} else {
+				dst = addr.String()
+			}
+		}
 		gasPrice := selp.GasPrice().String()
 		nonce := selp.Nonce()
 
